@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 from dotenv import load_dotenv
 import pickle
@@ -14,6 +14,21 @@ from googleapiclient.errors import HttpError
 
 # Load environment variables
 load_dotenv()
+
+# Timezone helper function
+def get_current_time():
+    """Get current time in Pakistan timezone (PKT) or system local time"""
+    try:
+        import pytz
+        # Try to use Pakistan timezone
+        pk_tz = pytz.timezone('Asia/Karachi')
+        return datetime.now(pk_tz)
+    except ImportError:
+        # If pytz is not available, fallback to system local time
+        return datetime.now()
+    except:
+        # For any other error, fallback to system local time
+        return datetime.now()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
@@ -1020,14 +1035,18 @@ def attendance_action():
 
     if action == 'check_in':
         if attendance.check_in_time is None:
-            attendance.check_in_time = datetime.now().time()
+            # Record current time for check-in using timezone-aware datetime
+            current_datetime = get_current_time()
+            attendance.check_in_time = current_datetime.time()
             attendance.status = 'present'
         else:
             flash('Already checked in today')
             return redirect(url_for('student_dashboard'))
     elif action == 'check_out':
         if attendance.check_in_time and attendance.check_out_time is None:
-            attendance.check_out_time = datetime.now().time()
+            # Record current time for check-out using timezone-aware datetime
+            current_datetime = get_current_time()
+            attendance.check_out_time = current_datetime.time()
         else:
             flash('Check in first or already checked out')
             return redirect(url_for('student_dashboard'))
