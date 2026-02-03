@@ -221,104 +221,76 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 def authenticate_google_sheets():
     """Authenticate and return Google Sheets service object"""
     creds = None
+    from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
-    # Try the external credentials file first
-    external_creds_path = r'E:\Governor Sindh Course\Application\myapp\gen-lang-client-0321830476-1f4575af7b34.json'
-    if os.path.exists(external_creds_path):
+    # First, try environment variable (works in Railway and other cloud platforms)
+    creds_json = os.getenv('GOOGLE_SHEETS_CREDENTIALS_JSON')
+    if creds_json:
+        import json
         try:
-            from google.oauth2.service_account import Credentials as ServiceAccountCredentials
-            creds = ServiceAccountCredentials.from_service_account_file(
-                external_creds_path, scopes=SCOPES
+            # Parse the credentials JSON from environment variable
+            # Handle potential newline characters in the private key
+            credentials_info = json.loads(creds_json)
+
+            # Fix the private key by replacing literal \n with actual newlines
+            if 'private_key' in credentials_info:
+                # Properly decode the private key by handling escaped newlines
+                private_key = credentials_info['private_key']
+                # Replace escaped newlines with actual newlines
+                private_key = private_key.replace('\\n', '\n')
+                credentials_info['private_key'] = private_key
+
+            # Create credentials object from the service account info
+            creds = ServiceAccountCredentials.from_service_account_info(
+                credentials_info, scopes=SCOPES
             )
-            print("Successfully loaded credentials from external credentials file")
-        except Exception as e:
-            print(f"Error using external credentials file: {e}")
-            # Fallback to local credentials.json file
-            if os.path.exists('credentials.json'):
-                try:
-                    creds = ServiceAccountCredentials.from_service_account_file(
-                        'credentials.json', scopes=SCOPES
-                    )
-                    print("Successfully loaded credentials from local credentials.json file")
-                except Exception as local_error:
-                    print(f"Error using local credentials.json file: {local_error}")
-                    # Fallback to environment variable if file approach fails
-                    creds_json = os.getenv('GOOGLE_SHEETS_CREDENTIALS_JSON')
-                    if creds_json:
-                        import json
-                        try:
-                            # Parse the credentials JSON from environment variable
-                            # Handle potential newline characters in the private key
-                            credentials_info = json.loads(creds_json)
+            print("Successfully loaded credentials from environment variable")
+        except (ValueError, TypeError) as env_error:
+            print(f"Error parsing service account credentials from environment: {env_error}")
 
-                            # Fix the private key by replacing literal \n with actual newlines
-                            if 'private_key' in credentials_info:
-                                # Properly decode the private key by handling escaped newlines
-                                private_key = credentials_info['private_key']
-                                # Replace escaped newlines with actual newlines
-                                private_key = private_key.replace('\\n', '\n')
-                                credentials_info['private_key'] = private_key
+    # If environment variable didn't work, try local credentials.json file
+    if not creds and os.path.exists('credentials.json'):
+        try:
+            creds = ServiceAccountCredentials.from_service_account_file(
+                'credentials.json', scopes=SCOPES
+            )
+            print("Successfully loaded credentials from local credentials.json file")
+        except Exception as local_error:
+            print(f"Error using local credentials.json file: {local_error}")
 
-                            # Create credentials object from the service account info
-                            creds = ServiceAccountCredentials.from_service_account_info(
-                                credentials_info, scopes=SCOPES
-                            )
-                            print("Successfully loaded credentials from environment variable")
-                        except (ValueError, TypeError) as env_error:
-                            print(f"Error parsing service account credentials from environment: {env_error}")
-                            # Fallback to token.pickle if available
-                            if os.path.exists('token.pickle'):
-                                with open('token.pickle', 'rb') as token:
-                                    creds = pickle.load(token)
-
-    else:
-        # If no credentials.json file, try environment variable
-        creds_json = os.getenv('GOOGLE_SHEETS_CREDENTIALS_JSON')
-        if creds_json:
-            import json
-            from google.oauth2.service_account import Credentials as ServiceAccountCredentials
-
-            try:
-                # Parse the credentials JSON from environment variable
-                # Handle potential newline characters in the private key
-                credentials_info = json.loads(creds_json)
-
-                # Fix the private key by replacing literal \n with actual newlines
-                if 'private_key' in credentials_info:
-                    # Properly decode the private key by handling escaped newlines
-                    private_key = credentials_info['private_key']
-                    # Replace escaped newlines with actual newlines
-                    private_key = private_key.replace('\\n', '\n')
-                    credentials_info['private_key'] = private_key
-
-                # Create credentials object from the service account info
-                creds = ServiceAccountCredentials.from_service_account_info(
-                    credentials_info, scopes=SCOPES
-                )
-            except (ValueError, TypeError) as e:
-                print(f"Error parsing service account credentials from environment: {e}")
-                # Check if it's a cryptography-related error
-                if "Unable to load PEM file" in str(e):
-                    print("Cryptography error detected. Please ensure you have the correct version of cryptography library installed.")
-                    print("Try running: pip install --upgrade cryptography")
-                # Fallback to token.pickle if available
-                if os.path.exists('token.pickle'):
-                    with open('token.pickle', 'rb') as token:
-                        creds = pickle.load(token)
+    # Fallback to token.pickle if available
+    if not creds and os.path.exists('token.pickle'):
+        try:
+            with open('token.pickle', 'rb') as token:
+                creds = pickle.load(token)
+            print("Successfully loaded credentials from token.pickle")
+        except Exception as token_error:
+            print(f"Error loading credentials from token.pickle: {token_error}")
 
     # For service account, we don't need to refresh or use OAuth flow
-    # If we have valid credentials, use them; otherwise, raise an error
+    # If we have valid credentials, use them; otherwise, return None gracefully
     if not creds:
-        raise Exception("No valid credentials found for Google Sheets API. Please ensure your service account credentials are properly configured.")
+        print("No valid credentials found for Google Sheets API. Google Sheets integration will be disabled.")
+        return None
 
-    service = build('sheets', 'v4', credentials=creds)
-    return service
+    try:
+        service = build('sheets', 'v4', credentials=creds)
+        return service
+    except Exception as e:
+        print(f"Error building Google Sheets service: {e}")
+        return None
 
 
 def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status):
     """Add attendance record to Google Sheet"""
     try:
         service = authenticate_google_sheets()
+
+        # If authentication failed, return False but log the reason
+        if not service:
+            print("Google Sheets service not available, skipping sync")
+            return False
+
         sheet = service.spreadsheets()
 
         # Get the Google Sheet ID from environment variable
@@ -345,7 +317,7 @@ def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status)
             body=body
         ).execute()
 
-        print(f"{result.get('updates').get('updatedCells')} cells updated.")
+        print(f"Attendance data sent to Google Sheets successfully.")
         return True
     except Exception as e:
         print(f"Error adding to Google Sheets: {e}")
