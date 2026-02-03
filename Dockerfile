@@ -7,6 +7,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Make startup script executable
+RUN chmod +x startup.sh
+
 EXPOSE 8000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "app:app"]
+# Use startup script to initialize database before starting app
+CMD ["sh", "-c", "./startup.sh && exec gunicorn --bind 0.0.0.0:8000 --workers 2 app:app"]
