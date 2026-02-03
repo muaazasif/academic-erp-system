@@ -310,12 +310,27 @@ def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status)
         }
 
         # Append the data to the sheet
-        result = sheet.values().append(
-            spreadsheetId=SPREADSHEET_ID,
-            range='Attendance!A:H',  # Using 'Attendance' sheet tab
-            valueInputOption='RAW',
-            body=body
-        ).execute()
+        # Try common sheet names if 'Attendance' doesn't exist
+        sheet_ranges = ['Attendance!A:H', 'Sheet1!A:H', 'A:H']
+        result = None
+
+        for sheet_range in sheet_ranges:
+            try:
+                result = sheet.values().append(
+                    spreadsheetId=SPREADSHEET_ID,
+                    range=sheet_range,
+                    valueInputOption='RAW',
+                    body=body
+                ).execute()
+                print(f"Attendance data sent to Google Sheets successfully in range {sheet_range}.")
+                break
+            except Exception as e:
+                print(f"Failed to write to range {sheet_range}: {e}")
+                continue
+
+        if not result:
+            print("Failed to write to any sheet range")
+            return False
 
         print(f"Attendance data sent to Google Sheets successfully.")
         return True
@@ -346,15 +361,27 @@ def add_assignment_submission_to_sheet(student_id, name, assignment_title, submi
             'values': values
         }
 
-        # Append the data to the sheet in a different range (Assignments sheet)
-        result = sheet.values().append(
-            spreadsheetId=SPREADSHEET_ID,
-            range='Assignments!A:G',  # Using 'Assignments' sheet tab
-            valueInputOption='RAW',
-            body=body
-        ).execute()
+        # Try common sheet names for assignments
+        sheet_ranges = ['Assignments!A:G', 'Sheet1!A:G', 'A:G']
+        result = None
 
-        print(f"{result.get('updates').get('updatedCells')} cells updated in Assignments sheet.")
+        for sheet_range in sheet_ranges:
+            try:
+                result = sheet.values().append(
+                    spreadsheetId=SPREADSHEET_ID,
+                    range=sheet_range,
+                    valueInputOption='RAW',
+                    body=body
+                ).execute()
+                print(f"Assignment data sent to Google Sheets successfully in range {sheet_range}.")
+                break
+            except Exception as e:
+                print(f"Failed to write to range {sheet_range}: {e}")
+                continue
+
+        if not result:
+            print("Failed to write to any sheet range for assignments")
+            return False
         return True
     except Exception as e:
         print(f"Error adding assignment submission to Google Sheets: {e}")
@@ -383,15 +410,27 @@ def add_quiz_submission_to_sheet(student_id, name, quiz_title, score, total_ques
             'values': values
         }
 
-        # Append the data to the sheet in a different range (Quizzes sheet)
-        result = sheet.values().append(
-            spreadsheetId=SPREADSHEET_ID,
-            range='Quizzes!A:H',  # Using 'Quizzes' sheet tab
-            valueInputOption='RAW',
-            body=body
-        ).execute()
+        # Try common sheet names for quizzes
+        sheet_ranges = ['Quizzes!A:H', 'Sheet1!A:H', 'A:H']
+        result = None
 
-        print(f"{result.get('updates').get('updatedCells')} cells updated in Quizzes sheet.")
+        for sheet_range in sheet_ranges:
+            try:
+                result = sheet.values().append(
+                    spreadsheetId=SPREADSHEET_ID,
+                    range=sheet_range,
+                    valueInputOption='RAW',
+                    body=body
+                ).execute()
+                print(f"Quiz data sent to Google Sheets successfully in range {sheet_range}.")
+                break
+            except Exception as e:
+                print(f"Failed to write to range {sheet_range}: {e}")
+                continue
+
+        if not result:
+            print("Failed to write to any sheet range for quizzes")
+            return False
         return True
     except Exception as e:
         print(f"Error adding quiz submission to Google Sheets: {e}")
@@ -436,15 +475,27 @@ def add_detailed_quiz_answers_to_sheet(student_id, name, quiz_title, questions_d
             'values': values
         }
 
-        # Append the data to the sheet in a different range (Detailed Quiz Answers sheet)
-        result = sheet.values().append(
-            spreadsheetId=SPREADSHEET_ID,
-            range='DetailedQuizAnswers!A:J',  # Using 'DetailedQuizAnswers' sheet tab
-            valueInputOption='RAW',
-            body=body
-        ).execute()
+        # Try common sheet names for detailed quiz answers
+        sheet_ranges = ['DetailedQuizAnswers!A:J', 'Sheet1!A:J', 'A:J']
+        result = None
 
-        print(f"{result.get('updates').get('updatedCells')} cells updated in DetailedQuizAnswers sheet.")
+        for sheet_range in sheet_ranges:
+            try:
+                result = sheet.values().append(
+                    spreadsheetId=SPREADSHEET_ID,
+                    range=sheet_range,
+                    valueInputOption='RAW',
+                    body=body
+                ).execute()
+                print(f"Detailed quiz answers sent to Google Sheets successfully in range {sheet_range}.")
+                break
+            except Exception as e:
+                print(f"Failed to write to range {sheet_range}: {e}")
+                continue
+
+        if not result:
+            print("Failed to write to any sheet range for detailed quiz answers")
+            return False
         return True
     except Exception as e:
         print(f"Error adding detailed quiz answers to Google Sheets: {e}")
