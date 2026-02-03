@@ -221,56 +221,51 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 def authenticate_google_sheets():
     """Authenticate and return Google Sheets service object"""
     creds = None
-    from google.oauth2.service_account import Credentials as ServiceAccountCredentials
+    from google.oauth2.service_account import Credentials
 
-    # First, try environment variable (works in Railway and other cloud platforms)
+    # Load the full Google service account JSON from environment variable
     creds_json = os.getenv('GOOGLE_SHEETS_CREDENTIALS_JSON')
     if creds_json:
         import json
         try:
             # Parse the credentials JSON from environment variable
-            # Handle potential newline characters in the private key
-            credentials_info = json.loads(creds_json)
+            info = json.loads(creds_json)
 
-            # Fix the private key by replacing literal \n with actual newlines
-            if 'private_key' in credentials_info:
-                # Properly decode the private key by handling escaped newlines
-                private_key = credentials_info['private_key']
-                # Replace escaped newlines with actual newlines
-                private_key = private_key.replace('\\n', '\n')
-                credentials_info['private_key'] = private_key
+            # Restore newlines in the private key to fix PEM formatting
+            if "private_key" in info:
+                private_key = info["private_key"]
+
+                # Handle various newline representations that might be in the environment variable
+                # Replace escaped newlines (common when storing in env vars)
+                private_key = private_key.replace("\\n", "\n").replace("\\r", "\r")
+
+                # Ensure proper PEM formatting
+                if not private_key.startswith("-----BEGIN"):
+                    private_key = "-----BEGIN PRIVATE KEY-----\n" + private_key
+                if not private_key.endswith("-----END PRIVATE KEY-----\n"):
+                    if not private_key.endswith("\n"):
+                        private_key += "\n"
+                    private_key += "-----END PRIVATE KEY-----\n"
+
+                info["private_key"] = private_key
 
             # Create credentials object from the service account info
-            creds = ServiceAccountCredentials.from_service_account_info(
-                credentials_info, scopes=SCOPES
-            )
-            print("Successfully loaded credentials from environment variable")
+            creds = Credentials.from_service_account_info(info, scopes=['https://www.googleapis.com/auth/spreadsheets'])
+            print("Successfully loaded credentials from environment variable GOOGLE_SHEETS_CREDENTIALS_JSON")
         except (ValueError, TypeError) as env_error:
             print(f"Error parsing service account credentials from environment: {env_error}")
+            import traceback
+            traceback.print_exc()
+            return None
+        except Exception as general_error:
+            print(f"General error with environment credentials: {general_error}")
+            import traceback
+            traceback.print_exc()
+            return None
 
-    # If environment variable didn't work, try local credentials.json file
-    if not creds and os.path.exists('credentials.json'):
-        try:
-            creds = ServiceAccountCredentials.from_service_account_file(
-                'credentials.json', scopes=SCOPES
-            )
-            print("Successfully loaded credentials from local credentials.json file")
-        except Exception as local_error:
-            print(f"Error using local credentials.json file: {local_error}")
-
-    # Fallback to token.pickle if available
-    if not creds and os.path.exists('token.pickle'):
-        try:
-            with open('token.pickle', 'rb') as token:
-                creds = pickle.load(token)
-            print("Successfully loaded credentials from token.pickle")
-        except Exception as token_error:
-            print(f"Error loading credentials from token.pickle: {token_error}")
-
-    # For service account, we don't need to refresh or use OAuth flow
-    # If we have valid credentials, use them; otherwise, return None gracefully
+    # If we have valid credentials from environment variable, use them; otherwise, return None gracefully
     if not creds:
-        print("No valid credentials found for Google Sheets API. Google Sheets integration will be disabled.")
+        print("No valid credentials found from environment variable GOOGLE_SHEETS_CREDENTIALS_JSON. Google Sheets integration will be disabled.")
         return None
 
     try:
@@ -278,27 +273,43 @@ def authenticate_google_sheets():
         return service
     except Exception as e:
         print(f"Error building Google Sheets service: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 
 def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status):
     """Add attendance record to Google Sheet"""
     try:
+        print(f"Attempting to sync attendance to Google Sheets: {student_id}, {name}, {date}, {check_in}, {check_out}, {status}")
+
         service = authenticate_google_sheets()
 
         # If authentication failed, return False but log the reason
         if not service:
             print("Google Sheets service not available, skipping sync")
+            # Store for later retry
+            from sync_utils import store_failed_sync
+            store_failed_sync('attendance', {
+                'student_id': student_id,
+                'name': name,
+                'date': str(date),
+                'check_in': str(check_in),
+                'check_out': str(check_out),
+                'status': status
+            })
             return False
 
         sheet = service.spreadsheets()
 
         # Get the Google Sheet ID from environment variable
-        SPREADSHEET_ID = os.getenv('GOOGLE_SHEET_ID') or '1kRoHe5BFJG-Y2xPr29deuI79exsqgeGBl--gQOPAf20'
+        SPREADSHEET_ID = os.getenv('GOOGLE_SHEET_ID')
 
         if not SPREADSHEET_ID:
             print("Google Sheet ID not found in environment variables")
             return False
+
+        print(f"Using Google Sheet ID: {SPREADSHEET_ID}")
 
         # Prepare the data to insert
         values = [
@@ -309,13 +320,46 @@ def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status)
             'values': values
         }
 
-        # Append the data to the sheet
-        # Try common sheet names if 'Attendance' doesn't exist
-        sheet_ranges = ['Attendance!A:H', 'Sheet1!A:H', 'A:H']
-        result = None
+        # First, get the spreadsheet to see what sheets are available
+        try:
+            spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+            available_sheets = [sheet['properties']['title'] for sheet in spreadsheet['sheets']]
+        except Exception as e:
+            print(f"Error getting spreadsheet metadata: {e}")
+            # Store for later retry
+            from sync_utils import store_failed_sync
+            store_failed_sync('attendance', {
+                'student_id': student_id,
+                'name': name,
+                'date': str(date),
+                'check_in': str(check_in),
+                'check_out': str(check_out),
+                'status': status
+            })
+            return False
 
-        for sheet_range in sheet_ranges:
+        print(f"Available sheets in spreadsheet: {available_sheets}")
+
+        # Try to find an appropriate sheet for attendance data
+        # Look for 'Attendance' sheet first, then fallback options
+        possible_ranges = []
+
+        # Check for common attendance sheet names
+        attendance_sheets = ['Attendance', 'attendance', 'ATTENDANCE', 'Daily Attendance', 'Sheet1']
+
+        for sheet_name in attendance_sheets:
+            if sheet_name in available_sheets:
+                possible_ranges.append(f'{sheet_name}!A:H')
+
+        # Add generic range as last resort
+        possible_ranges.append('A:H')
+
+        result = None
+        print(f"Attempting to write to ranges: {possible_ranges}")
+
+        for sheet_range in possible_ranges:
             try:
+                print(f"Trying to write to range: {sheet_range}")
                 result = sheet.values().append(
                     spreadsheetId=SPREADSHEET_ID,
                     range=sheet_range,
@@ -323,19 +367,44 @@ def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status)
                     body=body
                 ).execute()
                 print(f"Attendance data sent to Google Sheets successfully in range {sheet_range}.")
+                print(f"Response: {result}")
                 break
             except Exception as e:
                 print(f"Failed to write to range {sheet_range}: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
 
         if not result:
             print("Failed to write to any sheet range")
+            # Store for later retry
+            from sync_utils import store_failed_sync
+            store_failed_sync('attendance', {
+                'student_id': student_id,
+                'name': name,
+                'date': str(date),
+                'check_in': str(check_in),
+                'check_out': str(check_out),
+                'status': status
+            })
             return False
 
         print(f"Attendance data sent to Google Sheets successfully.")
         return True
     except Exception as e:
         print(f"Error adding to Google Sheets: {e}")
+        import traceback
+        traceback.print_exc()
+        # Store for later retry
+        from sync_utils import store_failed_sync
+        store_failed_sync('attendance', {
+            'student_id': student_id,
+            'name': name,
+            'date': str(date),
+            'check_in': str(check_in),
+            'check_out': str(check_out),
+            'status': status
+        })
         return False
 
 
@@ -343,10 +412,26 @@ def add_assignment_submission_to_sheet(student_id, name, assignment_title, submi
     """Add assignment submission record to Google Sheet"""
     try:
         service = authenticate_google_sheets()
+
+        # If authentication failed, return False but log the reason
+        if not service:
+            print("Google Sheets service not available, skipping sync")
+            # Store for later retry
+            from sync_utils import store_failed_sync
+            store_failed_sync('assignment', {
+                'student_id': student_id,
+                'name': name,
+                'assignment_title': assignment_title,
+                'submission_url': submission_url,
+                'submitted_at': str(submitted_at),
+                'grade': grade
+            })
+            return False
+
         sheet = service.spreadsheets()
 
         # Get the Google Sheet ID from environment variable
-        SPREADSHEET_ID = os.getenv('GOOGLE_SHEET_ID') or '1kRoHe5BFJG-Y2xPr29deuI79exsqgeGBl--gQOPAf20'
+        SPREADSHEET_ID = os.getenv('GOOGLE_SHEET_ID')
 
         if not SPREADSHEET_ID:
             print("Google Sheet ID not found in environment variables")
@@ -361,12 +446,30 @@ def add_assignment_submission_to_sheet(student_id, name, assignment_title, submi
             'values': values
         }
 
-        # Try common sheet names for assignments
-        sheet_ranges = ['Assignments!A:G', 'Sheet1!A:G', 'A:G']
-        result = None
+        # First, get the spreadsheet to see what sheets are available
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+        available_sheets = [sheet['properties']['title'] for sheet in spreadsheet['sheets']]
 
-        for sheet_range in sheet_ranges:
+        print(f"Available sheets in spreadsheet: {available_sheets}")
+
+        # Try to find an appropriate sheet for assignment data
+        # Look for 'Assignments' sheet first, then fallback options
+        possible_ranges = []
+
+        if 'Assignments' in available_sheets:
+            possible_ranges.append('Assignments!A:G')
+        if 'Sheet1' in available_sheets:
+            possible_ranges.append('Sheet1!A:G')
+
+        # Add generic range as last resort
+        possible_ranges.append('A:G')
+
+        result = None
+        print(f"Attempting to write to ranges: {possible_ranges}")
+
+        for sheet_range in possible_ranges:
             try:
+                print(f"Trying to write to range: {sheet_range}")
                 result = sheet.values().append(
                     spreadsheetId=SPREADSHEET_ID,
                     range=sheet_range,
@@ -377,14 +480,38 @@ def add_assignment_submission_to_sheet(student_id, name, assignment_title, submi
                 break
             except Exception as e:
                 print(f"Failed to write to range {sheet_range}: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
 
         if not result:
             print("Failed to write to any sheet range for assignments")
+            # Store for later retry
+            from sync_utils import store_failed_sync
+            store_failed_sync('assignment', {
+                'student_id': student_id,
+                'name': name,
+                'assignment_title': assignment_title,
+                'submission_url': submission_url,
+                'submitted_at': str(submitted_at),
+                'grade': grade
+            })
             return False
         return True
     except Exception as e:
         print(f"Error adding assignment submission to Google Sheets: {e}")
+        import traceback
+        traceback.print_exc()
+        # Store for later retry
+        from sync_utils import store_failed_sync
+        store_failed_sync('assignment', {
+            'student_id': student_id,
+            'name': name,
+            'assignment_title': assignment_title,
+            'submission_url': submission_url,
+            'submitted_at': str(submitted_at),
+            'grade': grade
+        })
         return False
 
 
@@ -392,10 +519,26 @@ def add_quiz_submission_to_sheet(student_id, name, quiz_title, score, total_ques
     """Add quiz submission record to Google Sheet"""
     try:
         service = authenticate_google_sheets()
+
+        # If authentication failed, return False but log the reason
+        if not service:
+            print("Google Sheets service not available, skipping sync")
+            # Store for later retry
+            from sync_utils import store_failed_sync
+            store_failed_sync('quiz', {
+                'student_id': student_id,
+                'name': name,
+                'quiz_title': quiz_title,
+                'score': score,
+                'total_questions': total_questions,
+                'submitted_at': str(submitted_at)
+            })
+            return False
+
         sheet = service.spreadsheets()
 
         # Get the Google Sheet ID from environment variable
-        SPREADSHEET_ID = os.getenv('GOOGLE_SHEET_ID') or '1kRoHe5BFJG-Y2xPr29deuI79exsqgeGBl--gQOPAf20'
+        SPREADSHEET_ID = os.getenv('GOOGLE_SHEET_ID')
 
         if not SPREADSHEET_ID:
             print("Google Sheet ID not found in environment variables")
@@ -410,12 +553,30 @@ def add_quiz_submission_to_sheet(student_id, name, quiz_title, score, total_ques
             'values': values
         }
 
-        # Try common sheet names for quizzes
-        sheet_ranges = ['Quizzes!A:H', 'Sheet1!A:H', 'A:H']
-        result = None
+        # First, get the spreadsheet to see what sheets are available
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+        available_sheets = [sheet['properties']['title'] for sheet in spreadsheet['sheets']]
 
-        for sheet_range in sheet_ranges:
+        print(f"Available sheets in spreadsheet: {available_sheets}")
+
+        # Try to find an appropriate sheet for quiz data
+        # Look for 'Quizzes' sheet first, then fallback options
+        possible_ranges = []
+
+        if 'Quizzes' in available_sheets:
+            possible_ranges.append('Quizzes!A:H')
+        if 'Sheet1' in available_sheets:
+            possible_ranges.append('Sheet1!A:H')
+
+        # Add generic range as last resort
+        possible_ranges.append('A:H')
+
+        result = None
+        print(f"Attempting to write to ranges: {possible_ranges}")
+
+        for sheet_range in possible_ranges:
             try:
+                print(f"Trying to write to range: {sheet_range}")
                 result = sheet.values().append(
                     spreadsheetId=SPREADSHEET_ID,
                     range=sheet_range,
@@ -426,14 +587,38 @@ def add_quiz_submission_to_sheet(student_id, name, quiz_title, score, total_ques
                 break
             except Exception as e:
                 print(f"Failed to write to range {sheet_range}: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
 
         if not result:
             print("Failed to write to any sheet range for quizzes")
+            # Store for later retry
+            from sync_utils import store_failed_sync
+            store_failed_sync('quiz', {
+                'student_id': student_id,
+                'name': name,
+                'quiz_title': quiz_title,
+                'score': score,
+                'total_questions': total_questions,
+                'submitted_at': str(submitted_at)
+            })
             return False
         return True
     except Exception as e:
         print(f"Error adding quiz submission to Google Sheets: {e}")
+        import traceback
+        traceback.print_exc()
+        # Store for later retry
+        from sync_utils import store_failed_sync
+        store_failed_sync('quiz', {
+            'student_id': student_id,
+            'name': name,
+            'quiz_title': quiz_title,
+            'score': score,
+            'total_questions': total_questions,
+            'submitted_at': str(submitted_at)
+        })
         return False
 
 
@@ -441,10 +626,25 @@ def add_detailed_quiz_answers_to_sheet(student_id, name, quiz_title, questions_d
     """Add detailed quiz answers for each question to Google Sheet"""
     try:
         service = authenticate_google_sheets()
+
+        # If authentication failed, return False but log the reason
+        if not service:
+            print("Google Sheets service not available, skipping sync")
+            # Store for later retry
+            from sync_utils import store_failed_sync
+            store_failed_sync('detailed_quiz', {
+                'student_id': student_id,
+                'name': name,
+                'quiz_title': quiz_title,
+                'questions_data': questions_data,  # This might not serialize well, need to handle carefully
+                'submitted_at': str(submitted_at)
+            })
+            return False
+
         sheet = service.spreadsheets()
 
         # Get the Google Sheet ID from environment variable
-        SPREADSHEET_ID = os.getenv('GOOGLE_SHEET_ID') or '1kRoHe5BFJG-Y2xPr29deuI79exsqgeGBl--gQOPAf20'
+        SPREADSHEET_ID = os.getenv('GOOGLE_SHEET_ID')
 
         if not SPREADSHEET_ID:
             print("Google Sheet ID not found in environment variables")
@@ -475,12 +675,30 @@ def add_detailed_quiz_answers_to_sheet(student_id, name, quiz_title, questions_d
             'values': values
         }
 
-        # Try common sheet names for detailed quiz answers
-        sheet_ranges = ['DetailedQuizAnswers!A:J', 'Sheet1!A:J', 'A:J']
-        result = None
+        # First, get the spreadsheet to see what sheets are available
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+        available_sheets = [sheet['properties']['title'] for sheet in spreadsheet['sheets']]
 
-        for sheet_range in sheet_ranges:
+        print(f"Available sheets in spreadsheet: {available_sheets}")
+
+        # Try to find an appropriate sheet for detailed quiz answers
+        # Look for 'DetailedQuizAnswers' sheet first, then fallback options
+        possible_ranges = []
+
+        if 'DetailedQuizAnswers' in available_sheets:
+            possible_ranges.append('DetailedQuizAnswers!A:J')
+        if 'Sheet1' in available_sheets:
+            possible_ranges.append('Sheet1!A:J')
+
+        # Add generic range as last resort
+        possible_ranges.append('A:J')
+
+        result = None
+        print(f"Attempting to write to ranges: {possible_ranges}")
+
+        for sheet_range in possible_ranges:
             try:
+                print(f"Trying to write to range: {sheet_range}")
                 result = sheet.values().append(
                     spreadsheetId=SPREADSHEET_ID,
                     range=sheet_range,
@@ -491,14 +709,36 @@ def add_detailed_quiz_answers_to_sheet(student_id, name, quiz_title, questions_d
                 break
             except Exception as e:
                 print(f"Failed to write to range {sheet_range}: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
 
         if not result:
             print("Failed to write to any sheet range for detailed quiz answers")
+            # Store for later retry
+            from sync_utils import store_failed_sync
+            store_failed_sync('detailed_quiz', {
+                'student_id': student_id,
+                'name': name,
+                'quiz_title': quiz_title,
+                'questions_data': questions_data,  # This might not serialize well, need to handle carefully
+                'submitted_at': str(submitted_at)
+            })
             return False
         return True
     except Exception as e:
         print(f"Error adding detailed quiz answers to Google Sheets: {e}")
+        import traceback
+        traceback.print_exc()
+        # Store for later retry
+        from sync_utils import store_failed_sync
+        store_failed_sync('detailed_quiz', {
+            'student_id': student_id,
+            'name': name,
+            'quiz_title': quiz_title,
+            'questions_data': questions_data,  # This might not serialize well, need to handle carefully
+            'submitted_at': str(submitted_at)
+        })
         return False
 
 
@@ -506,10 +746,25 @@ def add_midterm_grade_to_sheet(student_id, name, midterm_title, grade, graded_at
     """Add midterm grade record to Google Sheet"""
     try:
         service = authenticate_google_sheets()
+
+        # If authentication failed, return False but log the reason
+        if not service:
+            print("Google Sheets service not available, skipping sync")
+            # Store for later retry
+            from sync_utils import store_failed_sync
+            store_failed_sync('midterm_grade', {
+                'student_id': student_id,
+                'name': name,
+                'midterm_title': midterm_title,
+                'grade': grade,
+                'graded_at': str(graded_at)
+            })
+            return False
+
         sheet = service.spreadsheets()
 
         # Get the Google Sheet ID from environment variable
-        SPREADSHEET_ID = os.getenv('GOOGLE_SHEET_ID') or '1kRoHe5BFJG-Y2xPr29deuI79exsqgeGBl--gQOPAf20'
+        SPREADSHEET_ID = os.getenv('GOOGLE_SHEET_ID')
 
         if not SPREADSHEET_ID:
             print("Google Sheet ID not found in environment variables")
@@ -524,18 +779,70 @@ def add_midterm_grade_to_sheet(student_id, name, midterm_title, grade, graded_at
             'values': values
         }
 
-        # Append the data to the sheet in a different range (Midterm Grades sheet)
-        result = sheet.values().append(
-            spreadsheetId=SPREADSHEET_ID,
-            range='MidtermGrades!A:F',  # Using 'MidtermGrades' sheet tab
-            valueInputOption='RAW',
-            body=body
-        ).execute()
+        # First, get the spreadsheet to see what sheets are available
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+        available_sheets = [sheet['properties']['title'] for sheet in spreadsheet['sheets']]
 
-        print(f"{result.get('updates').get('updatedCells')} cells updated in MidtermGrades sheet.")
+        print(f"Available sheets in spreadsheet: {available_sheets}")
+
+        # Try to find an appropriate sheet for midterm grades
+        # Look for 'MidtermGrades' sheet first, then fallback options
+        possible_ranges = []
+
+        if 'MidtermGrades' in available_sheets:
+            possible_ranges.append('MidtermGrades!A:F')
+        if 'Sheet1' in available_sheets:
+            possible_ranges.append('Sheet1!A:F')
+
+        # Add generic range as last resort
+        possible_ranges.append('A:F')
+
+        result = None
+        print(f"Attempting to write to ranges: {possible_ranges}")
+
+        for sheet_range in possible_ranges:
+            try:
+                print(f"Trying to write to range: {sheet_range}")
+                result = sheet.values().append(
+                    spreadsheetId=SPREADSHEET_ID,
+                    range=sheet_range,
+                    valueInputOption='RAW',
+                    body=body
+                ).execute()
+                print(f"Midterm grade data sent to Google Sheets successfully in range {sheet_range}.")
+                break
+            except Exception as e:
+                print(f"Failed to write to range {sheet_range}: {e}")
+                import traceback
+                traceback.print_exc()
+                continue
+
+        if not result:
+            print("Failed to write to any sheet range for midterm grades")
+            # Store for later retry
+            from sync_utils import store_failed_sync
+            store_failed_sync('midterm_grade', {
+                'student_id': student_id,
+                'name': name,
+                'midterm_title': midterm_title,
+                'grade': grade,
+                'graded_at': str(graded_at)
+            })
+            return False
         return True
     except Exception as e:
         print(f"Error adding midterm grade to Google Sheets: {e}")
+        import traceback
+        traceback.print_exc()
+        # Store for later retry
+        from sync_utils import store_failed_sync
+        store_failed_sync('midterm_grade', {
+            'student_id': student_id,
+            'name': name,
+            'midterm_title': midterm_title,
+            'grade': grade,
+            'graded_at': str(graded_at)
+        })
         return False
 
 
@@ -731,20 +1038,25 @@ def attendance_action():
     student = Student.query.filter_by(student_id=student_id).first()
 
     if student:
-        # Add to Google Sheets
-        success = add_attendance_to_sheet(
-            student_id=student.student_id,
-            name=student.name,
-            date=attendance.date,
-            check_in=attendance.check_in_time,
-            check_out=attendance.check_out_time,
-            status=attendance.status
-        )
+        try:
+            # Add to Google Sheets
+            success = add_attendance_to_sheet(
+                student_id=student.student_id,
+                name=student.name,
+                date=attendance.date,
+                check_in=attendance.check_in_time,
+                check_out=attendance.check_out_time,
+                status=attendance.status
+            )
 
-        if not success:
-            flash('Attendance recorded locally but failed to sync to Google Sheets')
-        else:
-            flash(f'Successfully {action.replace("_", " ")}d and synced to Google Sheets')
+            if not success:
+                flash('Attendance recorded locally but failed to sync to Google Sheets')
+            else:
+                flash(f'Successfully {action.replace("_", " ")}d and synced to Google Sheets')
+        except Exception as e:
+            # Even if Google Sheets sync throws an exception, still confirm local recording
+            print(f"Exception during Google Sheets sync: {e}")
+            flash('Attendance recorded locally but failed to sync to Google Sheets due to an error')
     else:
         flash('Attendance recorded locally but student info not found for Google Sheets sync')
 
@@ -1361,13 +1673,18 @@ def grade_midterm_submission(midterm_id, student_id):
         db.session.commit()
 
         # Add the grade to Google Sheets
-        success = add_midterm_grade_to_sheet(
-            student_id=submission.student.student_id,
-            name=submission.student.name,
-            midterm_title=submission.mid_term.title,
-            grade=grade,
-            graded_at=datetime.now()
-        )
+        try:
+            success = add_midterm_grade_to_sheet(
+                student_id=submission.student.student_id,
+                name=submission.student.name,
+                midterm_title=submission.mid_term.title,
+                grade=grade,
+                graded_at=datetime.now()
+            )
+        except Exception as e:
+            # Even if Google Sheets sync throws an exception, still confirm local grading
+            print(f"Exception during Google Sheets midterm grade sync: {e}")
+            success = False
 
         if success:
             flash(f'Mid-term submission for {submission.student.name} graded successfully and recorded in Google Sheets!')
@@ -1579,15 +1896,20 @@ def take_quiz(quiz_id):
         student = Student.query.filter_by(student_id=student_id).first()
 
         if student:
-            # Add to Google Sheets
-            success = add_quiz_submission_to_sheet(
-                student_id=student.student_id,
-                name=student.name,
-                quiz_title=quiz.title,
-                score=correct_answers,
-                total_questions=total_questions,
-                submitted_at=submission.submitted_at
-            )
+            try:
+                # Add to Google Sheets
+                success = add_quiz_submission_to_sheet(
+                    student_id=student.student_id,
+                    name=student.name,
+                    quiz_title=quiz.title,
+                    score=correct_answers,
+                    total_questions=total_questions,
+                    submitted_at=submission.submitted_at
+                )
+            except Exception as e:
+                # Even if Google Sheets sync throws an exception, still confirm local recording
+                print(f"Exception during Google Sheets quiz sync: {e}")
+                success = False
         else:
             success = False  # Skip Google Sheets sync if student not found
 
@@ -1615,13 +1937,18 @@ def take_quiz(quiz_id):
             })
 
         # Save detailed answers to Google Sheets
-        detailed_success = add_detailed_quiz_answers_to_sheet(
-            student_id=student.student_id,
-            name=student.name,
-            quiz_title=quiz.title,
-            questions_data=questions_data,
-            submitted_at=submission.submitted_at
-        )
+        try:
+            detailed_success = add_detailed_quiz_answers_to_sheet(
+                student_id=student.student_id,
+                name=student.name,
+                quiz_title=quiz.title,
+                questions_data=questions_data,
+                submitted_at=submission.submitted_at
+            )
+        except Exception as e:
+            # Even if Google Sheets sync throws an exception, still confirm local recording
+            print(f"Exception during Google Sheets detailed quiz answers sync: {e}")
+            detailed_success = False
 
         if not success or not detailed_success:
             if not success and not detailed_success:
@@ -1745,14 +2072,19 @@ def submit_assignment(assignment_id):
         student = Student.query.filter_by(student_id=student_id).first()
 
         if student:
-            # Add to Google Sheets
-            success = add_assignment_submission_to_sheet(
-                student_id=student.student_id,
-                name=student.name,
-                assignment_title=assignment.title,
-                submission_url=submission_url,
-                submitted_at=submission.submitted_at
-            )
+            try:
+                # Add to Google Sheets
+                success = add_assignment_submission_to_sheet(
+                    student_id=student.student_id,
+                    name=student.name,
+                    assignment_title=assignment.title,
+                    submission_url=submission_url,
+                    submitted_at=submission.submitted_at
+                )
+            except Exception as e:
+                # Even if Google Sheets sync throws an exception, still confirm local recording
+                print(f"Exception during Google Sheets assignment sync: {e}")
+                success = False
         else:
             success = False  # Skip Google Sheets sync if student not found
 
@@ -1868,5 +2200,13 @@ if __name__ == '__main__':
             admin.set_password('admin123')
             db.session.add(admin)
             db.session.commit()
+
+    # Start background sync worker
+    try:
+        from sync_utils import start_background_sync
+        start_background_sync()
+        print("Background sync worker started")
+    except Exception as e:
+        print(f"Could not start background sync worker: {e}")
 
     app.run(debug=True)
