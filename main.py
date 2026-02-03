@@ -1,0 +1,6 @@
+import os
+from app import app
+
+# This is the main entry point for Google App Engine
+if __name__ == "__main__":
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))

@@ -1,0 +1,41 @@
+<div class="col-md-3 col-lg-2 d-md-block sidebar">
+    <div class="position-sticky pt-3">
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'admin_dashboard' %}active{% endif %}" href="{{ url_for('admin_dashboard') }}">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'admin_quizzes' or request.endpoint == 'create_quiz' or request.endpoint == 'edit_quiz' or request.endpoint == 'assign_quiz' %}active{% endif %}" href="{{ url_for('admin_quizzes') }}">
+                    <i class="fas fa-question-circle"></i> Quizzes
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'admin_assignments' or request.endpoint == 'create_assignment' or request.endpoint == 'edit_assignment' or request.endpoint == 'assign_assignment' %}active{% endif %}" href="{{ url_for('admin_assignments') }}">
+                    <i class="fas fa-tasks"></i> Assignments
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'admin_midterms' or request.endpoint == 'create_midterm' or request.endpoint == 'edit_midterm' or request.endpoint == 'assign_midterm' %}active{% endif %}" href="{{ url_for('admin_midterms') }}">
+                    <i class="fas fa-file-alt"></i> Mid-Terms
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'admin_course_outlines' or request.endpoint == 'create_course_outline' or request.endpoint == 'edit_course_outline' %}active{% endif %}" href="{{ url_for('admin_course_outlines') }}">
+                    <i class="fas fa-book-open"></i> Course Outlines
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'attendance_report' %}active{% endif %}" href="{{ url_for('attendance_report') }}">
+                    <i class="fas fa-chart-bar"></i> Attendance Report
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('logout') }}">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>

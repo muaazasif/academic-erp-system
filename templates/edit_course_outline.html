@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Course Outline - ERP System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        {% include 'sidebar.html' %}
+        
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Edit Course Outline: {{ course_outline.title }}</h1>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="title" name="title" value="{{ course_outline.title }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="4">{{ course_outline.description or '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="week_number" class="form-label">Week Number</label>
+                            <input type="number" class="form-control" id="week_number" name="week_number" min="1" max="52" value="{{ course_outline.week_number or '' }}">
+                            <div class="form-text">Leave blank if not organizing by weeks</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="outline_file_url" class="form-label">Course Outline File URL</label>
+                            <input type="url" class="form-control" id="outline_file_url" name="outline_file_url" value="{{ course_outline.outline_file_url or '' }}" placeholder="https://drive.google.com/...">
+                            <div class="form-text">URL to the course outline document (PDF, Word doc, etc.)</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="presentation_file_url" class="form-label">Presentation File URL</label>
+                            <input type="url" class="form-control" id="presentation_file_url" name="presentation_file_url" value="{{ course_outline.presentation_file_url or '' }}" placeholder="https://drive.google.com/...">
+                            <div class="form-text">URL to the presentation slides (PowerPoint, Google Slides, etc.)</div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Update Course Outline</button>
+                        <a href="{{ url_for('admin_course_outlines') }}" class="btn btn-secondary">Cancel</a>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}

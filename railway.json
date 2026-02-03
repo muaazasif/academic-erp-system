@@ -1,0 +1,13 @@
+{
+  "build": {
+    "builder": "dockerfile",
+    "dockerfile_path": "Dockerfile"
+  },
+  "deploy": {
+    "restart_policy": {
+      "type": "on-failure",
+      "attempts": 10,
+      "interval": 600
+    }
+  }
+}

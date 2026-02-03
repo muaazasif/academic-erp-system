@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Course Outlines - ERP System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 d-md-block sidebar">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_dashboard' %}active{% endif %}" href="{{ url_for('student_dashboard') }}">
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_quizzes' %}active{% endif %}" href="{{ url_for('student_quizzes') }}">
+                            My Quizzes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_midterms' %}active{% endif %}" href="{{ url_for('student_midterms') }}">
+                            My Mid-Terms
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_assignments' %}active{% endif %}" href="{{ url_for('student_assignments') }}">
+                            My Assignments
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_course_outlines' %}active{% endif %}" href="{{ url_for('student_course_outlines') }}">
+                            Course Outlines
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">
+                            Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Course Outlines</h1>
+            </div>
+
+            {% if course_outlines %}
+                {% for outline in course_outlines %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>
+                            {% if outline.week_number %}Week {{ outline.week_number }}: {% endif %}{{ outline.title }}
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">{{ outline.description or 'No description provided.' }}</p>
+                        
+                        <div class="mt-3">
+                            {% if outline.outline_file_url %}
+                            <a href="{{ outline.outline_file_url }}" class="btn btn-primary btn-sm me-2" target="_blank">
+                                View Course Outline
+                            </a>
+                            {% endif %}
+                            
+                            {% if outline.presentation_file_url %}
+                            <a href="{{ outline.presentation_file_url }}" class="btn btn-info btn-sm" target="_blank">
+                                View Presentation
+                            </a>
+                            {% endif %}
+                            
+                            {% if not outline.outline_file_url and not outline.presentation_file_url %}
+                            <p class="text-muted">No files available for this course outline.</p>
+                            {% endif %}
+                        </div>
+                        
+                        <small class="text-muted">
+                            Uploaded on {{ outline.created_at.strftime('%Y-%m-%d') }}
+                        </small>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-info">
+                    No course outlines are currently available.
+                </div>
+            {% endif %}
+        </main>
+    </div>
+</div>
+{% endblock %}

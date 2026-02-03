@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz Report - {{ quiz.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        {% include 'sidebar.html' %}
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Quiz Report: {{ quiz.title }}</h1>
+            </div>
+
+            <!-- Quiz Statistics -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h5>Total Submissions</h5>
+                            <h2>{{ total_submissions }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <h5>Average Score</h5>
+                            <h2>{{ "%.2f"|format(average_score) }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <h5>Total Questions</h5>
+                            <h2>{{ quiz.questions|length }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-dark">
+                        <div class="card-body">
+                            <h5>Due Date</h5>
+                            <h2>{{ quiz.due_date.strftime('%Y-%m-%d') if quiz.due_date else 'None' }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submissions Table -->
+            <div class="table-responsive">
+                <table class="table table-striped table-sm">
+                    <thead>
+                        <tr>
+                            <th>Student ID</th>
+                            <th>Student Name</th>
+                            <th>Score</th>
+                            <th>Percentage</th>
+                            <th>Date Submitted</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in submissions %}
+                        <tr>
+                            <td>{{ item.student.student_id }}</td>
+                            <td>{{ item.student.name }}</td>
+                            <td>{{ item.submission.score }}/{{ quiz.questions|length }}</td>
+                            <td>{{ "%.2f"|format(item.percentage) }}%</td>
+                            <td>{{ item.submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                <a href="{{ url_for('view_quiz_result', quiz_id=quiz.id) }}?student_id={{ item.student.student_id }}" class="btn btn-info btn-sm">View Details</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <a href="{{ url_for('admin_quizzes') }}" class="btn btn-primary">Back to Quizzes</a>
+        </main>
+    </div>
+</div>
+{% endblock %}

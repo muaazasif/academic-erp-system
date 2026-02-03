@@ -1,0 +1,27 @@
+{
+  "name": "erp-system",
+  "version": "1.0.0",
+  "description": "Enterprise Resource Planning System with student management, attendance tracking, quizzes, assignments, and mid-term examinations",
+  "scripts": {
+    "start": "python3 wsgi.py"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": "18.x"
+  },
+  "repository": {
+    "url": "https://github.com/your-username/erp-system"
+  },
+  "keywords": [
+    "flask",
+    "python",
+    "education",
+    "erp",
+    "student-management"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/your-username/erp-system/issues"
+  },
+  "homepage": "https://your-username.github.io/erp-system"
+}

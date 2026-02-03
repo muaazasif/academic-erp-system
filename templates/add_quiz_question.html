@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Add Quiz Question - {{ quiz.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        {% include 'sidebar.html' %}
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Add Question to: {{ quiz.title }}</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <a href="{{ url_for('manage_quiz_questions', quiz_id=quiz.id) }}" class="btn btn-sm btn-outline-secondary">Back to Questions</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-10">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="question_text" class="form-label">Question</label>
+                            <textarea class="form-control" id="question_text" name="question_text" rows="3" required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Options (Select the correct answer)</label>
+                            {% for i in range(1, 5) %}
+                            <div class="input-group mb-2">
+                                <div class="input-group-text">
+                                    <input class="form-check-input mt-0" type="radio" name="correct_option" value="{{ i }}" required>
+                                </div>
+                                <input type="text" class="form-control" name="option_{{ i }}" placeholder="Option {{ i }}" required>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Add Question</button>
+                        <a href="{{ url_for('manage_quiz_questions', quiz_id=quiz.id) }}" class="btn btn-secondary">Cancel</a>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}

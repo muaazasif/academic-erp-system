@@ -1,0 +1,11 @@
+name = "myerp-app"
+compatibility_date = "2023-12-01"
+
+[env.production]
+account_id = "your-account-id"
+workers_dev = false
+route = "your-domain.com/*"
+zone_id = "your-zone-id"
+
+[vars]
+ENVIRONMENT = "production"

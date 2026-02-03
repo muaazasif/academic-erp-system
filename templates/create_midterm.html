@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Create Mid-Term - ERP System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        {% include 'sidebar.html' %}
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Create Mid-Term</h1>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="file" class="form-label">Excel Workbook File</label>
+                            <input type="file" class="form-control" id="file" name="file" accept=".xlsx,.xls" required>
+                            <div class="form-text">Upload the Excel workbook with 20+ sheets</div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="total_sheets" class="form-label">Total Sheets in Workbook</label>
+                                    <input type="number" class="form-control" id="total_sheets" name="total_sheets" min="1" required>
+                                    <div class="form-text">Number of sheets in the uploaded workbook</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="sheets_per_student" class="form-label">Sheets Per Student</label>
+                                    <input type="number" class="form-control" id="sheets_per_student" name="sheets_per_student" min="1" value="5" required>
+                                    <div class="form-text">Number of sheets each student will receive (default: 5)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="due_date" class="form-label">Due Date (Optional)</label>
+                            <input type="datetime-local" class="form-control" id="due_date" name="due_date">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Create Mid-Term</button>
+                        <a href="{{ url_for('admin_midterms') }}" class="btn btn-secondary">Cancel</a>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}

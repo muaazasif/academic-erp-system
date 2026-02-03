@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz Result - {{ quiz.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 d-md-block sidebar">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_dashboard' %}active{% endif %}" href="{{ url_for('student_dashboard') }}">
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_quizzes' %}active{% endif %}" href="{{ url_for('student_quizzes') }}">
+                            My Quizzes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_assignments' %}active{% endif %}" href="{{ url_for('student_assignments') }}">
+                            My Assignments
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">
+                            Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">
+                    Quiz Result: {{ quiz.title }}
+                    {% if request.args.get('student_id') %}
+                        <small class="text-muted">- Student: {{ submission.student.name }}</small>
+                    {% endif %}
+                </h1>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h5>Your Score</h5>
+                            <h2>{{ submission.score }}/{{ questions_data|length }}</h2>
+                            <p>Percentage: {{ "%.2f"|format((submission.score/questions_data|length)*100) }}%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% for item in questions_data %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Question {{ item.question.question_number }}: {{ item.question.question_text }}</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Your Answer:</strong> 
+                        {% if item.selected_option %}
+                            {{ item.selected_option.option_text }}
+                            {% if item.is_correct %}
+                                <span class="badge bg-success">Correct</span>
+                            {% else %}
+                                <span class="badge bg-danger">Incorrect</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">No answer selected</span>
+                        {% endif %}
+                    </p>
+                    
+                    {% if not item.is_correct %}
+                    <p><strong>Correct Answer:</strong> {{ item.correct_option.option_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+
+            {% if request.args.get('student_id') %}
+                <a href="{{ url_for('quiz_report', quiz_id=quiz.id) }}" class="btn btn-secondary">Back to Quiz Report</a>
+            {% else %}
+                <a href="{{ url_for('student_quizzes') }}" class="btn btn-primary">Back to Quizzes</a>
+            {% endif %}
+        </main>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Quiz - ERP System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        {% include 'sidebar.html' %}
+        
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Edit Quiz: {{ quiz.title }}</h1>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Quiz Title</label>
+                            <input type="text" class="form-control" id="title" name="title" value="{{ quiz.title }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="4">{{ quiz.description }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="due_date" class="form-label">Due Date (optional)</label>
+                            <input type="datetime-local" class="form-control" id="due_date" name="due_date" 
+                                   value="{{ quiz.due_date.strftime('%Y-%m-%dT%H:%M') if quiz.due_date else '' }}">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Update Quiz</button>
+                        <a href="{{ url_for('admin_quizzes') }}" class="btn btn-secondary">Cancel</a>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,162 @@
+/* Jellyfish Animation Styles */
+.jellyfish-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100px;
+    pointer-events: none;
+    z-index: 9999;
+    overflow: hidden;
+}
+
+.jellyfish {
+    position: absolute;
+    bottom: 0;
+    width: 60px;
+    height: 80px;
+    background: linear-gradient(135deg, #ff9a9e, #fad0c4, #fbc2eb, #a6c1ee);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    opacity: 0.8;
+    filter: blur(1px);
+    animation: float 8s infinite ease-in-out;
+}
+
+.jellyfish::before {
+    content: '';
+    position: absolute;
+    top: 10%;
+    left: 20%;
+    width: 60%;
+    height: 60%;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    filter: blur(2px);
+}
+
+.jellyfish-tentacles {
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 4px;
+}
+
+.jellyfish-tentacle {
+    width: 3px;
+    height: 30px;
+    background: linear-gradient(to bottom, #ff9a9e, #fad0c4);
+    border-radius: 0 0 10px 10px;
+    animation: tentacleMove 3s infinite ease-in-out;
+}
+
+.jellyfish:nth-child(2) {
+    width: 40px;
+    height: 60px;
+    left: 20%;
+    animation-duration: 10s;
+    animation-delay: -2s;
+}
+
+.jellyfish:nth-child(3) {
+    width: 50px;
+    height: 70px;
+    left: 40%;
+    animation-duration: 12s;
+    animation-delay: -4s;
+}
+
+.jellyfish:nth-child(4) {
+    width: 35px;
+    height: 50px;
+    left: 60%;
+    animation-duration: 9s;
+    animation-delay: -1s;
+}
+
+.jellyfish:nth-child(5) {
+    width: 45px;
+    height: 65px;
+    left: 80%;
+    animation-duration: 11s;
+    animation-delay: -3s;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0) rotate(0deg);
+    }
+    25% {
+        transform: translateY(-20px) rotate(5deg);
+    }
+    50% {
+        transform: translateY(0) rotate(0deg);
+    }
+    75% {
+        transform: translateY(-15px) rotate(-5deg);
+    }
+}
+
+@keyframes tentacleMove {
+    0%, 100% {
+        transform: scaleY(1);
+    }
+    50% {
+        transform: scaleY(1.2);
+    }
+}
+
+/* Footer with Prepared By text */
+.jellyfish-footer {
+    position: fixed;
+    bottom: 5px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    z-index: 10000;
+    pointer-events: none;
+}
+
+.jellyfish-footer-text {
+    color: #6c757d;
+    font-family: 'Arial', sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+    letter-spacing: 1px;
+    animation: glow 2s infinite alternate;
+}
+
+@keyframes glow {
+    from {
+        text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #e60073, 0 0 20px #e60073;
+    }
+    to {
+        text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #ff4da6, 0 0 40px #ff4da6;
+    }
+}
+
+/* Enhanced visual effects */
+.jellyfish-glow {
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 70%);
+    filter: blur(5px);
+    z-index: -1;
+    opacity: 0.6;
+    animation: glow-pulse 3s infinite alternate;
+}
+
+@keyframes glow-pulse {
+    from {
+        opacity: 0.4;
+    }
+    to {
+        opacity: 0.8;
+    }
+}
