@@ -620,19 +620,24 @@ def attendance_report():
 def student_dashboard():
     if 'student_id' not in session:
         return redirect(url_for('login'))
-    
+
     student_id = session['student_id']
     student = Student.query.filter_by(student_id=student_id).first()
-    
+
+    # If student not found, redirect to login
+    if not student:
+        flash('Student not found. Please contact administrator.')
+        return redirect(url_for('logout'))
+
     # Get today's attendance record
     today = datetime.today().date()
     attendance = Attendance.query.filter_by(
         student_id=student_id,
         date=today
     ).first()
-    
-    return render_template('student_dashboard.html', 
-                          student=student, 
+
+    return render_template('student_dashboard.html',
+                          student=student,
                           attendance=attendance)
 
 
@@ -674,20 +679,23 @@ def attendance_action():
     # Get student info for Google Sheets
     student = Student.query.filter_by(student_id=student_id).first()
 
-    # Add to Google Sheets
-    success = add_attendance_to_sheet(
-        student_id=student.student_id,
-        name=student.name,
-        date=attendance.date,
-        check_in=attendance.check_in_time,
-        check_out=attendance.check_out_time,
-        status=attendance.status
-    )
+    if student:
+        # Add to Google Sheets
+        success = add_attendance_to_sheet(
+            student_id=student.student_id,
+            name=student.name,
+            date=attendance.date,
+            check_in=attendance.check_in_time,
+            check_out=attendance.check_out_time,
+            status=attendance.status
+        )
 
-    if not success:
-        flash('Attendance recorded locally but failed to sync to Google Sheets')
+        if not success:
+            flash('Attendance recorded locally but failed to sync to Google Sheets')
+        else:
+            flash(f'Successfully {action.replace("_", " ")}d and synced to Google Sheets')
     else:
-        flash(f'Successfully {action.replace("_", " ")}d and synced to Google Sheets')
+        flash('Attendance recorded locally but student info not found for Google Sheets sync')
 
     return redirect(url_for('student_dashboard'))
 
@@ -1519,15 +1527,18 @@ def take_quiz(quiz_id):
         # Get student info for Google Sheets
         student = Student.query.filter_by(student_id=student_id).first()
 
-        # Add to Google Sheets
-        success = add_quiz_submission_to_sheet(
-            student_id=student.student_id,
-            name=student.name,
-            quiz_title=quiz.title,
-            score=correct_answers,
-            total_questions=total_questions,
-            submitted_at=submission.submitted_at
-        )
+        if student:
+            # Add to Google Sheets
+            success = add_quiz_submission_to_sheet(
+                student_id=student.student_id,
+                name=student.name,
+                quiz_title=quiz.title,
+                score=correct_answers,
+                total_questions=total_questions,
+                submitted_at=submission.submitted_at
+            )
+        else:
+            success = False  # Skip Google Sheets sync if student not found
 
         # Also save detailed answers to Google Sheets
         # We need to get the questions and answers data for the detailed report
@@ -1682,14 +1693,17 @@ def submit_assignment(assignment_id):
         # Get student info for Google Sheets
         student = Student.query.filter_by(student_id=student_id).first()
 
-        # Add to Google Sheets
-        success = add_assignment_submission_to_sheet(
-            student_id=student.student_id,
-            name=student.name,
-            assignment_title=assignment.title,
-            submission_url=submission_url,
-            submitted_at=submission.submitted_at
-        )
+        if student:
+            # Add to Google Sheets
+            success = add_assignment_submission_to_sheet(
+                student_id=student.student_id,
+                name=student.name,
+                assignment_title=assignment.title,
+                submission_url=submission_url,
+                submitted_at=submission.submitted_at
+            )
+        else:
+            success = False  # Skip Google Sheets sync if student not found
 
         if not success:
             flash('Assignment submitted locally but failed to sync to Google Sheets', 'warning')
