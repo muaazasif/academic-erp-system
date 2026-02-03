@@ -11,22 +11,32 @@
                 <ul class="nav flex-column">
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'student_dashboard' %}active{% endif %}" href="{{ url_for('student_dashboard') }}">
-                            Dashboard
+                            <i class="fas fa-home"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'student_quizzes' %}active{% endif %}" href="{{ url_for('student_quizzes') }}">
-                            My Quizzes
+                            <i class="fas fa-question-circle"></i> My Quizzes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_midterms' %}active{% endif %}" href="{{ url_for('student_midterms') }}">
+                            <i class="fas fa-file-alt"></i> My Mid-Terms
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'student_assignments' or request.endpoint == 'submit_assignment' %}active{% endif %}" href="{{ url_for('student_assignments') }}">
-                            My Assignments
+                            <i class="fas fa-tasks"></i> My Assignments
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_course_outlines' %}active{% endif %}" href="{{ url_for('student_course_outlines') }}">
+                            <i class="fas fa-book-open"></i> Course Outlines
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('logout') }}">
-                            Logout
+                            <i class="fas fa-sign-out-alt"></i> Logout
                         </a>
                     </li>
                 </ul>
@@ -40,7 +50,7 @@
             </div>
 
             <div class="row">
-                <div class="col-md-8">
+                <div class="col-12">
                     <div class="card mb-4">
                         <div class="card-header">
                             <h5>Assignment Details</h5>
@@ -49,9 +59,9 @@
                             <p><strong>Title:</strong> {{ assignment.title }}</p>
                             <p><strong>Description:</strong> {{ assignment.description }}</p>
                             <p><strong>Due Date:</strong> {{ assignment.due_date.strftime('%Y-%m-%d %H:%M') if assignment.due_date else 'No due date' }}</p>
-                            
+
                             {% if assignment.file_url %}
-                                <p><strong>Assignment File:</strong> <a href="{{ assignment.file_url }}" target="_blank">Download File</a></p>
+                                <p><strong>Assignment File:</strong> <a href="{{ assignment.file_url }}" target="_blank" class="btn btn-sm btn-outline-info">Download File</a></p>
                             {% endif %}
                         </div>
                     </div>
@@ -59,13 +69,15 @@
                     <form method="POST">
                         <div class="mb-3">
                             <label for="submission_url" class="form-label">Submission Link (Google Drive Link)</label>
-                            <input type="url" class="form-control" id="submission_url" name="submission_url" 
+                            <input type="url" class="form-control" id="submission_url" name="submission_url"
                                    placeholder="https://drive.google.com/file/d/..." required>
                             <div class="form-text">Provide a shareable Google Drive link to your completed assignment.</div>
                         </div>
-                        
-                        <button type="submit" class="btn btn-primary">Submit Assignment</button>
-                        <a href="{{ url_for('student_assignments') }}" class="btn btn-secondary">Cancel</a>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('student_assignments') }}" class="btn btn-secondary me-md-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Submit Assignment</button>
+                        </div>
                     </form>
                 </div>
             </div>

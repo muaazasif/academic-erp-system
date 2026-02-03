@@ -55,8 +55,8 @@
                         <tr>
                             <th>ID</th>
                             <th>Title</th>
-                            <th>Description</th>
-                            <th>Due Date</th>
+                            <th class="d-none d-md-table-cell">Description</th>
+                            <th class="d-none d-md-table-cell">Due Date</th>
                             <th>File</th>
                             <th>Status</th>
                             <th>Grade</th>
@@ -68,11 +68,11 @@
                         <tr>
                             <td>{{ assignment.id }}</td>
                             <td>{{ assignment.title }}</td>
-                            <td>{{ assignment.description[:50] }}{% if assignment.description|length > 50 %}...{% endif %}</td>
-                            <td>{{ assignment.due_date.strftime('%Y-%m-%d %H:%M') if assignment.due_date else 'No due date' }}</td>
+                            <td class="d-none d-md-table-cell">{{ assignment.description[:50] }}{% if assignment.description|length > 50 %}...{% endif %}</td>
+                            <td class="d-none d-md-table-cell">{{ assignment.due_date.strftime('%Y-%m-%d %H:%M') if assignment.due_date else 'No due date' }}</td>
                             <td>
                                 {% if assignment.file_url %}
-                                    <a href="{{ assignment.file_url }}" target="_blank" class="btn btn-sm btn-outline-info">Download</a>
+                                    <a href="{{ assignment.file_url }}" target="_blank" class="btn btn-sm btn-outline-info w-100 mb-1">Download</a>
                                 {% else %}
                                     <span class="text-muted">No file</span>
                                 {% endif %}
@@ -88,11 +88,11 @@
                             <td>{{ submission.grade if submission.grade else '-' }}</td>
                             <td>
                                 {% if submission.status == 'assigned' %}
-                                    <a href="{{ url_for('submit_assignment', assignment_id=assignment.id) }}" class="btn btn-primary btn-sm">Submit</a>
+                                    <a href="{{ url_for('submit_assignment', assignment_id=assignment.id) }}" class="btn btn-primary btn-sm w-100 mb-1">Submit</a>
                                 {% elif submission.status == 'submitted' %}
-                                    <span class="text-muted">Submitted</span>
+                                    <span class="text-muted w-100 d-block">Submitted</span>
                                 {% elif submission.status == 'graded' %}
-                                    <span class="text-success">Graded</span>
+                                    <span class="text-success w-100 d-block">Graded</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -100,6 +100,13 @@
                     </tbody>
                 </table>
             </div>
+
+            {% if not assigned_assignments %}
+            <div class="alert alert-info text-center">
+                <h4 class="alert-heading">No Assignments Assigned</h4>
+                <p>You don't have any assignments assigned to you at the moment.</p>
+            </div>
+            {% endif %}
         </main>
     </div>
 </div>

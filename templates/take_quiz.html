@@ -11,22 +11,32 @@
                 <ul class="nav flex-column">
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'student_dashboard' %}active{% endif %}" href="{{ url_for('student_dashboard') }}">
-                            Dashboard
+                            <i class="fas fa-home"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'student_quizzes' %}active{% endif %}" href="{{ url_for('student_quizzes') }}">
-                            My Quizzes
+                            <i class="fas fa-question-circle"></i> My Quizzes
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'student_assignments' %}active{% endif %}" href="{{ url_for('student_assignments') }}">
-                            My Assignments
+                            <i class="fas fa-tasks"></i> My Assignments
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_midterms' %}active{% endif %}" href="{{ url_for('student_midterms') }}">
+                            <i class="fas fa-file-alt"></i> My Mid-Terms
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_course_outlines' %}active{% endif %}" href="{{ url_for('student_course_outlines') }}">
+                            <i class="fas fa-book-open"></i> Course Outlines
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('logout') }}">
-                            Logout
+                            <i class="fas fa-sign-out-alt"></i> Logout
                         </a>
                     </li>
                 </ul>
@@ -59,8 +69,10 @@
                     </div>
                     {% endfor %}
 
-                    <button type="submit" class="btn btn-success btn-lg">Submit Quiz</button>
-                    <a href="{{ url_for('student_quizzes') }}" class="btn btn-secondary">Cancel</a>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('student_quizzes') }}" class="btn btn-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-success btn-lg">Submit Quiz</button>
+                    </div>
                 </form>
             {% else %}
                 <div class="alert alert-info">

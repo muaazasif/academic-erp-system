@@ -55,8 +55,8 @@
                         <tr>
                             <th>ID</th>
                             <th>Title</th>
-                            <th>Description</th>
-                            <th>Due Date</th>
+                            <th class="d-none d-md-table-cell">Description</th>
+                            <th class="d-none d-md-table-cell">Due Date</th>
                             <th>Status</th>
                             <th>Grade</th>
                             <th>Actions</th>
@@ -67,8 +67,8 @@
                         <tr>
                             <td>{{ midterm.id }}</td>
                             <td>{{ midterm.title }}</td>
-                            <td>{{ midterm.description or '' }}</td>
-                            <td>{{ midterm.due_date.strftime('%Y-%m-%d') if midterm.due_date else 'No due date' }}</td>
+                            <td class="d-none d-md-table-cell">{{ midterm.description or '' }}</td>
+                            <td class="d-none d-md-table-cell">{{ midterm.due_date.strftime('%Y-%m-%d') if midterm.due_date else 'No due date' }}</td>
                             <td>
                                 <span class="badge
                                     {% if assignment.status == 'submitted' %}bg-warning{% elif assignment.status == 'graded' %}bg-success{% else %}bg-info{% endif %}">
@@ -78,12 +78,12 @@
                             <td>{{ "%.2f"|format(assignment.grade) if assignment.grade else '-' }}</td>
                             <td>
                                 {% if assignment.status == 'assigned' %}
-                                    <a href="{{ url_for('download_midterm_workbook', midterm_id=midterm.id) }}" class="btn btn-primary btn-sm">Download Workbook</a>
-                                    <a href="{{ url_for('submit_midterm', midterm_id=midterm.id) }}" class="btn btn-success btn-sm">Submit</a>
+                                    <a href="{{ url_for('download_midterm_workbook', midterm_id=midterm.id) }}" class="btn btn-primary btn-sm w-100 mb-1">Download</a>
+                                    <a href="{{ url_for('submit_midterm', midterm_id=midterm.id) }}" class="btn btn-success btn-sm w-100 mb-1">Submit</a>
                                 {% elif assignment.status == 'submitted' %}
-                                    <a href="{{ url_for('submit_midterm', midterm_id=midterm.id) }}" class="btn btn-info btn-sm">View Submission</a>
+                                    <a href="{{ url_for('submit_midterm', midterm_id=midterm.id) }}" class="btn btn-info btn-sm w-100 mb-1">View</a>
                                 {% elif assignment.status == 'graded' %}
-                                    <span class="text-success">Graded: {{ "%.2f"|format(assignment.grade) }}</span>
+                                    <span class="text-success w-100 d-block">Graded: {{ "%.2f"|format(assignment.grade) }}</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -91,6 +91,13 @@
                     </tbody>
                 </table>
             </div>
+
+            {% if not assigned_midterms %}
+            <div class="alert alert-info text-center">
+                <h4 class="alert-heading">No Mid-Terms Assigned</h4>
+                <p>You don't have any mid-terms assigned to you at the moment.</p>
+            </div>
+            {% endif %}
         </main>
     </div>
 </div>

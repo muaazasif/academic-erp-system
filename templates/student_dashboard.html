@@ -56,7 +56,7 @@
 
             <!-- Student Info Card -->
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-12 col-md-6">
                     <div class="card">
                         <div class="card-body">
                             <h5 class="card-title">Student Information</h5>
@@ -73,7 +73,7 @@
                 </div>
 
                 <!-- Attendance Card -->
-                <div class="col-md-6">
+                <div class="col-12 col-md-6">
                     <div class="card">
                         <div class="card-body">
                             <h5 class="card-title">Today's Attendance</h5>
@@ -81,8 +81,8 @@
                                 <p><strong>Date:</strong> {{ attendance.date.strftime('%Y-%m-%d') }}</p>
                                 <p><strong>Check In:</strong> {{ attendance.check_in_time.strftime('%H:%M:%S') if attendance.check_in_time else 'Not Checked In' }}</p>
                                 <p><strong>Check Out:</strong> {{ attendance.check_out_time.strftime('%H:%M:%S') if attendance.check_out_time else 'Not Checked Out' }}</p>
-                                <p><strong>Status:</strong> 
-                                    <span class="badge 
+                                <p><strong>Status:</strong>
+                                    <span class="badge
                                         {% if attendance.status == 'present' %}bg-success
                                         {% elif attendance.status == 'late' %}bg-warning
                                         {% else %}bg-danger{% endif %}">
@@ -99,16 +99,16 @@
 
             <!-- Attendance Action Buttons -->
             <div class="row mt-4">
-                <div class="col-md-12">
+                <div class="col-12">
                     <div class="card">
                         <div class="card-body text-center">
                             {% if student %}
                                 <h5>Attendance Actions</h5>
-                                <div class="row">
-                                    <div class="col-md-6">
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-6">
                                         <form method="POST" action="{{ url_for('attendance_action') }}" style="display:inline;">
                                             <input type="hidden" name="action" value="check_in">
-                                            <button type="submit" class="btn btn-success btn-lg attendance-btn"
+                                            <button type="submit" class="btn btn-success btn-lg w-100 attendance-btn"
                                                     {% if attendance and attendance.check_in_time %}disabled{% endif %}>
                                                 {% if attendance and attendance.check_in_time %}
                                                     Already Checked In
@@ -118,10 +118,10 @@
                                             </button>
                                         </form>
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-12 col-md-6">
                                         <form method="POST" action="{{ url_for('attendance_action') }}" style="display:inline;">
                                             <input type="hidden" name="action" value="check_out">
-                                            <button type="submit" class="btn btn-danger btn-lg attendance-btn"
+                                            <button type="submit" class="btn btn-danger btn-lg w-100 attendance-btn"
                                                     {% if not (attendance and attendance.check_in_time) or (attendance and attendance.check_out_time) %}disabled{% endif %}>
                                                 {% if not (attendance and attendance.check_in_time) %}
                                                     Check In First
@@ -145,7 +145,7 @@
             {% with messages = get_flashed_messages() %}
                 {% if messages %}
                     <div class="row mt-3">
-                        <div class="col-md-12">
+                        <div class="col-12">
                             {% for message in messages %}
                                 <div class="alert alert-success">{{ message }}</div>
                             {% endfor %}

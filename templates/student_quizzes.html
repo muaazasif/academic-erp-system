@@ -67,8 +67,8 @@
                         <tr>
                             <td>{{ quiz.id }}</td>
                             <td>{{ quiz.title }}</td>
-                            <td>{{ quiz.description[:50] }}{% if quiz.description|length > 50 %}...{% endif %}</td>
-                            <td>{{ quiz.due_date.strftime('%Y-%m-%d %H:%M') if quiz.due_date else 'No due date' }}</td>
+                            <td class="d-none d-md-table-cell">{{ quiz.description[:50] }}{% if quiz.description|length > 50 %}...{% endif %}</td>
+                            <td class="d-none d-md-table-cell">{{ quiz.due_date.strftime('%Y-%m-%d %H:%M') if quiz.due_date else 'No due date' }}</td>
                             <td>
                                 <span class="badge
                                     {% if assignment.status == 'submitted' %}bg-warning
@@ -81,11 +81,11 @@
                             <td>{{ assignment.grade if assignment.grade else '-' }}</td>
                             <td>
                                 {% if assignment.status == 'assigned' %}
-                                    <a href="{{ url_for('take_quiz', quiz_id=quiz.id) }}" class="btn btn-primary btn-sm">Take Quiz</a>
+                                    <a href="{{ url_for('take_quiz', quiz_id=quiz.id) }}" class="btn btn-primary btn-sm w-100 mb-1">Take Quiz</a>
                                 {% elif assignment.status == 'submitted' %}
-                                    <a href="{{ url_for('view_quiz_result', quiz_id=quiz.id) }}" class="btn btn-info btn-sm">View Result</a>
+                                    <a href="{{ url_for('view_quiz_result', quiz_id=quiz.id) }}" class="btn btn-info btn-sm w-100 mb-1">View Result</a>
                                 {% elif assignment.status == 'graded' %}
-                                    <a href="{{ url_for('view_quiz_result', quiz_id=quiz.id) }}" class="btn btn-success btn-sm">View Result</a>
+                                    <a href="{{ url_for('view_quiz_result', quiz_id=quiz.id) }}" class="btn btn-success btn-sm w-100 mb-1">View Result</a>
                                 {% else %}
                                     <span class="text-muted">N/A</span>
                                 {% endif %}
@@ -95,6 +95,13 @@
                     </tbody>
                 </table>
             </div>
+
+            {% if not assigned_quizzes %}
+            <div class="alert alert-info text-center">
+                <h4 class="alert-heading">No Quizzes Assigned</h4>
+                <p>You don't have any quizzes assigned to you at the moment.</p>
+            </div>
+            {% endif %}
         </main>
     </div>
 </div>
