@@ -1,11 +1,15 @@
+import os
 from app import app, db, Admin, Student
 from werkzeug.security import generate_password_hash
 
 def create_initial_data():
+    # Ensure the instance directory exists
+    os.makedirs(app.instance_path, exist_ok=True)
+
     with app.app_context():
         # Check if admin user already exists
         admin_exists = Admin.query.filter_by(username='admin').first()
-        
+
         if not admin_exists:
             # Create default admin user
             admin = Admin(
@@ -19,10 +23,10 @@ def create_initial_data():
             print("Password: admin123")
         else:
             print("Admin user already exists.")
-            
+
         # Optionally create a sample student
         student_exists = Student.query.filter_by(student_id='101').first()
-        
+
         if not student_exists:
             student = Student(
                 student_id='101',
