@@ -49,7 +49,7 @@
                 <h1 class="h2">Student Dashboard</h1>
                 <div class="btn-toolbar mb-2 mb-md-0">
                     <div class="btn-group me-2">
-                        <span class="me-3">Welcome, {{ session.student_name }}!</span>
+                        <span class="me-3">Welcome, {{ session.student_name or 'Student' }}!</span>
                     </div>
                 </div>
             </div>
@@ -60,9 +60,14 @@
                     <div class="card">
                         <div class="card-body">
                             <h5 class="card-title">Student Information</h5>
-                            <p><strong>Student ID:</strong> {{ student.student_id }}</p>
-                            <p><strong>Name:</strong> {{ student.name }}</p>
-                            <p><strong>Member Since:</strong> {{ student.created_at.strftime('%Y-%m-%d') }}</p>
+                            {% if student %}
+                                <p><strong>Student ID:</strong> {{ student.student_id }}</p>
+                                <p><strong>Name:</strong> {{ student.name }}</p>
+                                <p><strong>Member Since:</strong> {{ student.created_at.strftime('%Y-%m-%d') }}</p>
+                            {% else %}
+                                <p><strong>Error:</strong> Student information not found.</p>
+                                <p>Please <a href="{{ url_for('logout') }}">log out</a> and log back in.</p>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -97,37 +102,41 @@
                 <div class="col-md-12">
                     <div class="card">
                         <div class="card-body text-center">
-                            <h5>Attendance Actions</h5>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <form method="POST" action="{{ url_for('attendance_action') }}" style="display:inline;">
-                                        <input type="hidden" name="action" value="check_in">
-                                        <button type="submit" class="btn btn-success btn-lg attendance-btn" 
-                                                {% if attendance and attendance.check_in_time %}disabled{% endif %}>
-                                            {% if attendance and attendance.check_in_time %}
-                                                Already Checked In
-                                            {% else %}
-                                                Check In
-                                            {% endif %}
-                                        </button>
-                                    </form>
+                            {% if student %}
+                                <h5>Attendance Actions</h5>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <form method="POST" action="{{ url_for('attendance_action') }}" style="display:inline;">
+                                            <input type="hidden" name="action" value="check_in">
+                                            <button type="submit" class="btn btn-success btn-lg attendance-btn"
+                                                    {% if attendance and attendance.check_in_time %}disabled{% endif %}>
+                                                {% if attendance and attendance.check_in_time %}
+                                                    Already Checked In
+                                                {% else %}
+                                                    Check In
+                                                {% endif %}
+                                            </button>
+                                        </form>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <form method="POST" action="{{ url_for('attendance_action') }}" style="display:inline;">
+                                            <input type="hidden" name="action" value="check_out">
+                                            <button type="submit" class="btn btn-danger btn-lg attendance-btn"
+                                                    {% if not (attendance and attendance.check_in_time) or (attendance and attendance.check_out_time) %}disabled{% endif %}>
+                                                {% if not (attendance and attendance.check_in_time) %}
+                                                    Check In First
+                                                {% elif attendance and attendance.check_out_time %}
+                                                    Already Checked Out
+                                                {% else %}
+                                                    Check Out
+                                                {% endif %}
+                                            </button>
+                                        </form>
+                                    </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <form method="POST" action="{{ url_for('attendance_action') }}" style="display:inline;">
-                                        <input type="hidden" name="action" value="check_out">
-                                        <button type="submit" class="btn btn-danger btn-lg attendance-btn"
-                                                {% if not (attendance and attendance.check_in_time) or (attendance and attendance.check_out_time) %}disabled{% endif %}>
-                                            {% if not (attendance and attendance.check_in_time) %}
-                                                Check In First
-                                            {% elif attendance and attendance.check_out_time %}
-                                                Already Checked Out
-                                            {% else %}
-                                                Check Out
-                                            {% endif %}
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
+                            {% else %}
+                                <p>Attendance actions are not available when student information is missing.</p>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
