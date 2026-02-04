@@ -1095,6 +1095,18 @@ def attendance_action():
     action = request.form['action']  # 'check_in' or 'check_out'
     today = datetime.today().date()
 
+    # Get location data from the request
+    check_in_location = request.form.get('check_in_location', None)
+    check_out_location = request.form.get('check_out_location', None)
+
+    # Validate location data is present for the action
+    if action == 'check_in' and not check_in_location:
+        flash('Location access is required for check-in. Please allow location access in your browser.')
+        return redirect(url_for('student_dashboard'))
+    elif action == 'check_out' and not check_out_location:
+        flash('Location access is required for check-out. Please allow location access in your browser.')
+        return redirect(url_for('student_dashboard'))
+
     # Get or create attendance record for today
     attendance = Attendance.query.filter_by(
         student_id=student_id,
@@ -1104,10 +1116,6 @@ def attendance_action():
     if not attendance:
         attendance = Attendance(student_id=student_id, date=today)
         db.session.add(attendance)
-
-    # Get location data from the request if available
-    check_in_location = request.form.get('check_in_location', None)
-    check_out_location = request.form.get('check_out_location', None)
 
     if action == 'check_in':
         if attendance.check_in_time is None:

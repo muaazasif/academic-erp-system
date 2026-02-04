@@ -115,7 +115,7 @@
                                         <form method="POST" action="{{ url_for('attendance_action') }}" style="display:inline;" id="checkInForm">
                                             <input type="hidden" name="action" value="check_in">
                                             <input type="hidden" name="check_in_location" id="checkInLocation" value="">
-                                            <button type="button" onclick="getLocationAndSubmit('check_in')" class="btn btn-success btn-lg w-100 attendance-btn"
+                                            <button type="button" onclick="checkLocationPermissionAndSubmit('check_in')" class="btn btn-success btn-lg w-100 attendance-btn"
                                                     {% if attendance and attendance.check_in_time %}disabled{% endif %}>
                                                 {% if attendance and attendance.check_in_time %}
                                                     Already Checked In
@@ -129,7 +129,7 @@
                                         <form method="POST" action="{{ url_for('attendance_action') }}" style="display:inline;" id="checkOutForm">
                                             <input type="hidden" name="action" value="check_out">
                                             <input type="hidden" name="check_out_location" id="checkOutLocation" value="">
-                                            <button type="button" onclick="getLocationAndSubmit('check_out')" class="btn btn-danger btn-lg w-100 attendance-btn"
+                                            <button type="button" onclick="checkLocationPermissionAndSubmit('check_out')" class="btn btn-danger btn-lg w-100 attendance-btn"
                                                     {% if not (attendance and attendance.check_in_time) or (attendance and attendance.check_out_time) %}disabled{% endif %}>
                                                 {% if not (attendance and attendance.check_in_time) %}
                                                     Check In First
@@ -173,7 +173,7 @@
                 function(position) {
                     // Format the location as "latitude,longitude"
                     const location = `${position.coords.latitude},${position.coords.longitude}`;
-                    
+
                     // Set the location in the hidden input field
                     if (action === 'check_in') {
                         document.getElementById('checkInLocation').value = location;
@@ -184,18 +184,31 @@
                     }
                 },
                 function(error) {
-                    // If location access is denied or unavailable, submit without location
+                    // If location access is denied or unavailable, show error and don't submit
                     console.log("Geolocation error:", error.message);
-                    
-                    // Show a notification to the user
-                    alert("Location access denied. Attendance will be recorded without location.");
-                    
-                    // Submit the form without location
-                    if (action === 'check_in') {
-                        document.getElementById('checkInForm').submit();
-                    } else if (action === 'check_out') {
-                        document.getElementById('checkOutForm').submit();
+
+                    let errorMessage = "Location access is required for attendance marking. ";
+
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage += "Location access was denied. Please allow location access in your browser settings.";
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage += "Location information is unavailable.";
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage += "The request to get location timed out.";
+                            break;
+                        case error.UNKNOWN_ERROR:
+                            errorMessage += "An unknown error occurred.";
+                            break;
                     }
+
+                    // Show error message to user
+                    alert(errorMessage);
+
+                    // Optionally, redirect to a help page or show instructions
+                    // For now, just show the error message
                 },
                 {
                     enableHighAccuracy: true,
@@ -205,15 +218,50 @@
             );
         } else {
             // Geolocation is not supported by the browser
-            alert("Geolocation is not supported by your browser. Attendance will be recorded without location.");
-            
-            // Submit the form without location
-            if (action === 'check_in') {
-                document.getElementById('checkInForm').submit();
-            } else if (action === 'check_out') {
-                document.getElementById('checkOutForm').submit();
-            }
+            alert("Geolocation is not supported by your browser. Location access is required for attendance marking.");
         }
+    }
+
+    // Function to check if location is enabled before allowing attendance
+    function checkLocationPermissionAndSubmit(action) {
+        if (!navigator.geolocation) {
+            alert("Geolocation is not supported by your browser. Location access is required for attendance marking.");
+            return;
+        }
+
+        // First, try to get location to check if permission is granted
+        const locationCheck = navigator.geolocation.getCurrentPosition(
+            function(position) {
+                // Permission granted, proceed with attendance
+                getLocationAndSubmit(action);
+            },
+            function(error) {
+                // Permission denied or error, show appropriate message
+                let errorMessage = "Location access is required for attendance marking. ";
+
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage += "Location access was denied. Please allow location access in your browser settings.";
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage += "Location information is unavailable.";
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage += "The request to get location timed out.";
+                        break;
+                    default:
+                        errorMessage += "An unknown error occurred.";
+                        break;
+                }
+
+                alert(errorMessage);
+            },
+            {
+                enableHighAccuracy: false, // Just checking permission, no need for high accuracy
+                timeout: 5000, // Shorter timeout for permission check
+                maximumAge: 300000 // Allow cached position for permission check
+            }
+        );
     }
 </script>
 {% endblock %}
