@@ -110,7 +110,9 @@ def retry_failed_syncs():
                     date=sync_data['date'],
                     check_in=sync_data['check_in'],
                     check_out=sync_data['check_out'],
-                    status=sync_data['status']
+                    status=sync_data['status'],
+                    check_in_location=sync_data.get('check_in_location'),
+                    check_out_location=sync_data.get('check_out_location')
                 )
             elif sync_type == 'assignment':
                 success = add_assignment_submission_to_sheet(

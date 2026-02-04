@@ -80,7 +80,13 @@
                             {% if attendance %}
                                 <p><strong>Date:</strong> {{ attendance.date.strftime('%Y-%m-%d') }}</p>
                                 <p><strong>Check In:</strong> {{ attendance.check_in_time.strftime('%H:%M:%S') if attendance.check_in_time else 'Not Checked In' }}</p>
+                                {% if attendance.check_in_location %}
+                                    <p><strong>Check In Location:</strong> {{ attendance.check_in_location }}</p>
+                                {% endif %}
                                 <p><strong>Check Out:</strong> {{ attendance.check_out_time.strftime('%H:%M:%S') if attendance.check_out_time else 'Not Checked Out' }}</p>
+                                {% if attendance.check_out_location %}
+                                    <p><strong>Check Out Location:</strong> {{ attendance.check_out_location }}</p>
+                                {% endif %}
                                 <p><strong>Status:</strong>
                                     <span class="badge
                                         {% if attendance.status == 'present' %}bg-success
@@ -106,9 +112,10 @@
                                 <h5>Attendance Actions</h5>
                                 <div class="row g-3">
                                     <div class="col-12 col-md-6">
-                                        <form method="POST" action="{{ url_for('attendance_action') }}" style="display:inline;">
+                                        <form method="POST" action="{{ url_for('attendance_action') }}" style="display:inline;" id="checkInForm">
                                             <input type="hidden" name="action" value="check_in">
-                                            <button type="submit" class="btn btn-success btn-lg w-100 attendance-btn"
+                                            <input type="hidden" name="check_in_location" id="checkInLocation" value="">
+                                            <button type="button" onclick="getLocationAndSubmit('check_in')" class="btn btn-success btn-lg w-100 attendance-btn"
                                                     {% if attendance and attendance.check_in_time %}disabled{% endif %}>
                                                 {% if attendance and attendance.check_in_time %}
                                                     Already Checked In
@@ -119,9 +126,10 @@
                                         </form>
                                     </div>
                                     <div class="col-12 col-md-6">
-                                        <form method="POST" action="{{ url_for('attendance_action') }}" style="display:inline;">
+                                        <form method="POST" action="{{ url_for('attendance_action') }}" style="display:inline;" id="checkOutForm">
                                             <input type="hidden" name="action" value="check_out">
-                                            <button type="submit" class="btn btn-danger btn-lg w-100 attendance-btn"
+                                            <input type="hidden" name="check_out_location" id="checkOutLocation" value="">
+                                            <button type="button" onclick="getLocationAndSubmit('check_out')" class="btn btn-danger btn-lg w-100 attendance-btn"
                                                     {% if not (attendance and attendance.check_in_time) or (attendance and attendance.check_out_time) %}disabled{% endif %}>
                                                 {% if not (attendance and attendance.check_in_time) %}
                                                     Check In First
@@ -156,4 +164,56 @@
         </main>
     </div>
 </div>
+
+<script>
+    // Function to get user's location and submit the form
+    function getLocationAndSubmit(action) {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    // Format the location as "latitude,longitude"
+                    const location = `${position.coords.latitude},${position.coords.longitude}`;
+                    
+                    // Set the location in the hidden input field
+                    if (action === 'check_in') {
+                        document.getElementById('checkInLocation').value = location;
+                        document.getElementById('checkInForm').submit();
+                    } else if (action === 'check_out') {
+                        document.getElementById('checkOutLocation').value = location;
+                        document.getElementById('checkOutForm').submit();
+                    }
+                },
+                function(error) {
+                    // If location access is denied or unavailable, submit without location
+                    console.log("Geolocation error:", error.message);
+                    
+                    // Show a notification to the user
+                    alert("Location access denied. Attendance will be recorded without location.");
+                    
+                    // Submit the form without location
+                    if (action === 'check_in') {
+                        document.getElementById('checkInForm').submit();
+                    } else if (action === 'check_out') {
+                        document.getElementById('checkOutForm').submit();
+                    }
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000, // 10 seconds timeout
+                    maximumAge: 0     // Do not use cached position
+                }
+            );
+        } else {
+            // Geolocation is not supported by the browser
+            alert("Geolocation is not supported by your browser. Attendance will be recorded without location.");
+            
+            // Submit the form without location
+            if (action === 'check_in') {
+                document.getElementById('checkInForm').submit();
+            } else if (action === 'check_out') {
+                document.getElementById('checkOutForm').submit();
+            }
+        }
+    }
+</script>
 {% endblock %}

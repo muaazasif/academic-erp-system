@@ -70,6 +70,8 @@ class Attendance(db.Model):
     date = db.Column(db.Date, nullable=False)
     check_in_time = db.Column(db.Time)
     check_out_time = db.Column(db.Time)
+    check_in_location = db.Column(db.String(100))  # Latitude,Longitude for check-in
+    check_out_location = db.Column(db.String(100))  # Latitude,Longitude for check-out
     status = db.Column(db.String(20), default='absent')  # present, absent, late
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -293,10 +295,10 @@ def authenticate_google_sheets():
         return None
 
 
-def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status):
+def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status, check_in_location=None, check_out_location=None):
     """Add attendance record to Google Sheet"""
     try:
-        print(f"Attempting to sync attendance to Google Sheets: {student_id}, {name}, {date}, {check_in}, {check_out}, {status}")
+        print(f"Attempting to sync attendance to Google Sheets: {student_id}, {name}, {date}, {check_in}, {check_out}, {status}, Check-in Location: {check_in_location}, Check-out Location: {check_out_location}")
 
         service = authenticate_google_sheets()
 
@@ -311,7 +313,9 @@ def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status)
                 'date': str(date),
                 'check_in': str(check_in),
                 'check_out': str(check_out),
-                'status': status
+                'status': status,
+                'check_in_location': check_in_location,
+                'check_out_location': check_out_location
             })
             return False
 
@@ -326,9 +330,36 @@ def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status)
 
         print(f"Using Google Sheet ID: {SPREADSHEET_ID}")
 
-        # Prepare the data to insert
+        # Prepare the data to insert - enhanced to include location coordinates separately
+        # Split location coordinates if they exist
+        check_in_lat = ''
+        check_in_lng = ''
+        check_out_lat = ''
+        check_out_lng = ''
+
+        if check_in_location:
+            try:
+                coords = check_in_location.split(',')
+                if len(coords) == 2:
+                    check_in_lat = coords[0].strip()
+                    check_in_lng = coords[1].strip()
+            except:
+                pass  # If parsing fails, leave as empty strings
+
+        if check_out_location:
+            try:
+                coords = check_out_location.split(',')
+                if len(coords) == 2:
+                    check_out_lat = coords[0].strip()
+                    check_out_lng = coords[1].strip()
+            except:
+                pass  # If parsing fails, leave as empty strings
+
         values = [
-            [str(date), student_id, name, str(check_in), str(check_out), status, str(datetime.now())]
+            [str(date), student_id, name, str(check_in), str(check_out), status,
+             check_in_location or '', check_in_lat, check_in_lng,
+             check_out_location or '', check_out_lat, check_out_lng,
+             str(datetime.now())]
         ]
 
         body = {
@@ -349,7 +380,9 @@ def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status)
                 'date': str(date),
                 'check_in': str(check_in),
                 'check_out': str(check_out),
-                'status': status
+                'status': status,
+                'check_in_location': check_in_location,
+                'check_out_location': check_out_location
             })
             return False
 
@@ -364,10 +397,10 @@ def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status)
 
         for sheet_name in attendance_sheets:
             if sheet_name in available_sheets:
-                possible_ranges.append(f'{sheet_name}!A:H')
+                possible_ranges.append(f'{sheet_name}!A:M')  # Updated to include more location columns
 
         # Add generic range as last resort
-        possible_ranges.append('A:H')
+        possible_ranges.append('A:M')  # Updated to include more location columns
 
         result = None
         print(f"Attempting to write to ranges: {possible_ranges}")
@@ -400,7 +433,9 @@ def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status)
                 'date': str(date),
                 'check_in': str(check_in),
                 'check_out': str(check_out),
-                'status': status
+                'status': status,
+                'check_in_location': check_in_location,
+                'check_out_location': check_out_location
             })
             return False
 
@@ -418,7 +453,9 @@ def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status)
             'date': str(date),
             'check_in': str(check_in),
             'check_out': str(check_out),
-            'status': status
+            'status': status,
+            'check_in_location': check_in_location,
+            'check_out_location': check_out_location
         })
         return False
 
@@ -1033,11 +1070,16 @@ def attendance_action():
         attendance = Attendance(student_id=student_id, date=today)
         db.session.add(attendance)
 
+    # Get location data from the request if available
+    check_in_location = request.form.get('check_in_location', None)
+    check_out_location = request.form.get('check_out_location', None)
+
     if action == 'check_in':
         if attendance.check_in_time is None:
             # Record current time for check-in using timezone-aware datetime
             current_datetime = get_current_time()
             attendance.check_in_time = current_datetime.time()
+            attendance.check_in_location = check_in_location
             attendance.status = 'present'
         else:
             flash('Already checked in today')
@@ -1047,6 +1089,7 @@ def attendance_action():
             # Record current time for check-out using timezone-aware datetime
             current_datetime = get_current_time()
             attendance.check_out_time = current_datetime.time()
+            attendance.check_out_location = check_out_location
         else:
             flash('Check in first or already checked out')
             return redirect(url_for('student_dashboard'))
@@ -1065,7 +1108,9 @@ def attendance_action():
                 date=attendance.date,
                 check_in=attendance.check_in_time,
                 check_out=attendance.check_out_time,
-                status=attendance.status
+                status=attendance.status,
+                check_in_location=attendance.check_in_location,
+                check_out_location=attendance.check_out_location
             )
 
             if not success:
