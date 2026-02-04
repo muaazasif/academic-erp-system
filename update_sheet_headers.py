@@ -87,8 +87,8 @@ def update_attendance_sheet_headers():
         # Define the headers for the attendance sheet with location data
         headers = [
             'Date', 'Student ID', 'Name', 'Check-In Time', 'Check-Out Time', 'Status',
-            'Check-In Location (Lat,Lng)', 'Check-In Latitude', 'Check-In Longitude',
-            'Check-Out Location (Lat,Lng)', 'Check-Out Latitude', 'Check-Out Longitude',
+            'Check-In Location (Lat,Lng)', 'Check-In Latitude', 'Check-In Longitude', 'Check-In Address',
+            'Check-Out Location (Lat,Lng)', 'Check-Out Latitude', 'Check-Out Longitude', 'Check-Out Address',
             'Sync Timestamp'
         ]
         
@@ -118,7 +118,7 @@ def update_attendance_sheet_headers():
                         break
             
             # Update the header row in the target sheet
-            range_name = f'{target_sheet}!A1:M1'  # A1 to M1 for 13 columns
+            range_name = f'{target_sheet}!A1:P1'  # A1 to P1 for 16 columns
             
             result = sheet.values().update(
                 spreadsheetId=SPREADSHEET_ID,

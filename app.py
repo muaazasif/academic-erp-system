@@ -11,6 +11,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+import requests
 
 # Load environment variables
 load_dotenv()
@@ -336,6 +337,8 @@ def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status,
         check_in_lng = ''
         check_out_lat = ''
         check_out_lng = ''
+        check_in_address = ''
+        check_out_address = ''
 
         if check_in_location:
             try:
@@ -343,6 +346,9 @@ def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status,
                 if len(coords) == 2:
                     check_in_lat = coords[0].strip()
                     check_in_lng = coords[1].strip()
+
+                    # Get address from coordinates
+                    check_in_address = get_address_from_coordinates(check_in_lat, check_in_lng)
             except:
                 pass  # If parsing fails, leave as empty strings
 
@@ -352,13 +358,16 @@ def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status,
                 if len(coords) == 2:
                     check_out_lat = coords[0].strip()
                     check_out_lng = coords[1].strip()
+
+                    # Get address from coordinates
+                    check_out_address = get_address_from_coordinates(check_out_lat, check_out_lng)
             except:
                 pass  # If parsing fails, leave as empty strings
 
         values = [
             [str(date), student_id, name, str(check_in), str(check_out), status,
-             check_in_location or '', check_in_lat, check_in_lng,
-             check_out_location or '', check_out_lat, check_out_lng,
+             check_in_location or '', check_in_lat, check_in_lng, check_in_address,
+             check_out_location or '', check_out_lat, check_out_lng, check_out_address,
              str(datetime.now())]
         ]
 
@@ -397,10 +406,10 @@ def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status,
 
         for sheet_name in attendance_sheets:
             if sheet_name in available_sheets:
-                possible_ranges.append(f'{sheet_name}!A:M')  # Updated to include more location columns
+                possible_ranges.append(f'{sheet_name}!A:P')  # Updated to include address columns
 
         # Add generic range as last resort
-        possible_ranges.append('A:M')  # Updated to include more location columns
+        possible_ranges.append('A:P')  # Updated to include address columns
 
         result = None
         print(f"Attempting to write to ranges: {possible_ranges}")
@@ -792,6 +801,32 @@ def add_detailed_quiz_answers_to_sheet(student_id, name, quiz_title, questions_d
             'submitted_at': str(submitted_at)
         })
         return False
+
+
+def get_address_from_coordinates(lat, lng):
+    """Convert GPS coordinates to human-readable address using OpenStreetMap API"""
+    try:
+        # Using OpenStreetMap's Nominatim API for reverse geocoding
+        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lng}&addressdetails=1"
+
+        headers = {
+            'User-Agent': 'ERP-System-Attendance-Tracker/1.0'  # Required by OpenStreetMap
+        }
+
+        response = requests.get(url, headers=headers)
+
+        if response.status_code == 200:
+            data = response.json()
+            if 'display_name' in data:
+                return data['display_name']
+            else:
+                return f"Coordinates: {lat}, {lng}"
+        else:
+            print(f"Reverse geocoding failed with status code: {response.status_code}")
+            return f"Coordinates: {lat}, {lng}"
+    except Exception as e:
+        print(f"Error in reverse geocoding: {e}")
+        return f"Coordinates: {lat}, {lng}"
 
 
 def add_midterm_grade_to_sheet(student_id, name, midterm_title, grade, graded_at):
