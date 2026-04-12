@@ -1103,6 +1103,22 @@ def export_to_sheets():
         return redirect(url_for('admin_dashboard'))
 
 
+@app.route('/admin/sync-status')
+def sync_status():
+    """Check Google Sheets sync status"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    google_sheet_id = os.getenv('GOOGLE_SHEET_ID')
+    creds_json = os.getenv('GOOGLE_SHEETS_CREDENTIALS_JSON')
+    
+    is_configured = bool(google_sheet_id and creds_json)
+    
+    return render_template('sync_status.html', 
+                          google_sheet_id=google_sheet_id,
+                          is_configured=is_configured)
+
+
 @app.route('/admin/add_student', methods=['GET', 'POST'])
 def add_student():
     if 'admin_id' not in session:

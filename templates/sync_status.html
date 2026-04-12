@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Sync Status{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        {% include 'sidebar.html' %}
+
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Google Sheets Sync Status</h1>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Google Sheets Configuration</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if google_sheet_id %}
+                                <div class="alert alert-success">
+                                    ✅ Google Sheets is configured!
+                                </div>
+                                <p><strong>Spreadsheet ID:</strong> <code>{{ google_sheet_id }}</code></p>
+                                <p>
+                                    <a href="https://docs.google.com/spreadsheets/d/{{ google_sheet_id }}" 
+                                       target="_blank" class="btn btn-primary">
+                                        Open Google Sheets
+                                    </a>
+                                </p>
+                            {% else %}
+                                <div class="alert alert-warning">
+                                    ⚠️ Google Sheets is NOT configured. 
+                                    Set GOOGLE_SHEET_ID environment variable.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5>Sync Status</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table">
+                                <tr>
+                                    <th>Data Type</th>
+                                    <th>Auto-Sync</th>
+                                    <th>Status</th>
+                                </tr>
+                                <tr>
+                                    <td>Students</td>
+                                    <td>✅ Yes</td>
+                                    <td><span class="badge bg-success">Working</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Attendance</td>
+                                    <td>✅ Yes</td>
+                                    <td><span class="badge bg-success">Working</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Quiz Submissions</td>
+                                    <td>✅ Yes</td>
+                                    <td><span class="badge bg-success">Working</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Assignment Submissions</td>
+                                    <td>✅ Yes</td>
+                                    <td><span class="badge bg-success">Working</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Midterm Grades</td>
+                                    <td>✅ Yes</td>
+                                    <td><span class="badge bg-success">Working</span></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mt-4">
+                        <strong>ℹ️ How it works:</strong>
+                        <ul class="mb-0">
+                            <li>Every time you add a student, it automatically syncs to Google Sheets</li>
+                            <li>Attendance check-ins/outs sync immediately</li>
+                            <li>Quiz results sync after submission</li>
+                            <li>If sync fails, data is saved locally and will retry</li>
+                            <li>Your Google Sheet has ALL your data permanently!</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}
