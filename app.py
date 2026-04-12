@@ -993,21 +993,114 @@ def login():
 def admin_dashboard():
     if 'admin_id' not in session:
         return redirect(url_for('login'))
-    
+
     students = Student.query.all()
     total_students = len(students)
-    
+
     # Get today's attendance
     today = datetime.today().date()
     present_count = Attendance.query.filter(
         Attendance.date == today,
         Attendance.status == 'present'
     ).count()
-    
-    return render_template('admin_dashboard.html', 
-                          students=students, 
+
+    return render_template('admin_dashboard.html',
+                          students=students,
                           total_students=total_students,
                           present_count=present_count)
+
+
+@app.route('/admin/export-to-sheets')
+def export_to_sheets():
+    """Export all database tables to Google Sheets"""
+    if 'admin_id' not in session:
+        flash('Please login as admin to export data')
+        return redirect(url_for('login'))
+
+    try:
+        from google.oauth2.service_account import Credentials
+        from googleapiclient.discovery import build
+        
+        SPREADSHEET_ID = os.getenv('GOOGLE_SHEET_ID')
+        if not SPREADSHEET_ID:
+            flash('❌ Google Sheet ID not configured! Set GOOGLE_SHEET_ID in environment variables.')
+            return redirect(url_for('admin_dashboard'))
+        
+        creds_json = os.getenv('GOOGLE_SHEETS_CREDENTIALS_JSON')
+        if not creds_json:
+            flash('❌ Google credentials not configured!')
+            return redirect(url_for('admin_dashboard'))
+        
+        creds_dict = json.loads(creds_json)
+        SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+        creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+        service = build('sheets', 'v4', credentials=creds)
+        
+        # Get all tables
+        from sqlalchemy import inspect, text
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        success_count = 0
+        total_rows = 0
+        
+        for table_name in tables:
+            try:
+                # Get all data
+                result = db.session.execute(text(f"SELECT * FROM {table_name}"))
+                rows = result.fetchall()
+                columns = result.keys()
+                
+                if not rows:
+                    continue
+                
+                # Prepare sheet name
+                sheet_name = table_name.replace('_', ' ').title()
+                
+                # Create sheet if not exists
+                spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+                sheet_exists = any(s['properties']['title'] == sheet_name for s in spreadsheet.get('sheets', []))
+                
+                if not sheet_exists:
+                    service.spreadsheets().batchUpdate(
+                        spreadsheetId=SPREADSHEET_ID,
+                        body={'requests': [{'addSheet': {'properties': {'title': sheet_name}}}]}
+                    ).execute()
+                else:
+                    # Clear existing
+                    service.spreadsheets().values().clear(
+                        spreadsheetId=SPREADSHEET_ID,
+                        range=sheet_name
+                    ).execute()
+                
+                # Prepare data
+                values = [list(columns)]
+                for row in rows:
+                    values.append([str(v) if v is not None else '' for v in row])
+                
+                # Upload
+                service.spreadsheets().values().update(
+                    spreadsheetId=SPREADSHEET_ID,
+                    range=f'{sheet_name}!A1',
+                    valueInputOption='RAW',
+                    body={'values': values}
+                ).execute()
+                
+                success_count += 1
+                total_rows += len(rows)
+                print(f"✅ Exported {table_name}: {len(rows)} rows")
+                
+            except Exception as e:
+                print(f"❌ Error exporting {table_name}: {e}")
+        
+        flash(f'✅ Successfully exported {success_count} tables ({total_rows} rows) to Google Sheets!')
+        return redirect(url_for('admin_dashboard'))
+        
+    except Exception as e:
+        flash(f'❌ Export failed: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/admin/add_student', methods=['GET', 'POST'])
