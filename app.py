@@ -253,94 +253,32 @@ class CourseOutline(db.Model):
     admin = db.relationship('Admin', backref=db.backref('course_outlines', lazy=True))
 
 
-# Google Sheets Integration
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+# Google Sheets Integration - CLEAN SYNC MODULE
+from clean_sheets_sync import (
+    sync_student,
+    sync_attendance,
+    sync_quiz,
+    sync_assignment,
+    sync_midterm,
+    get_sheets_service
+)
 
-_google_service = None
-_google_sheet_id = None
-
-def get_google_sheets_service():
-    """Get or create Google Sheets service (singleton pattern for performance)"""
-    global _google_service, _google_sheet_id
-    
-    # Return cached service if available
-    if _google_service:
-        return _google_service, _google_sheet_id
-    
-    # Load credentials
-    creds_json = os.getenv('GOOGLE_SHEETS_CREDENTIALS_JSON')
-    sheet_id = os.getenv('GOOGLE_SHEET_ID')
-    
-    if not creds_json or not sheet_id:
-        print("⚠️ Google Sheets not configured (missing GOOGLE_SHEETS_CREDENTIALS_JSON or GOOGLE_SHEET_ID)")
-        return None, None
-    
-    try:
-        from google.oauth2.service_account import Credentials
-        from googleapiclient.discovery import build
-        import json
-        
-        # Parse credentials
-        info = json.loads(creds_json)
-        
-        # Fix private key formatting
-        if "private_key" in info:
-            info["private_key"] = info["private_key"].replace("\\n", "\n")
-        
-        # Create credentials
-        creds = Credentials.from_service_account_info(info, scopes=SCOPES)
-        
-        # Build service
-        service = build('sheets', 'v4', credentials=creds)
-        
-        # Cache
-        _google_service = service
-        _google_sheet_id = sheet_id
-        
-        print("✅ Google Sheets service initialized successfully!")
-        return service, sheet_id
-        
-    except Exception as e:
-        print(f"❌ Google Sheets initialization FAILED: {e}")
-        import traceback
-        traceback.print_exc()
-        return None, None
-    except Exception as e:
-        print(f"Error building Google Sheets service: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
-
-
+# Backward compatibility - keep old function names
 def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status, check_in_location=None, check_out_location=None):
-    """Add attendance record to Google Sheet - AUTOMATIC SYNC"""
-    try:
-        print(f"🔄 Syncing attendance to Google Sheets: {student_id}, {name}, {date}")
+    """Backward compatible wrapper"""
+    return sync_attendance(student_id, name, date, check_in, check_out, status, check_in_location, check_out_location)
 
-        service, sheet_id = get_google_sheets_service()
-        
-        if not service or not sheet_id:
-            print("⚠️ Google Sheets not configured, skipping sync")
-            return False
-        
-        # Prepare data row
-        values = [[
-            str(date),
-            student_id,
-            name,
-            str(check_in) if check_in else '',
-            str(check_out) if check_out else '',
-            status,
-            check_in_location or '',
-            check_out_location or '',
-            str(datetime.now())
-        ]]
-        
-        # Append to Attendance sheet (create if not exists)
-        sheet_name = 'Attendance'
-        
-        # Try to append
-        result = service.spreadsheets().values().append(
+def add_assignment_submission_to_sheet(student_id, name, assignment_title, submission_url, submitted_at, grade=None):
+    """Backward compatible wrapper"""
+    return sync_assignment(student_id, name, assignment_title, submission_url, grade, submitted_at)
+
+def add_quiz_submission_to_sheet(student_id, name, quiz_title, score, total_questions, submitted_at):
+    """Backward compatible wrapper"""
+    return sync_quiz(student_id, name, quiz_title, score, total_questions, submitted_at)
+
+def add_midterm_grade_to_sheet(student_id, name, midterm_title, grade, graded_at):
+    """Backward compatible wrapper"""
+    return sync_midterm(student_id, name, midterm_title, grade, graded_at)
             spreadsheetId=sheet_id,
             range=f'{sheet_name}!A1',
             valueInputOption='USER_ENTERED',
