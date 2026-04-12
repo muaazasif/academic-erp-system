@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
@@ -12,6 +12,9 @@ from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import requests
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from io import BytesIO
 
 # Load environment variables
 load_dotenv()
@@ -32,8 +35,20 @@ def get_current_time():
         return datetime.now()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-change-this'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///erp_system.db'
+# Database configuration - Support both SQLite and PostgreSQL
+import os
+
+# Use PostgreSQL if DATABASE_URL is set (for production), else fallback to SQLite (for development)
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if DATABASE_URL:
+    # Railway and other platforms use postgres://, SQLAlchemy needs postgresql://
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
+    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+    print(f"✅ Using PostgreSQL database: {DATABASE_URL[:50]}...")
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///erp_system.db'
+    print("✅ Using SQLite database (development mode)")
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -1208,6 +1223,273 @@ def create_quiz():
         return redirect(url_for('admin_quizzes'))
 
     return render_template('create_quiz.html')
+
+
+@app.route('/admin/quizzes/download_template')
+def download_quiz_template():
+    """Download an Excel template for quiz creation"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+
+    # Create a new workbook
+    wb = openpyxl.Workbook()
+    
+    # Style definitions
+    header_font = Font(name='Calibri', bold=True, size=12, color='FFFFFF')
+    header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+    header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    cell_alignment = Alignment(vertical='top', wrap_text=True)
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Sheet 1: Quiz Info
+    ws1 = wb.active
+    ws1.title = 'Quiz Info'
+    
+    # Add headers for quiz info
+    quiz_headers = ['Quiz Title', 'Description', 'Due Date (YYYY-MM-DD HH:MM)']
+    for col, header in enumerate(quiz_headers, 1):
+        cell = ws1.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+    
+    # Add example data
+    ws1.cell(row=2, column=1, value='Example Quiz')
+    ws1.cell(row=2, column=2, value='This is an example quiz description')
+    ws1.cell(row=2, column=3, value='2024-12-31 23:59')
+    
+    for row in ws1.iter_rows(min_row=2, max_row=2, min_col=1, max_col=3):
+        for cell in row:
+            cell.alignment = cell_alignment
+            cell.border = thin_border
+    
+    # Set column widths
+    ws1.column_dimensions['A'].width = 30
+    ws1.column_dimensions['B'].width = 50
+    ws1.column_dimensions['C'].width = 30
+    
+    # Sheet 2: Questions
+    ws2 = wb.create_sheet('Questions')
+    
+    # Add headers for questions
+    question_headers = ['Question Number', 'Question Text', 'Option A', 'Option B', 'Option C', 'Option D', 'Correct Option (A/B/C/D)']
+    for col, header in enumerate(question_headers, 1):
+        cell = ws2.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+    
+    # Add example data
+    example_questions = [
+        [1, 'What is the capital of Pakistan?', 'Lahore', 'Karachi', 'Islamabad', 'Peshawar', 'C'],
+        [2, 'Which programming language is used for web development?', 'Python', 'JavaScript', 'C++', 'Java', 'B'],
+        [3, 'What is 2 + 2?', '3', '4', '5', '6', 'B']
+    ]
+    
+    for row_idx, question in enumerate(example_questions, 2):
+        for col_idx, value in enumerate(question, 1):
+            cell = ws2.cell(row=row_idx, column=col_idx, value=value)
+            cell.alignment = cell_alignment
+            cell.border = thin_border
+    
+    # Set column widths
+    ws2.column_dimensions['A'].width = 18
+    ws2.column_dimensions['B'].width = 60
+    ws2.column_dimensions['C'].width = 25
+    ws2.column_dimensions['D'].width = 25
+    ws2.column_dimensions['E'].width = 25
+    ws2.column_dimensions['F'].width = 25
+    ws2.column_dimensions['G'].width = 25
+    
+    # Add instructions sheet
+    ws3 = wb.create_sheet('Instructions')
+    ws3.cell(row=1, column=1, value='Quiz Upload Instructions')
+    ws3.cell(row=1, column=1).font = Font(name='Calibri', bold=True, size=14, color='1F4E79')
+    
+    instructions = [
+        '',
+        'Sheet 1 - Quiz Info:',
+        '• Quiz Title: The name of your quiz (required)',
+        '• Description: A brief description of the quiz (optional)',
+        '• Due Date: The deadline for the quiz in format YYYY-MM-DD HH:MM (optional)',
+        '',
+        'Sheet 2 - Questions:',
+        '• Question Number: The order of the question (1, 2, 3, etc.)',
+        '• Question Text: The actual question',
+        '• Option A, B, C, D: The four answer choices',
+        '• Correct Option: Enter A, B, C, or D to indicate the correct answer',
+        '',
+        'Important Notes:',
+        '• Each question must have exactly 4 options (A, B, C, D)',
+        '• Mark only ONE correct option per question',
+        '• You can add as many questions as needed',
+        '• Do not delete the header rows',
+        '',
+        'After filling the template:',
+        '1. Save the Excel file',
+        '2. Upload it using the "Upload Quiz from Excel" option',
+        '3. The system will create the quiz with all questions automatically'
+    ]
+    
+    for row_idx, instruction in enumerate(instructions, 2):
+        ws3.cell(row=row_idx, column=1, value=instruction)
+        ws3.cell(row=row_idx, column=1).alignment = Alignment(wrap_text=True, vertical='top')
+    
+    ws3.column_dimensions['A'].width = 80
+    
+    # Save to BytesIO
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='quiz_template.xlsx'
+    )
+
+
+@app.route('/admin/quizzes/upload_excel', methods=['GET', 'POST'])
+def upload_quiz_from_excel():
+    """Upload an Excel file to create a quiz with questions"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            flash('No file selected', 'error')
+            return redirect(request.url)
+
+        file = request.files['file']
+
+        if file.filename == '':
+            flash('No file selected', 'error')
+            return redirect(request.url)
+
+        if not file.filename.endswith('.xlsx'):
+            flash('Please upload a valid Excel file (.xlsx)', 'error')
+            return redirect(request.url)
+
+        try:
+            # Read the Excel file
+            wb = openpyxl.load_workbook(BytesIO(file.read()))
+            
+            # Check if required sheets exist
+            if 'Quiz Info' not in wb.sheetnames or 'Questions' not in wb.sheetnames:
+                flash('Invalid template. Please download the correct template first.', 'error')
+                return redirect(url_for('upload_quiz_from_excel'))
+            
+            # Read quiz info
+            ws1 = wb['Quiz Info']
+            quiz_title = ws1.cell(row=2, column=1).value
+            quiz_description = ws1.cell(row=2, column=2).value or ''
+            due_date_str = ws1.cell(row=2, column=3).value
+            
+            if not quiz_title:
+                flash('Quiz title is required in the Excel file', 'error')
+                return redirect(request.url)
+            
+            # Parse due date if provided
+            due_date = None
+            if due_date_str:
+                try:
+                    due_date_str = str(due_date_str).strip()
+                    if 'T' in due_date_str:
+                        due_date = datetime.strptime(due_date_str, '%Y-%m-%dT%H:%M')
+                    elif ' ' in due_date_str:
+                        due_date = datetime.strptime(due_date_str, '%Y-%m-%d %H:%M')
+                    else:
+                        due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
+                except:
+                    flash('Invalid due date format. Use YYYY-MM-DD HH:MM', 'warning')
+            
+            # Create the quiz
+            quiz = Quiz(
+                title=quiz_title,
+                description=quiz_description,
+                created_by=session['username'],
+                due_date=due_date
+            )
+            db.session.add(quiz)
+            db.session.flush()  # Get quiz ID without committing
+            
+            # Read questions
+            ws2 = wb['Questions']
+            questions_added = 0
+            
+            # Start from row 2 (row 1 is header)
+            for row in range(2, ws2.max_row + 1):
+                question_number = ws2.cell(row=row, column=1).value
+                question_text = ws2.cell(row=row, column=2).value
+                option_a = ws2.cell(row=row, column=3).value
+                option_b = ws2.cell(row=row, column=4).value
+                option_c = ws2.cell(row=row, column=5).value
+                option_d = ws2.cell(row=row, column=6).value
+                correct_option = ws2.cell(row=row, column=7).value
+                
+                # Skip if any required field is missing
+                if not all([question_number, question_text, option_a, option_b, option_c, option_d, correct_option]):
+                    continue
+                
+                # Validate correct option
+                correct_option = str(correct_option).strip().upper()
+                if correct_option not in ['A', 'B', 'C', 'D']:
+                    continue
+                
+                # Create question
+                question = QuizQuestion(
+                    quiz_id=quiz.id,
+                    question_text=str(question_text),
+                    question_number=int(question_number)
+                )
+                db.session.add(question)
+                db.session.flush()  # Get question ID
+                
+                # Create options
+                options = {
+                    'A': (option_a, correct_option == 'A'),
+                    'B': (option_b, correct_option == 'B'),
+                    'C': (option_c, correct_option == 'C'),
+                    'D': (option_d, correct_option == 'D')
+                }
+                
+                for opt_letter, (opt_text, is_correct) in options.items():
+                    option = QuizOption(
+                        question_id=question.id,
+                        option_text=str(opt_text),
+                        is_correct=is_correct
+                    )
+                    db.session.add(option)
+                
+                questions_added += 1
+            
+            if questions_added == 0:
+                db.session.rollback()
+                flash('No valid questions found in the Excel file', 'error')
+                return redirect(request.url)
+            
+            # Commit everything
+            db.session.commit()
+            
+            flash(f'Quiz created successfully with {questions_added} questions!', 'success')
+            return redirect(url_for('admin_quizzes'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error processing Excel file: {str(e)}', 'error')
+            import traceback
+            traceback.print_exc()
+            return redirect(request.url)
+
+    return render_template('upload_quiz_excel.html')
 
 
 @app.route('/admin/quizzes/<int:quiz_id>/assign', methods=['GET', 'POST'])

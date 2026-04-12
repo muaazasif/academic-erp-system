@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Quiz from Excel - ERP System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        {% include 'sidebar.html' %}
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Upload Quiz from Excel</h1>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else 'warning' if category == 'warning' else 'success' }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Upload Excel File</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST" enctype="multipart/form-data">
+                                <div class="mb-3">
+                                    <label for="file" class="form-label">Excel File (.xlsx)</label>
+                                    <input type="file" class="form-control" id="file" name="file" accept=".xlsx" required>
+                                    <div class="form-text">Upload a properly formatted quiz Excel file</div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">Upload and Create Quiz</button>
+                                <a href="{{ url_for('admin_quizzes') }}" class="btn btn-secondary">Cancel</a>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Need a Template?</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>Download our Excel template with pre-formatted sheets and example data:</p>
+                            <a href="{{ url_for('download_quiz_template') }}" class="btn btn-success">
+                                <i class="bi bi-download"></i> Download Quiz Template
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Instructions</h5>
+                        </div>
+                        <div class="card-body">
+                            <ol>
+                                <li>Download the quiz template</li>
+                                <li>Fill in your quiz information (title, description, due date)</li>
+                                <li>Add your questions with 4 options each (A, B, C, D)</li>
+                                <li>Mark the correct option for each question</li>
+                                <li>Save the Excel file</li>
+                                <li>Upload it here to create your quiz</li>
+                            </ol>
+                            <p class="text-muted"><strong>Note:</strong> Each question must have exactly 4 options, and you must mark one correct answer (A, B, C, or D).</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}

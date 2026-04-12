@@ -7,7 +7,7 @@
     <div class="row">
         <!-- Sidebar -->
         {% include 'sidebar.html' %}
-        
+
         <!-- Main content -->
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -16,25 +16,44 @@
 
             <div class="row">
                 <div class="col-md-8">
-                    <form method="POST">
-                        <div class="mb-3">
-                            <label for="title" class="form-label">Quiz Title</label>
-                            <input type="text" class="form-control" id="title" name="title" required>
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Option 1: Manual Creation</h5>
                         </div>
-                        
-                        <div class="mb-3">
-                            <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control" id="description" name="description" rows="4"></textarea>
+                        <div class="card-body">
+                            <form method="POST">
+                                <div class="mb-3">
+                                    <label for="title" class="form-label">Quiz Title</label>
+                                    <input type="text" class="form-control" id="title" name="title" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">Description</label>
+                                    <textarea class="form-control" id="description" name="description" rows="4"></textarea>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="due_date" class="form-label">Due Date (optional)</label>
+                                    <input type="datetime-local" class="form-control" id="due_date" name="due_date">
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">Create Quiz</button>
+                                <a href="{{ url_for('admin_quizzes') }}" class="btn btn-secondary">Cancel</a>
+                            </form>
                         </div>
-                        
-                        <div class="mb-3">
-                            <label for="due_date" class="form-label">Due Date (optional)</label>
-                            <input type="datetime-local" class="form-control" id="due_date" name="due_date">
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Option 2: Excel Upload</h5>
                         </div>
-                        
-                        <button type="submit" class="btn btn-primary">Create Quiz</button>
-                        <a href="{{ url_for('admin_quizzes') }}" class="btn btn-secondary">Cancel</a>
-                    </form>
+                        <div class="card-body">
+                            <p>Upload an Excel file to create your quiz with all questions at once:</p>
+                            <a href="{{ url_for('upload_quiz_from_excel') }}" class="btn btn-success">
+                                Upload Quiz from Excel
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
