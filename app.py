@@ -1124,8 +1124,52 @@ def add_student():
         student.set_password(password)
         db.session.add(student)
         db.session.commit()
-        
-        flash('Student added successfully')
+
+        # Sync to Google Sheets
+        try:
+            from google.oauth2.service_account import Credentials
+            from googleapiclient.discovery import build
+            
+            SPREADSHEET_ID = os.getenv('GOOGLE_SHEET_ID')
+            creds_json = os.getenv('GOOGLE_SHEETS_CREDENTIALS_JSON')
+            
+            if SPREADSHEET_ID and creds_json:
+                creds_dict = json.loads(creds_json)
+                SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+                creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+                service = build('sheets', 'v4', credentials=creds)
+                
+                # Create/get Students sheet
+                sheet_name = 'Students'
+                spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+                sheet_exists = any(s['properties']['title'] == sheet_name for s in spreadsheet.get('sheets', []))
+                
+                if not sheet_exists:
+                    service.spreadsheets().batchUpdate(
+                        spreadsheetId=SPREADSHEET_ID,
+                        body={'requests': [{'addSheet': {'properties': {'title': sheet_name}}}]}
+                    ).execute()
+                    # Add headers
+                    service.spreadsheets().values().update(
+                        spreadsheetId=SPREADSHEET_ID,
+                        range='Students!A1',
+                        valueInputOption='RAW',
+                        body={'values': [['Student ID', 'Name', 'Created At']]}
+                    ).execute()
+                
+                # Append student data
+                service.spreadsheets().values().append(
+                    spreadsheetId=SPREADSHEET_ID,
+                    range='Students!A2',
+                    valueInputOption='RAW',
+                    body={'values': [[student_id, name, str(datetime.now())]]}
+                ).execute()
+                
+                print(f"✅ Student synced to Google Sheets: {student_id}")
+        except Exception as e:
+            print(f"❌ Google Sheets sync error: {e}")
+
+        flash('Student added successfully and synced to Google Sheets')
         return redirect(url_for('admin_dashboard'))
     
     return render_template('add_student.html')
