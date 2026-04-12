@@ -255,59 +255,55 @@ class CourseOutline(db.Model):
 # Google Sheets Integration
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
-def authenticate_google_sheets():
-    """Authenticate and return Google Sheets service object"""
-    creds = None
-    from google.oauth2.service_account import Credentials
+_google_service = None
+_google_sheet_id = None
 
-    # Load the full Google service account JSON from environment variable
+def get_google_sheets_service():
+    """Get or create Google Sheets service (singleton pattern for performance)"""
+    global _google_service, _google_sheet_id
+    
+    # Return cached service if available
+    if _google_service:
+        return _google_service, _google_sheet_id
+    
+    # Load credentials
     creds_json = os.getenv('GOOGLE_SHEETS_CREDENTIALS_JSON')
-    if creds_json:
-        import json
-        try:
-            # Parse the credentials JSON from environment variable
-            info = json.loads(creds_json)
-
-            # Restore newlines in the private key to fix PEM formatting
-            if "private_key" in info:
-                private_key = info["private_key"]
-
-                # Handle various newline representations that might be in the environment variable
-                # Replace escaped newlines (common when storing in env vars)
-                private_key = private_key.replace("\\n", "\n").replace("\\r", "\r")
-
-                # Ensure proper PEM formatting
-                if not private_key.startswith("-----BEGIN"):
-                    private_key = "-----BEGIN PRIVATE KEY-----\n" + private_key
-                if not private_key.endswith("-----END PRIVATE KEY-----\n"):
-                    if not private_key.endswith("\n"):
-                        private_key += "\n"
-                    private_key += "-----END PRIVATE KEY-----\n"
-
-                info["private_key"] = private_key
-
-            # Create credentials object from the service account info
-            creds = Credentials.from_service_account_info(info, scopes=['https://www.googleapis.com/auth/spreadsheets'])
-            print("Successfully loaded credentials from environment variable GOOGLE_SHEETS_CREDENTIALS_JSON")
-        except (ValueError, TypeError) as env_error:
-            print(f"Error parsing service account credentials from environment: {env_error}")
-            import traceback
-            traceback.print_exc()
-            return None
-        except Exception as general_error:
-            print(f"General error with environment credentials: {general_error}")
-            import traceback
-            traceback.print_exc()
-            return None
-
-    # If we have valid credentials from environment variable, use them; otherwise, return None gracefully
-    if not creds:
-        print("No valid credentials found from environment variable GOOGLE_SHEETS_CREDENTIALS_JSON. Google Sheets integration will be disabled.")
-        return None
-
+    sheet_id = os.getenv('GOOGLE_SHEET_ID')
+    
+    if not creds_json or not sheet_id:
+        print("⚠️ Google Sheets not configured (missing GOOGLE_SHEETS_CREDENTIALS_JSON or GOOGLE_SHEET_ID)")
+        return None, None
+    
     try:
+        from google.oauth2.service_account import Credentials
+        from googleapiclient.discovery import build
+        import json
+        
+        # Parse credentials
+        info = json.loads(creds_json)
+        
+        # Fix private key formatting
+        if "private_key" in info:
+            info["private_key"] = info["private_key"].replace("\\n", "\n")
+        
+        # Create credentials
+        creds = Credentials.from_service_account_info(info, scopes=SCOPES)
+        
+        # Build service
         service = build('sheets', 'v4', credentials=creds)
-        return service
+        
+        # Cache
+        _google_service = service
+        _google_sheet_id = sheet_id
+        
+        print("✅ Google Sheets service initialized successfully!")
+        return service, sheet_id
+        
+    except Exception as e:
+        print(f"❌ Google Sheets initialization FAILED: {e}")
+        import traceback
+        traceback.print_exc()
+        return None, None
     except Exception as e:
         print(f"Error building Google Sheets service: {e}")
         import traceback
@@ -316,175 +312,47 @@ def authenticate_google_sheets():
 
 
 def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status, check_in_location=None, check_out_location=None):
-    """Add attendance record to Google Sheet"""
+    """Add attendance record to Google Sheet - AUTOMATIC SYNC"""
     try:
-        print(f"Attempting to sync attendance to Google Sheets: {student_id}, {name}, {date}, {check_in}, {check_out}, {status}, Check-in Location: {check_in_location}, Check-out Location: {check_out_location}")
+        print(f"🔄 Syncing attendance to Google Sheets: {student_id}, {name}, {date}")
 
-        service = authenticate_google_sheets()
-
-        # If authentication failed, return False but log the reason
-        if not service:
-            print("Google Sheets service not available, skipping sync")
-            # Store for later retry
-            from sync_utils import store_failed_sync
-            store_failed_sync('attendance', {
-                'student_id': student_id,
-                'name': name,
-                'date': str(date),
-                'check_in': str(check_in),
-                'check_out': str(check_out),
-                'status': status,
-                'check_in_location': check_in_location,
-                'check_out_location': check_out_location
-            })
+        service, sheet_id = get_google_sheets_service()
+        
+        if not service or not sheet_id:
+            print("⚠️ Google Sheets not configured, skipping sync")
             return False
-
-        sheet = service.spreadsheets()
-
-        # Get the Google Sheet ID from environment variable
-        SPREADSHEET_ID = os.getenv('GOOGLE_SHEET_ID')
-
-        if not SPREADSHEET_ID:
-            print("Google Sheet ID not found in environment variables")
-            return False
-
-        print(f"Using Google Sheet ID: {SPREADSHEET_ID}")
-
-        # Prepare the data to insert - enhanced to include location coordinates separately
-        # Split location coordinates if they exist
-        check_in_lat = ''
-        check_in_lng = ''
-        check_out_lat = ''
-        check_out_lng = ''
-        check_in_address = ''
-        check_out_address = ''
-
-        if check_in_location:
-            try:
-                coords = check_in_location.split(',')
-                if len(coords) == 2:
-                    check_in_lat = coords[0].strip()
-                    check_in_lng = coords[1].strip()
-
-                    # Get address from coordinates
-                    check_in_address = get_address_from_coordinates(check_in_lat, check_in_lng)
-            except:
-                pass  # If parsing fails, leave as empty strings
-
-        if check_out_location:
-            try:
-                coords = check_out_location.split(',')
-                if len(coords) == 2:
-                    check_out_lat = coords[0].strip()
-                    check_out_lng = coords[1].strip()
-
-                    # Get address from coordinates
-                    check_out_address = get_address_from_coordinates(check_out_lat, check_out_lng)
-            except:
-                pass  # If parsing fails, leave as empty strings
-
-        values = [
-            [str(date), student_id, name, str(check_in), str(check_out), status,
-             check_in_location or '', check_in_lat, check_in_lng, check_in_address,
-             check_out_location or '', check_out_lat, check_out_lng, check_out_address,
-             str(datetime.now())]
-        ]
-
-        body = {
-            'values': values
-        }
-
-        # First, get the spreadsheet to see what sheets are available
-        try:
-            spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
-            available_sheets = [sheet['properties']['title'] for sheet in spreadsheet['sheets']]
-        except Exception as e:
-            print(f"Error getting spreadsheet metadata: {e}")
-            # Store for later retry
-            from sync_utils import store_failed_sync
-            store_failed_sync('attendance', {
-                'student_id': student_id,
-                'name': name,
-                'date': str(date),
-                'check_in': str(check_in),
-                'check_out': str(check_out),
-                'status': status,
-                'check_in_location': check_in_location,
-                'check_out_location': check_out_location
-            })
-            return False
-
-        print(f"Available sheets in spreadsheet: {available_sheets}")
-
-        # Try to find an appropriate sheet for attendance data
-        # Look for 'Attendance' sheet first, then fallback options
-        possible_ranges = []
-
-        # Check for common attendance sheet names
-        attendance_sheets = ['Attendance', 'attendance', 'ATTENDANCE', 'Daily Attendance', 'Sheet1']
-
-        for sheet_name in attendance_sheets:
-            if sheet_name in available_sheets:
-                possible_ranges.append(f'{sheet_name}!A:P')  # Updated to include address columns
-
-        # Add generic range as last resort
-        possible_ranges.append('A:P')  # Updated to include address columns
-
-        result = None
-        print(f"Attempting to write to ranges: {possible_ranges}")
-
-        for sheet_range in possible_ranges:
-            try:
-                print(f"Trying to write to range: {sheet_range}")
-                result = sheet.values().append(
-                    spreadsheetId=SPREADSHEET_ID,
-                    range=sheet_range,
-                    valueInputOption='RAW',
-                    body=body
-                ).execute()
-                print(f"Attendance data sent to Google Sheets successfully in range {sheet_range}.")
-                print(f"Response: {result}")
-                break
-            except Exception as e:
-                print(f"Failed to write to range {sheet_range}: {e}")
-                import traceback
-                traceback.print_exc()
-                continue
-
-        if not result:
-            print("Failed to write to any sheet range")
-            # Store for later retry
-            from sync_utils import store_failed_sync
-            store_failed_sync('attendance', {
-                'student_id': student_id,
-                'name': name,
-                'date': str(date),
-                'check_in': str(check_in),
-                'check_out': str(check_out),
-                'status': status,
-                'check_in_location': check_in_location,
-                'check_out_location': check_out_location
-            })
-            return False
-
-        print(f"Attendance data sent to Google Sheets successfully.")
+        
+        # Prepare data row
+        values = [[
+            str(date),
+            student_id,
+            name,
+            str(check_in) if check_in else '',
+            str(check_out) if check_out else '',
+            status,
+            check_in_location or '',
+            check_out_location or '',
+            str(datetime.now())
+        ]]
+        
+        # Append to Attendance sheet (create if not exists)
+        sheet_name = 'Attendance'
+        
+        # Try to append
+        result = service.spreadsheets().values().append(
+            spreadsheetId=sheet_id,
+            range=f'{sheet_name}!A1',
+            valueInputOption='USER_ENTERED',
+            body={'values': values}
+        ).execute()
+        
+        print(f"✅ Attendance synced to Google Sheets: {student_id}")
         return True
+        
     except Exception as e:
-        print(f"Error adding to Google Sheets: {e}")
+        print(f"❌ Attendance sync FAILED: {e}")
         import traceback
         traceback.print_exc()
-        # Store for later retry
-        from sync_utils import store_failed_sync
-        store_failed_sync('attendance', {
-            'student_id': student_id,
-            'name': name,
-            'date': str(date),
-            'check_in': str(check_in),
-            'check_out': str(check_out),
-            'status': status,
-            'check_in_location': check_in_location,
-            'check_out_location': check_out_location
-        })
         return False
 
 
