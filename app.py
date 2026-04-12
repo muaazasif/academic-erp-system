@@ -265,8 +265,19 @@ from clean_sheets_sync import (
 
 # Backward compatibility - keep old function names
 def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status, check_in_location=None, check_out_location=None):
-    """Backward compatible wrapper"""
-    return sync_attendance(student_id, name, date, check_in, check_out, status, check_in_location, check_out_location)
+    """Backward compatible wrapper - extracts address from coordinates"""
+    # Extract address from check_in_location if present
+    address = None
+    if check_in_location:
+        try:
+            parts = str(check_in_location).split(',')
+            if len(parts) == 2:
+                # Call get_address_from_coordinates directly (defined later in this file)
+                address = get_address_from_coordinates(parts[0].strip(), parts[1].strip())
+        except Exception as e:
+            print(f"⚠️ Address extraction error: {e}")
+    
+    return sync_attendance(student_id, name, date, check_in, check_out, status, check_in_location, check_out_location, address)
 
 def add_assignment_submission_to_sheet(student_id, name, assignment_title, submission_url, submitted_at, grade=None):
     """Backward compatible wrapper"""
