@@ -35,6 +35,10 @@ def get_current_time():
         return datetime.now()
 
 app = Flask(__name__)
+
+# Load SECRET_KEY from environment variable (Railway/production)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'fallback-dev-secret-key-change-in-production')
+
 # Database configuration - Support both SQLite and PostgreSQL
 import os
 
