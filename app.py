@@ -2249,25 +2249,39 @@ def student_excel_assignments():
 
 @app.route('/student/excel/download/<int:assignment_id>')
 def download_excel_exercise(assignment_id):
-    """Download the Excel exercise workbook"""
+    """Download the Excel exercise workbook (.xlsm with VBA macro)"""
     if 'student_id' not in session:
         return redirect(url_for('login'))
     
     assignment = ExcelSkillsAssignment.query.get_or_404(assignment_id)
     
-    # Generate workbook
-    wb = create_excel_exercise_workbook()
+    # Check for template file with VBA
+    template_path = os.path.join(os.path.dirname(__file__), 'excel_template.xlsm')
     
-    # Save to BytesIO
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
+    if os.path.exists(template_path):
+        # Use template with VBA macro
+        import shutil
+        output = BytesIO()
+        shutil.copyfileobj(open(template_path, 'rb'), output)
+        output.seek(0)
+        
+        filename = f'Excel_Exercises_{assignment.title.replace(" ", "_")}.xlsm'
+        mimetype = 'application/vnd.ms-excel.sheet.macroEnabled.12'
+    else:
+        # No template - generate without VBA
+        wb = create_excel_exercise_workbook()
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        filename = f'Excel_Exercises_{assignment.title.replace(" ", "_")}.xlsx'
+        mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     
     return send_file(
         output,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        mimetype=mimetype,
         as_attachment=True,
-        download_name=f'Excel_Exercises_{assignment.title.replace(" ", "_")}.xlsx'
+        download_name=filename
     )
 
 
