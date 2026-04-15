@@ -2368,6 +2368,21 @@ if __name__ == '__main__':
             admin.set_password('admin123')
             db.session.add(admin)
             db.session.commit()
+        
+        # Create default Excel Skills Assignment if none exists
+        excel_count = ExcelSkillsAssignment.query.count()
+        if excel_count == 0:
+            from datetime import datetime, timedelta
+            default_excel = ExcelSkillsAssignment(
+                title="Excel Skills Test 1",
+                description="Complete all exercises: VLOOKUP, SUMIF, COUNTIF, LEFT, RIGHT, MID, IF, and Complex Challenge. Total 10 marks. Download the workbook, complete it offline, then upload your solution.",
+                created_at=datetime.now(),
+                deadline=datetime.now() + timedelta(days=7),
+                is_active=True
+            )
+            db.session.add(default_excel)
+            db.session.commit()
+            print("✅ Default Excel Skills Assignment created!")
 
     # Start background sync worker
     try:
