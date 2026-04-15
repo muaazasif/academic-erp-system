@@ -31,7 +31,8 @@ def create_excel_exercise_workbook():
         shutil.copy(template_path, temp_file.name)
         temp_file.close()
         
-        wb = openpyxl.load_workbook(temp_file.name)
+        # MUST use keep_vba=True to preserve macros!
+        wb = openpyxl.load_workbook(temp_file.name, keep_vba=True)
         os.unlink(temp_file.name)
     else:
         # Create workbook without VBA (fallback)
@@ -59,9 +60,13 @@ def create_instructions(wb):
     ws.merge_cells('A1:F1')
     ws.row_dimensions[1].height = 40
     
-    ws['A2'] = "VLOOKUP | SUMIF | COUNTIF | LEFT | RIGHT | MID | IF | NESTED FUNCTIONS"
-    ws['A2'].font = Font(size=12, bold=True, color="FF6600")
+    ws['A2'] = "⚠️ IMPORTANT: YOU MUST ENABLE MACROS (CLICK 'ENABLE CONTENT') TO START"
+    ws['A2'].font = Font(size=12, bold=True, color="FF0000")
     ws.merge_cells('A2:F2')
+    
+    ws['A3'] = "🚨 ANTI-CHEATING: IF YOU OPEN ANY OTHER EXCEL OR WINDOW, YOUR MARKS WILL BE ZERO!"
+    ws['A3'].font = Font(size=11, bold=True, color="C00000")
+    ws.merge_cells('A3:F3')
     
     content = [
         ("", None),
@@ -80,10 +85,11 @@ def create_instructions(wb):
         ("✅ HOW TO COMPLETE:", None),
         ("• Write formula in YELLOW cell", None),
         ("• Your answer calculates automatically", None),
-        ("• DO NOT change sheet names", None)
+        ("• DO NOT change sheet names", None),
+        ("• DO NOT switch windows or search on Google", None)
     ]
     
-    for i, (text, _) in enumerate(content, 4):
+    for i, (text, _) in enumerate(content, 5):
         ws.cell(row=i, column=1, value=text)
     
     ws.column_dimensions['A'].width = 55
@@ -404,23 +410,42 @@ def grade_excel_submission(file_path):
     # CHECK FOR CHEATING (anti-cheating detection)
     # ==========================================
     cheating_detected = False
+    macros_disabled = False
     
-    # Check hidden cell Z100 in Instructions sheet
+    # Check hidden cells in Instructions sheet
     if 'Instructions' in wb.sheetnames:
         ws = wb['Instructions']
+        macro_flag = ws.cell(row=99, column=26).value   # Z99
         cheat_flag = ws.cell(row=100, column=26).value  # Z100
         
+        # Check if macros were enabled
+        if not macro_flag or str(macro_flag).upper() != 'MACROS_OK':
+            macros_disabled = True
+            print("🚨 MACROS DISABLED: Student did not enable macros!")
+        
+        # Check if they cheated
         if cheat_flag and 'CHEAT' in str(cheat_flag).upper():
             cheating_detected = True
             print("🚨 CHEATING DETECTED: Student opened other windows/files!")
     
-    # If cheating detected, return ZERO marks
+    # If macros disabled or cheating detected, return ZERO marks
+    if macros_disabled:
+        return {
+            'score': 0,
+            'max': 10,
+            'percentage': 0,
+            'cheating_detected': False,
+            'macros_disabled': True,
+            'details': {'error': 'Macros were not enabled. You must enable macros to complete the assignment.'}
+        }
+
     if cheating_detected:
         return {
             'score': 0,
             'max': 10,
             'percentage': 0,
             'cheating_detected': True,
+            'macros_disabled': False,
             'details': {'error': 'Cheating detected - other files/windows were opened'}
         }
     

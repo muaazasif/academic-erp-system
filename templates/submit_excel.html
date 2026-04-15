@@ -23,26 +23,31 @@
     <a href="/student/excel-assignments" class="btn btn-secondary">Back to Assignments</a>
     {% else %}
     
+    <div class="alert alert-warning">
+        <strong>🚨 IMPORTANT:</strong> You <strong>MUST</strong> enable macros (click "Enable Content" in Excel) for the anti-cheating system to work. 
+        If macros are not enabled, your score will be <strong>ZERO</strong>!
+    </div>
+    
     <div class="alert alert-info">
         <strong>📋 Instructions:</strong>
         <ol class="mb-0">
-            <li>Download the exercise file</li>
-            <li>Complete all exercises (VLOOKUP, SUMIF, COUNTIF, LEFT, RIGHT, MID)</li>
-            <li>Save your work</li>
-            <li>Upload the completed file</li>
-            <li>System will auto-grade and show your marks</li>
+            <li>Download the exercise file (<strong>.xlsm</strong>)</li>
+            <li>Open it and <strong>CLICK 'ENABLE CONTENT'</strong> (very important!)</li>
+            <li>Complete all exercises (VLOOKUP, SUMIF, COUNTIF, LEFT, RIGHT, MID, etc.)</li>
+            <li><strong>DO NOT</strong> switch windows, open other files, or search Google while working!</li>
+            <li>Save your work and upload the <strong>.xlsm</strong> file</li>
         </ol>
     </div>
     
     <div class="row">
         <div class="col-md-6">
-            <div class="card">
+            <div class="card bg-light">
                 <div class="card-header">Step 1: Download Exercise File</div>
                 <div class="card-body">
-                    <a href="/student/excel/download/{{ assignment.id }}" class="btn btn-success">
-                        📥 Download Excel Exercises
+                    <a href="/student/excel/download/{{ assignment.id }}" class="btn btn-success btn-lg">
+                        📥 Download .xlsm Exercises
                     </a>
-                    <p class="mt-2 text-muted"><small>File contains all exercises + instructions</small></p>
+                    <p class="mt-2 text-danger"><small>⚠️ Macros must be enabled after downloading!</small></p>
                 </div>
             </div>
         </div>
@@ -52,7 +57,7 @@
                 <div class="card-header">Step 2: Upload Completed File</div>
                 <div class="card-body">
                     <form method="POST" enctype="multipart/form-data">
-                        <input type="file" name="file" class="form-control" accept=".xlsx" required>
+                        <input type="file" name="file" class="form-control" accept=".xlsx,.xlsm" required>
                         <button type="submit" class="btn btn-primary mt-2">
                             📤 Submit & Auto-Grade
                         </button>

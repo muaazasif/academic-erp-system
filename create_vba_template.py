@@ -24,14 +24,50 @@ def create_template_automatically():
         workbook = excel.Workbooks.Add()
         
         # Add VBA code to ThisWorkbook
-        vba_code = """Private Sub Workbook_Deactivate()
+        vba_code = """Private Sub Workbook_Open()
     On Error Resume Next
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Sheets("Instructions")
     If Not ws Is Nothing Then
+        ' Mark that macros are enabled
+        ws.Range("Z99").Value = "MACROS_OK"
+        ws.Range("Z99").Font.Color = RGB(255, 255, 255) ' White text to hide it
+        
+        ' Reset cheating flag at start
+        ws.Range("Z100").Value = ""
+    End If
+    
+    ' Show all other sheets only when macros are enabled
+    Dim s As Worksheet
+    For Each s In ThisWorkbook.Worksheets
+        If s.Name <> "Instructions" Then
+            s.Visible = xlSheetVisible
+        End If
+    Next s
+End Sub
+
+Private Sub Workbook_Deactivate()
+    On Error Resume Next
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("Instructions")
+    If Not ws Is Nothing Then
+        ' Mark that student switched windows (possibly cheating)
         ws.Range("Z100").Value = "CHEATED"
         ws.Range("Z100").Font.Color = RGB(255, 255, 255)
     End If
+End Sub
+
+Private Sub Workbook_BeforeClose(Cancel As Boolean)
+    On Error Resume Next
+    ' Hide all sheets except instructions before saving
+    ' This way, if they open it without macros next time, they see nothing
+    Dim s As Worksheet
+    For Each s In ThisWorkbook.Worksheets
+        If s.Name <> "Instructions" Then
+            s.Visible = xlSheetVeryHidden
+        End If
+    Next s
+    ThisWorkbook.Save
 End Sub
 """
         

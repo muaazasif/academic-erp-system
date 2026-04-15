@@ -14,8 +14,9 @@
                 <th>Name</th>
                 <th>Submitted At</th>
                 <th>Score</th>
-                <th>Percentage</th>
                 <th>Status</th>
+                <th>Macros?</th>
+                <th>Cheating?</th>
             </tr>
         </thead>
         <tbody>
@@ -24,17 +25,24 @@
                 <td>{{ sub.student.student_id }}</td>
                 <td>{{ sub.student.name }}</td>
                 <td>{{ sub.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                <td><strong>{{ sub.score }}/10</strong></td>
                 <td>
-                    {% if sub.percentage >= 80 %}
-                        <span class="badge bg-success">{{ sub.percentage }}%</span>
-                    {% elif sub.percentage >= 50 %}
-                        <span class="badge bg-warning">{{ sub.percentage }}%</span>
-                    {% else %}
-                        <span class="badge bg-danger">{{ sub.percentage }}%</span>
-                    {% endif %}
+                    <strong>{{ sub.score }}/10</strong> ({{ sub.percentage }}%)
                 </td>
                 <td>{{ sub.status }}</td>
+                <td>
+                    {% if sub.macros_disabled %}
+                        <span class="badge bg-danger">Disabled</span>
+                    {% else %}
+                        <span class="badge bg-success">Enabled</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if sub.is_cheating %}
+                        <span class="badge bg-danger">🚨 CHEATING!</span>
+                    {% else %}
+                        <span class="badge bg-success">Clean</span>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>

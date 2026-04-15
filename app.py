@@ -225,6 +225,8 @@ class ExcelSubmission(db.Model):
     percentage = db.Column(db.Float)
     grade_details = db.Column(db.Text)  # JSON with detailed breakdown
     status = db.Column(db.String(20), default='submitted')  # submitted, graded
+    is_cheating = db.Column(db.Boolean, default=False)
+    macros_disabled = db.Column(db.Boolean, default=False)
     
     # Relationships
     assignment = db.relationship('ExcelSkillsAssignment', backref=db.backref('submissions', lazy=True))
@@ -2257,19 +2259,19 @@ def download_excel_exercise(assignment_id):
     
     # Generate workbook with exercises
     wb = create_excel_exercise_workbook()
-    
+
     # Save to BytesIO
     output = BytesIO()
+    # Save as .xlsm if it was loaded from a template with VBA
     wb.save(output)
     output.seek(0)
-    
+
     return send_file(
         output,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        mimetype='application/vnd.ms-excel.sheet.macroEnabled.12',
         as_attachment=True,
-        download_name=f'Excel_Exercises_{assignment.title.replace(" ", "_")}.xlsx'
+        download_name=f'Excel_Exercises_{assignment.title.replace(" ", "_")}.xlsm'
     )
-
 
 @app.route('/student/excel/submit/<int:assignment_id>', methods=['GET', 'POST'])
 def submit_excel_assignment(assignment_id):
@@ -2296,17 +2298,26 @@ def submit_excel_assignment(assignment_id):
             flash('❌ No file selected!')
             return redirect(request.url)
         
-        if not file.filename.endswith(('.xlsx', '.xls')):
-            flash('❌ Only Excel files (.xlsx) allowed!')
+        if not file.filename.endswith(('.xlsx', '.xls', '.xlsm')):
+            flash('❌ Only Excel files (.xlsx, .xlsm) allowed!')
             return redirect(request.url)
         
         # Save file temporarily
         import tempfile
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
+        # Check original extension
+        ext = '.xlsm' if file.filename.endswith('.xlsm') else '.xlsx'
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
             file.save(tmp.name)
             
             # Auto-grade
             result = grade_excel_submission(tmp.name)
+            
+            if 'macros_disabled' in result and result['macros_disabled']:
+                flash('❌ MARKS: 0 - Macros were NOT enabled. You MUST enable macros to complete the assignment!')
+                # We still record it as 0
+            
+            if result.get('cheating_detected'):
+                flash('🚨 MARKS: 0 - CHEATING DETECTED! Other windows or files were opened.')
             
             if 'error' in result:
                 flash(f'❌ Error grading file: {result["error"]}')
@@ -2319,6 +2330,8 @@ def submit_excel_assignment(assignment_id):
                 existing.grade_details = json.dumps(result['details'])
                 existing.status = 'graded'
                 existing.submitted_at = datetime.now()
+                existing.is_cheating = result.get('cheating_detected', False)
+                existing.macros_disabled = result.get('macros_disabled', False)
             else:
                 submission = ExcelSubmission(
                     assignment_id=assignment_id,
@@ -2326,7 +2339,9 @@ def submit_excel_assignment(assignment_id):
                     score=result['score'],
                     percentage=result['percentage'],
                     grade_details=json.dumps(result['details']),
-                    status='graded'
+                    status='graded',
+                    is_cheating=result.get('cheating_detected', False),
+                    macros_disabled=result.get('macros_disabled', False)
                 )
                 db.session.add(submission)
             
