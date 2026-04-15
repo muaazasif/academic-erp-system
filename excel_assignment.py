@@ -440,13 +440,14 @@ def grade_excel_submission(file_path):
         }
 
     if cheating_detected:
+        print("🚨 CRITICAL: Cheating detected for this submission!")
         return {
-            'score': 0,
+            'score': 0.0,
             'max': 10,
-            'percentage': 0,
+            'percentage': 0.0,
             'cheating_detected': True,
             'macros_disabled': False,
-            'details': {'error': 'Cheating detected - other files/windows were opened'}
+            'details': {'error': 'CHEATING DETECTED: You switched windows/applications while completing the assignment.'}
         }
     
     # Normal grading
