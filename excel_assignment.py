@@ -270,16 +270,16 @@ def create_text_functions_exercises(wb):
 
 def create_if_nested_exercises(wb):
     ws = wb.create_sheet("IF & NESTED IF")
-    
+
     ws.merge_cells('A1:E1')
     ws['A1'] = "📊 Student Marks Data"
     ws['A1'].font = Font(size=14, bold=True, color="1F4E79")
-    
+
     headers = ['Student ID', 'Name', 'Marks', 'Grade (Use IF)', 'Status (Use IF)']
     for col, h in enumerate(headers, 1):
         ws.cell(row=3, column=col, value=h)
     style_header(ws, 3, 5)
-    
+
     data = [
         ['S001', 'Ahmed', 92, '', ''],
         ['S002', 'Sara', 85, '', ''],
@@ -292,15 +292,15 @@ def create_if_nested_exercises(wb):
         ['S009', 'Ali', 72, '', ''],
         ['S010', 'Maryam', 95, '', ''],
     ]
-    
+
     for i, row in enumerate(data):
         for j, val in enumerate(row):
             ws.cell(row=4+i, column=1+j, value=val)
-    
-    ws.merge_cells('G3:G10')
+
+    # Grading scale in column G (no merging to avoid read-only cells)
     ws['G3'] = "📝 GRADING SCALE:"
     ws['G3'].font = Font(bold=True, size=11, color="1F4E79")
-    
+
     grading = [
         "90-100 = A+",
         "80-89 = A",
@@ -309,18 +309,19 @@ def create_if_nested_exercises(wb):
         "50-59 = D",
         "Below 50 = F",
         "",
-        "≥ 50 = Pass",
+        ">= 50 = Pass",
         "< 50 = Fail"
     ]
-    
+
     for i, text in enumerate(grading, 4):
         ws.cell(row=3+i, column=7, value=text)
-    
+
     ws.column_dimensions['A'].width = 15
     ws.column_dimensions['B'].width = 20
     ws.column_dimensions['C'].width = 15
     ws.column_dimensions['D'].width = 20
     ws.column_dimensions['E'].width = 20
+    ws.column_dimensions['G'].width = 25
 
 def create_complex_challenge(wb):
     ws = wb.create_sheet("COMPLEX CHALLENGE")
