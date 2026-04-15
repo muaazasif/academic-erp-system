@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Create Excel Assignment{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>📝 Create Excel Skills Assignment</h2>
+    
+    <form method="POST" class="mt-3">
+        <div class="mb-3">
+            <label class="form-label">Assignment Title *</label>
+            <input type="text" name="title" class="form-control" required placeholder="e.g., Excel Skills Test 1">
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-control" rows="3" placeholder="Instructions or notes for students"></textarea>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Deadline (Optional)</label>
+            <input type="datetime-local" name="deadline" class="form-control">
+        </div>
+        
+        <div class="alert alert-info">
+            <strong>📋 What students will get:</strong>
+            <ul class="mb-0">
+                <li>VLOOKUP exercises (2 marks)</li>
+                <li>SUMIF & COUNTIF exercises (2 marks)</li>
+                <li>LEFT, RIGHT, MID text functions (3 marks)</li>
+                <li>Complex challenge combining all (3 marks)</li>
+            </ul>
+            <strong>Total: 10 marks - Auto-graded!</strong>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Create Assignment</button>
+        <a href="/admin/excel-assignments" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

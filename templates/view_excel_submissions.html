@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Excel Submissions - {{ assignment.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>📊 Submissions: {{ assignment.title }}</h2>
+    
+    {% if submissions %}
+    <table class="table table-striped mt-3">
+        <thead>
+            <tr>
+                <th>Student ID</th>
+                <th>Name</th>
+                <th>Submitted At</th>
+                <th>Score</th>
+                <th>Percentage</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sub in submissions %}
+            <tr>
+                <td>{{ sub.student.student_id }}</td>
+                <td>{{ sub.student.name }}</td>
+                <td>{{ sub.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td><strong>{{ sub.score }}/10</strong></td>
+                <td>
+                    {% if sub.percentage >= 80 %}
+                        <span class="badge bg-success">{{ sub.percentage }}%</span>
+                    {% elif sub.percentage >= 50 %}
+                        <span class="badge bg-warning">{{ sub.percentage }}%</span>
+                    {% else %}
+                        <span class="badge bg-danger">{{ sub.percentage }}%</span>
+                    {% endif %}
+                </td>
+                <td>{{ sub.status }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="alert alert-info mt-3">No submissions yet for this assignment.</div>
+    {% endif %}
+    
+    <a href="/admin/excel-assignments" class="btn btn-secondary mt-3">Back to Assignments</a>
+</div>
+{% endblock %}

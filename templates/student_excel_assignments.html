@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Excel Assignments - Student{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>📊 Excel Skills Assignments</h2>
+    
+    {% if assignments %}
+    <div class="row mt-3">
+        {% for a in assignments %}
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-header">
+                    <strong>{{ a.title }}</strong>
+                </div>
+                <div class="card-body">
+                    {% if a.description %}
+                    <p class="text-muted small">{{ a.description[:100] }}...</p>
+                    {% endif %}
+                    
+                    {% if submissions[a.id] %}
+                        {% set sub = submissions[a.id] %}
+                        <div class="alert alert-success py-2">
+                            ✅ Submitted<br>
+                            <strong>Score: {{ sub.score }}/10</strong> ({{ sub.percentage }}%)
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning py-2">
+                            ⏳ Not submitted yet
+                        </div>
+                    {% endif %}
+                    
+                    <a href="/student/excel/submit/{{ a.id }}" class="btn btn-primary btn-sm w-100">
+                        {% if submissions[a.id] %}View Details{% else %}Download & Submit{% endif %}
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info mt-3">No Excel assignments available yet.</div>
+    {% endif %}
+</div>
+{% endblock %}

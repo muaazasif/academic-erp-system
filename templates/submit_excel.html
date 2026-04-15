@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Submit Excel Assignment{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>📊 {{ assignment.title }}</h2>
+    
+    {% if assignment.description %}
+    <p class="text-muted">{{ assignment.description }}</p>
+    {% endif %}
+    
+    {% if assignment.deadline %}
+    <p><strong>⏰ Deadline:</strong> {{ assignment.deadline.strftime('%Y-%m-%d %H:%M') }}</p>
+    {% endif %}
+    
+    {% if existing %}
+    <div class="alert alert-success">
+        <strong>✅ Already Submitted!</strong><br>
+        Score: <strong>{{ existing.score }}/10</strong> ({{ existing.percentage }}%)<br>
+        Submitted: {{ existing.submitted_at.strftime('%Y-%m-%d %H:%M') }}
+    </div>
+    <a href="/student/excel-assignments" class="btn btn-secondary">Back to Assignments</a>
+    {% else %}
+    
+    <div class="alert alert-info">
+        <strong>📋 Instructions:</strong>
+        <ol class="mb-0">
+            <li>Download the exercise file</li>
+            <li>Complete all exercises (VLOOKUP, SUMIF, COUNTIF, LEFT, RIGHT, MID)</li>
+            <li>Save your work</li>
+            <li>Upload the completed file</li>
+            <li>System will auto-grade and show your marks</li>
+        </ol>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">Step 1: Download Exercise File</div>
+                <div class="card-body">
+                    <a href="/student/excel/download/{{ assignment.id }}" class="btn btn-success">
+                        📥 Download Excel Exercises
+                    </a>
+                    <p class="mt-2 text-muted"><small>File contains all exercises + instructions</small></p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">Step 2: Upload Completed File</div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        <input type="file" name="file" class="form-control" accept=".xlsx" required>
+                        <button type="submit" class="btn btn-primary mt-2">
+                            📤 Submit & Auto-Grade
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% endif %}
+</div>
+{% endblock %}

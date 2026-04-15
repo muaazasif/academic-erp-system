@@ -204,6 +204,33 @@ class MidTerm(db.Model):
     admin = db.relationship('Admin', backref=db.backref('mid_terms', lazy=True))
 
 
+class ExcelSkillsAssignment(db.Model):
+    """Excel Skills Assignment with auto-grading"""
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    deadline = db.Column(db.DateTime)
+    max_marks = db.Column(db.Integer, default=10)
+    is_active = db.Column(db.Boolean, default=True)
+
+
+class ExcelSubmission(db.Model):
+    """Track Excel assignment submissions"""
+    id = db.Column(db.Integer, primary_key=True)
+    assignment_id = db.Column(db.Integer, db.ForeignKey('excel_skills_assignment.id'), nullable=False)
+    student_id = db.Column(db.String(50), db.ForeignKey('student.student_id'), nullable=False)
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+    score = db.Column(db.Float)  # Auto-graded score out of 10
+    percentage = db.Column(db.Float)
+    grade_details = db.Column(db.Text)  # JSON with detailed breakdown
+    status = db.Column(db.String(20), default='submitted')  # submitted, graded
+    
+    # Relationships
+    assignment = db.relationship('ExcelSkillsAssignment', backref=db.backref('submissions', lazy=True))
+    student = db.relationship('Student', backref=db.backref('excel_submissions', lazy=True))
+
+
 class MidTermAssignment(db.Model):
     """Link table to assign mid-term sheets to students"""
     id = db.Column(db.Integer, primary_key=True)
@@ -260,8 +287,56 @@ from clean_sheets_sync import (
     sync_quiz,
     sync_assignment,
     sync_midterm,
-    get_sheets_service
+    get_sheets_service,
+    get_address_from_coordinates
 )
+
+# Excel assignment module
+from excel_assignment import (
+    create_excel_exercise_workbook,
+    grade_excel_submission
+)
+
+def sync_excel_grade(student_id, name, assignment_title, score, percentage, submitted_at):
+    """Sync Excel grade to Google Sheets"""
+    try:
+        service, sheet_id = get_sheets_service()
+        if not service:
+            return False
+        
+        # Ensure sheet exists
+        try:
+            spreadsheet = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+            sheets = [s['properties']['title'] for s in spreadsheet.get('sheets', [])]
+            if 'Excel Assignments' not in sheets:
+                service.spreadsheets().batchUpdate(
+                    spreadsheetId=sheet_id,
+                    body={'requests': [{'addSheet': {'properties': {'title': 'Excel Assignments'}}}]}
+                ).execute()
+                service.spreadsheets().values().update(
+                    spreadsheetId=sheet_id,
+                    range='Excel Assignments!A1',
+                    valueInputOption='USER_ENTERED',
+                    body={'values': [['Student ID', 'Name', 'Assignment', 'Score', 'Percentage', 'Submitted At', 'Sync Time']]}
+                ).execute()
+        except Exception as e:
+            print(f"⚠️ Error creating sheet: {e}")
+        
+        # Append row
+        from datetime import datetime
+        values = [[student_id, name, assignment_title, f"{score}/10", f"{percentage}%", str(submitted_at), str(datetime.now())]]
+        service.spreadsheets().values().append(
+            spreadsheetId=sheet_id,
+            range='Excel Assignments!A2',
+            valueInputOption='USER_ENTERED',
+            body={'values': values}
+        ).execute()
+        
+        print(f"✅ Excel grade synced: {student_id} - {score}/10")
+        return True
+    except Exception as e:
+        print(f"❌ Excel grade sync FAILED: {e}")
+        return False
 
 # Backward compatibility - keep old function names
 def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status, check_in_location=None, check_out_location=None):
@@ -2079,6 +2154,208 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+
+# ============================================
+# EXCEL SKILLS ASSIGNMENT ROUTES
+# ============================================
+
+@app.route('/admin/excel-assignments')
+def admin_excel_assignments():
+    """View all Excel Skills Assignments"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    assignments = ExcelSkillsAssignment.query.order_by(ExcelSkillsAssignment.created_at.desc()).all()
+    return render_template('admin_excel_assignments.html', assignments=assignments)
+
+
+@app.route('/admin/excel-assignments/create', methods=['GET', 'POST'])
+def create_excel_assignment():
+    """Create a new Excel Skills Assignment"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        title = request.form['title']
+        description = request.form.get('description', '')
+        deadline_str = request.form.get('deadline')
+        
+        deadline = None
+        if deadline_str:
+            from datetime import datetime as dt
+            deadline = dt.strptime(deadline_str, '%Y-%m-%dT%H:%M')
+        
+        assignment = ExcelSkillsAssignment(
+            title=title,
+            description=description,
+            deadline=deadline
+        )
+        db.session.add(assignment)
+        db.session.commit()
+        
+        flash('✅ Excel Skills Assignment created!')
+        return redirect(url_for('admin_excel_assignments'))
+    
+    return render_template('create_excel_assignment.html')
+
+
+@app.route('/admin/excel-assignments/<int:assignment_id>/submissions')
+def view_excel_submissions(assignment_id):
+    """View all submissions for an assignment"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    assignment = ExcelSkillsAssignment.query.get_or_404(assignment_id)
+    submissions = ExcelSubmission.query.filter_by(assignment_id=assignment_id).all()
+    
+    return render_template('view_excel_submissions.html', assignment=assignment, submissions=submissions)
+
+
+@app.route('/admin/excel-assignments/<int:assignment_id>/assign', methods=['GET', 'POST'])
+def assign_excel_to_students(assignment_id):
+    """Assign Excel assignment to all students or selected students"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        student_ids = request.form.getlist('student_ids')
+        flash(f'✅ Assignment assigned to {len(student_ids)} students!')
+        return redirect(url_for('admin_excel_assignments'))
+    
+    assignment = ExcelSkillsAssignment.query.get_or_404(assignment_id)
+    students = Student.query.all()
+    return render_template('assign_excel.html', assignment=assignment, students=students)
+
+
+@app.route('/student/excel-assignments')
+def student_excel_assignments():
+    """View Excel assignments for logged-in student"""
+    if 'student_id' not in session:
+        return redirect(url_for('login'))
+    
+    assignments = ExcelSkillsAssignment.query.filter_by(is_active=True).all()
+    
+    # Get submissions for this student
+    submissions = {}
+    for assignment in assignments:
+        sub = ExcelSubmission.query.filter_by(
+            assignment_id=assignment.id,
+            student_id=session['student_id']
+        ).first()
+        submissions[assignment.id] = sub
+    
+    return render_template('student_excel_assignments.html', assignments=assignments, submissions=submissions)
+
+
+@app.route('/student/excel/download/<int:assignment_id>')
+def download_excel_exercise(assignment_id):
+    """Download the Excel exercise workbook"""
+    if 'student_id' not in session:
+        return redirect(url_for('login'))
+    
+    assignment = ExcelSkillsAssignment.query.get_or_404(assignment_id)
+    
+    # Generate workbook
+    wb = create_excel_exercise_workbook()
+    
+    # Save to BytesIO
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'Excel_Exercises_{assignment.title.replace(" ", "_")}.xlsx'
+    )
+
+
+@app.route('/student/excel/submit/<int:assignment_id>', methods=['GET', 'POST'])
+def submit_excel_assignment(assignment_id):
+    """Submit completed Excel assignment - auto-graded"""
+    if 'student_id' not in session:
+        return redirect(url_for('login'))
+    
+    assignment = ExcelSkillsAssignment.query.get_or_404(assignment_id)
+    student_id = session['student_id']
+    
+    # Check if already submitted
+    existing = ExcelSubmission.query.filter_by(
+        assignment_id=assignment_id,
+        student_id=student_id
+    ).first()
+    
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            flash('❌ No file uploaded!')
+            return redirect(request.url)
+        
+        file = request.files['file']
+        if file.filename == '':
+            flash('❌ No file selected!')
+            return redirect(request.url)
+        
+        if not file.filename.endswith(('.xlsx', '.xls')):
+            flash('❌ Only Excel files (.xlsx) allowed!')
+            return redirect(request.url)
+        
+        # Save file temporarily
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
+            file.save(tmp.name)
+            
+            # Auto-grade
+            result = grade_excel_submission(tmp.name)
+            
+            if 'error' in result:
+                flash(f'❌ Error grading file: {result["error"]}')
+                return redirect(request.url)
+            
+            # Create or update submission
+            if existing:
+                existing.score = result['score']
+                existing.percentage = result['percentage']
+                existing.grade_details = json.dumps(result['details'])
+                existing.status = 'graded'
+                existing.submitted_at = datetime.now()
+            else:
+                submission = ExcelSubmission(
+                    assignment_id=assignment_id,
+                    student_id=student_id,
+                    score=result['score'],
+                    percentage=result['percentage'],
+                    grade_details=json.dumps(result['details']),
+                    status='graded'
+                )
+                db.session.add(submission)
+            
+            db.session.commit()
+            
+            # Sync to Google Sheets
+            student = Student.query.filter_by(student_id=student_id).first()
+            if student:
+                try:
+                    sync_excel_grade(
+                        student_id=student.student_id,
+                        name=student.name,
+                        assignment_title=assignment.title,
+                        score=result['score'],
+                        percentage=result['percentage'],
+                        submitted_at=datetime.now()
+                    )
+                except Exception as e:
+                    print(f"⚠️ Google Sheets sync failed: {e}")
+            
+            flash(f'✅ Submitted! Score: {result["score"]}/10 ({result["percentage"]}%)')
+            return redirect(url_for('student_excel_assignments'))
+    
+    return render_template('submit_excel.html', assignment=assignment, existing=existing)
+
+
+# ============================================
+# APP STARTUP
+# ============================================
 
 if __name__ == '__main__':
     with app.app_context():

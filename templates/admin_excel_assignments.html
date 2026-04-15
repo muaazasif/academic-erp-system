@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Excel Assignments - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between mb-3">
+        <h2>📊 Excel Skills Assignments</h2>
+        <a href="/admin/excel-assignments/create" class="btn btn-primary">+ Create New</a>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for msg in messages %}
+                <div class="alert alert-success">{{ msg }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if assignments %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Created</th>
+                <th>Deadline</th>
+                <th>Status</th>
+                <th>Submissions</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in assignments %}
+            <tr>
+                <td>{{ a.title }}</td>
+                <td>{{ a.created_at.strftime('%Y-%m-%d') }}</td>
+                <td>{{ a.deadline.strftime('%Y-%m-%d %H:%M') if a.deadline else 'No deadline' }}</td>
+                <td>
+                    {% if a.is_active %}
+                        <span class="badge bg-success">Active</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>{{ a.submissions|length }}</td>
+                <td>
+                    <a href="/admin/excel-assignments/{{ a.id }}/submissions" class="btn btn-sm btn-info">View Submissions</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="alert alert-info">No Excel assignments created yet. Click "Create New" to start!</div>
+    {% endif %}
+</div>
+{% endblock %}
