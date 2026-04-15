@@ -1,6 +1,6 @@
 @echo off
 echo ============================================================
-echo    EXCEL ANTI-CHEATING TEMPLATE SETUP (FIXED V2)
+echo    EXCEL ANTI-CHEATING TEMPLATE SETUP (FIXED V3)
 echo ============================================================
 echo.
 echo 1. Opening Excel...
@@ -10,7 +10,7 @@ start excel
 echo.
 echo 2. Excel is opening!
 echo.
-echo NOW DO THIS:
+echo NOW DO THIS (IMPORTANT):
 echo.
 echo    a) Click "Blank workbook"
 echo    b) Create a sheet named "Instructions" (exactly)
@@ -24,6 +24,7 @@ echo    Dim OpenedAt As Double
 echo
 echo    Private Sub Workbook_Open()
 echo        On Error Resume Next
+echo        Application.EnableEvents = True
 echo        IsClosing = False
 echo        OpenedAt = Timer
 echo        Dim ws As Worksheet
@@ -41,25 +42,27 @@ echo    End Sub
 echo
 echo    Private Sub Workbook_Deactivate()
 echo        On Error Resume Next
-echo        ' 5 SECOND GRACE PERIOD TO ALLOW MACRO ENABLING
+echo        If IsClosing Then Exit Sub
 echo        If Timer - OpenedAt ^< 5 Then Exit Sub
-echo        If Not IsClosing Then DetectCheating
+echo        DetectCheating
 echo    End Sub
 echo
 echo    Sub DetectCheating()
 echo        On Error Resume Next
 echo        If IsClosing Then Exit Sub
+echo        Application.EnableEvents = False
+echo        IsClosing = True
 echo        Dim ws As Worksheet
 echo        Set ws = ThisWorkbook.Sheets("Instructions")
 echo        If Not ws Is Nothing Then
 echo            If ws.Range("Z100").Value ^<^> "CHEATED" Then
 echo                ws.Range("Z100").Value = "CHEATED"
 echo                MsgBox "🚨 CHEATING DETECTED!", vbCritical
-echo                IsClosing = True
 echo                ThisWorkbook.Save
 echo                ThisWorkbook.Close SaveChanges:=True
 echo            End If
 echo        End If
+echo        Application.EnableEvents = True
 echo    End Sub
 echo
 echo    Private Sub Workbook_BeforeClose(Cancel As Boolean)
@@ -71,6 +74,6 @@ echo    f) Press CTRL + S
 echo    g) Save as "Excel Macro-Enabled Workbook (*.xlsm)"
 echo    h) File name: excel_template
 echo.
-echo ✅ FIXED: 5-second grace period added to prevent false positives!
+echo ✅ FINAL FIX: Now you can open and close WITHOUT false cheating!
 echo.
 pause

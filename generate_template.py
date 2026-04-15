@@ -11,8 +11,9 @@ Dim OpenedAt As Double
 
 Private Sub Workbook_Open()
     On Error Resume Next
+    Application.EnableEvents = True
     IsClosing = False
-    OpenedAt = Timer ' Record time of opening
+    OpenedAt = Timer
     
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Sheets("Instructions")
@@ -38,15 +39,19 @@ End Sub
 
 Private Sub Workbook_Deactivate()
     On Error Resume Next
-    ' GRACE PERIOD: Ignore deactivate for first 5 seconds
+    If IsClosing Then Exit Sub
     If Timer - OpenedAt < 5 Then Exit Sub
     
-    If Not IsClosing Then DetectCheating
+    DetectCheating
 End Sub
 
 Sub DetectCheating()
     On Error Resume Next
     If IsClosing Then Exit Sub
+    
+    Application.EnableEvents = False
+    IsClosing = True
+    
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Sheets("Instructions")
     If Not ws Is Nothing Then
@@ -54,23 +59,15 @@ Sub DetectCheating()
             ws.Range("Z100").Value = "CHEATED"
             ws.Range("Z100").Font.Color = RGB(255, 255, 255)
             MsgBox "🚨 CHEATING DETECTED!", vbCritical
-            IsClosing = True
             ThisWorkbook.Save
             ThisWorkbook.Close SaveChanges:=True
         End If
     End If
+    Application.EnableEvents = True
 End Sub
 
 Private Sub Workbook_BeforeClose(Cancel As Boolean)
-    On Error Resume Next
     IsClosing = True
-    Dim s As Worksheet
-    For Each s In ThisWorkbook.Worksheets
-        If s.Name <> "Instructions" Then
-            s.Visible = xlSheetVeryHidden
-        End If
-    Next s
-    ThisWorkbook.Save
 End Sub
 '''
 
