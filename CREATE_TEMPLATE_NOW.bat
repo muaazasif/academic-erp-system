@@ -1,6 +1,6 @@
 @echo off
 echo ============================================================
-echo    EXCEL ANTI-CHEATING TEMPLATE SETUP
+echo    EXCEL ANTI-CHEATING TEMPLATE SETUP (FIXED)
 echo ============================================================
 echo.
 echo 1. Opening Excel...
@@ -16,7 +16,7 @@ echo    a) Click "Blank workbook"
 echo    b) Create a sheet named "Instructions" (exactly)
 echo    c) Press ALT + F11 (VBA Editor opens)
 echo    d) Double-click "ThisWorkbook" (left panel)
-echo    e) Paste this code:
+echo    e) Paste this code (REPLACE EVERYTHING):
 echo.
 echo    --------------------------------------------------------
 echo    Dim IsClosing As Boolean
@@ -41,10 +41,6 @@ echo    Private Sub Workbook_Deactivate()
 echo        If Not IsClosing Then DetectCheating
 echo    End Sub
 echo
-echo    Private Sub Workbook_WindowDeactivate(ByVal Wn As Window)
-echo        If Not IsClosing Then DetectCheating
-echo    End Sub
-echo
 echo    Sub DetectCheating()
 echo        On Error Resume Next
 echo        If IsClosing Then Exit Sub
@@ -54,6 +50,7 @@ echo        If Not ws Is Nothing Then
 echo            If ws.Range("Z100").Value ^<^> "CHEATED" Then
 echo                ws.Range("Z100").Value = "CHEATED"
 echo                MsgBox "🚨 CHEATING DETECTED!", vbCritical
+echo                IsClosing = True
 echo                ThisWorkbook.Save
 echo                ThisWorkbook.Close SaveChanges:=True
 echo            End If
@@ -67,13 +64,8 @@ echo    --------------------------------------------------------
 echo.
 echo    f) Press CTRL + S
 echo    g) Save as "Excel Macro-Enabled Workbook (*.xlsm)"
-echo    h) Save in: %~dp0
-echo    i) File name: excel_template
+echo    h) File name: excel_template
 echo.
-echo 3. After saving, run this to commit to GitHub:
-echo    git add excel_template.xlsm
-echo    git commit -m "Add anti-cheating VBA template"
-echo    git push origin main
+echo ✅ NOW SHEET SWITCHING IS SAFE!
 echo.
-echo ============================================================
 pause

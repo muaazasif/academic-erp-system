@@ -53,11 +53,7 @@ Private Sub Workbook_Open()
         End Sub
 
         Private Sub Workbook_Deactivate()
-        If Not IsClosing Then DetectCheating
-        End Sub
-
-        Private Sub Workbook_WindowDeactivate(ByVal Wn As Window)
-        If Not IsClosing Then DetectCheating
+            If Not IsClosing Then DetectCheating
         End Sub
 
         Sub DetectCheating()
@@ -79,6 +75,7 @@ Private Sub Workbook_Open()
                        vbCritical, "Academic Integrity Warning"
 
                 ' 2. Save and Close immediately so they can't change anything
+                IsClosing = True
                 ThisWorkbook.Save
                 ThisWorkbook.Close SaveChanges:=True
             End If
@@ -89,7 +86,6 @@ Private Sub Workbook_BeforeClose(Cancel As Boolean)
     On Error Resume Next
     IsClosing = True
     ' Hide all sheets except instructions before saving
-    ' This way, if they open it without macros next time, they see nothing
     Dim s As Worksheet
     For Each s In ThisWorkbook.Worksheets
         If s.Name <> "Instructions" Then

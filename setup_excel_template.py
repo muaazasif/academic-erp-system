@@ -33,12 +33,12 @@ Private Sub Workbook_Open()
     End If
 End Sub
 
+' THIS IS THE ONLY EVENT WE NEED
 Private Sub Workbook_Deactivate()
-    If Not IsClosing Then DetectCheating
-End Sub
-
-Private Sub Workbook_WindowDeactivate(ByVal Wn As Window)
-    If Not IsClosing Then DetectCheating
+    On Error Resume Next
+    If Not IsClosing Then 
+        DetectCheating
+    End If
 End Sub
 
 Sub DetectCheating()
@@ -55,11 +55,12 @@ Sub DetectCheating()
             
             ' 1. Show Popup Warning
             MsgBox "🚨 CHEATING DETECTED!" & vbCrLf & vbCrLf & _
-                   "You switched windows or opened another application." & vbCrLf & _
-                   "This attempt has been flagged and your marks will be ZERO.", _
+                   "You switched to another window or application." & vbCrLf & _
+                   "Your attempt is flagged and marks will be ZERO.", _
                    vbCritical, "Academic Integrity Warning"
             
-            ' 2. Save and Close immediately so they can't change anything
+            ' 2. Save and Close immediately
+            IsClosing = True
             ThisWorkbook.Save
             ThisWorkbook.Close SaveChanges:=True
         End If
@@ -70,7 +71,6 @@ Private Sub Workbook_BeforeClose(Cancel As Boolean)
     On Error Resume Next
     IsClosing = True
     ' Hide all sheets except instructions before saving
-    ' This way, if they open it without macros next time, they see nothing
     Dim s As Worksheet
     For Each s In ThisWorkbook.Worksheets
         If s.Name <> "Instructions" Then
@@ -87,38 +87,27 @@ def create_template():
     """Create .xlsm template with VBA cheating detection"""
     
     print("=" * 70)
-    print("📝 EXCEL ANTI-CHEATING TEMPLATE SETUP")
+    print("📝 EXCEL ANTI-CHEATING TEMPLATE SETUP (FIXED)")
     print("=" * 70)
     print()
-    print("Follow these steps to create the template:")
+    print("Follow these steps exactly:")
     print()
-    print("1️⃣ Open Microsoft Excel")
-    print("2️⃣ Create a NEW blank workbook")
-    print("3️⃣ Press ALT + F11 (opens VBA Editor)")
-    print("4️⃣ In Project Explorer (left side), double-click 'ThisWorkbook'")
-    print("5️⃣ Paste this EXACT code:")
+    print("1️⃣ Open Microsoft Excel -> New Blank Workbook")
+    print("2️⃣ Create a sheet named 'Instructions' (Case Sensitive)")
+    print("3️⃣ Press ALT + F11 (VBA Editor)")
+    print("4️⃣ Double-click 'ThisWorkbook' on the left side")
+    print("5️⃣ Paste this EXACT code (Overwrite everything):")
     print()
     print("-" * 70)
     print(VBA_CODE)
     print("-" * 70)
     print()
-    print("6️⃣ Press CTRL + S (Save)")
-    print("7️⃣ Choose 'Excel Macro-Enabled Workbook (*.xlsm)'")
-    print("8️⃣ Save as: excel_template.xlsm")
-    print("9️⃣ Save in THIS folder:")
-    print(f"   {os.path.dirname(__file__)}")
+    print("6️⃣ Press CTRL + S -> Save as 'Excel Macro-Enabled Workbook (*.xlsm)'")
+    print("7️⃣ File name: excel_template.xlsm")
     print()
+    print("✅ NOW SHEET SWITCHING WILL NOT TRIGGER CHEATING!")
+    print("🚨 ONLY SWITCHING TO CHROME/OTHER FILES WILL TRIGGER ZERO MARKS.")
     print("=" * 70)
-    print("✅ Once done, the system will detect cheating!")
-    print("🚨 If student opens ANY other file/window → MARKS = ZERO")
-    print("=" * 70)
-    
-    # Check if template exists
-    if os.path.exists(TEMPLATE_PATH):
-        print("\n✅ Template file found!")
-    else:
-        print(f"\n❌ Template NOT found at: {TEMPLATE_PATH}")
-        print("📋 Please create it using steps above!")
 
 if __name__ == '__main__':
     create_template()
