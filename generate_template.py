@@ -6,8 +6,11 @@ import shutil
 import openpyxl
 
 VBA_CODE = '''
+Dim IsClosing As Boolean
+
 Private Sub Workbook_Open()
     On Error Resume Next
+    IsClosing = False
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Sheets("Instructions")
     If Not ws Is Nothing Then
@@ -31,15 +34,16 @@ Private Sub Workbook_Open()
 End Sub
 
 Private Sub Workbook_Deactivate()
-    DetectCheating
+    If Not IsClosing Then DetectCheating
 End Sub
 
 Private Sub Workbook_WindowDeactivate(ByVal Wn As Window)
-    DetectCheating
+    If Not IsClosing Then DetectCheating
 End Sub
 
 Sub DetectCheating()
     On Error Resume Next
+    If IsClosing Then Exit Sub
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Sheets("Instructions")
     If Not ws Is Nothing Then
@@ -55,6 +59,7 @@ End Sub
 
 Private Sub Workbook_BeforeClose(Cancel As Boolean)
     On Error Resume Next
+    IsClosing = True
     Dim s As Worksheet
     For Each s In ThisWorkbook.Worksheets
         If s.Name <> "Instructions" Then

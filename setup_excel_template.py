@@ -5,8 +5,11 @@ Run this ONCE to create excel_template.xlsm
 import os
 
 VBA_CODE = '''
+Dim IsClosing As Boolean
+
 Private Sub Workbook_Open()
     On Error Resume Next
+    IsClosing = False
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Sheets("Instructions")
     If Not ws Is Nothing Then
@@ -31,15 +34,17 @@ Private Sub Workbook_Open()
 End Sub
 
 Private Sub Workbook_Deactivate()
-    DetectCheating
+    If Not IsClosing Then DetectCheating
 End Sub
 
 Private Sub Workbook_WindowDeactivate(ByVal Wn As Window)
-    DetectCheating
+    If Not IsClosing Then DetectCheating
 End Sub
 
 Sub DetectCheating()
     On Error Resume Next
+    If IsClosing Then Exit Sub
+    
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Sheets("Instructions")
     If Not ws Is Nothing Then
@@ -63,6 +68,7 @@ End Sub
 
 Private Sub Workbook_BeforeClose(Cancel As Boolean)
     On Error Resume Next
+    IsClosing = True
     ' Hide all sheets except instructions before saving
     ' This way, if they open it without macros next time, they see nothing
     Dim s As Worksheet

@@ -19,8 +19,11 @@ echo    d) Double-click "ThisWorkbook" (left panel)
 echo    e) Paste this code:
 echo.
 echo    --------------------------------------------------------
+echo    Dim IsClosing As Boolean
+echo
 echo    Private Sub Workbook_Open()
 echo        On Error Resume Next
+echo        IsClosing = False
 echo        Dim ws As Worksheet
 echo        Set ws = ThisWorkbook.Sheets("Instructions")
 echo        If Not ws Is Nothing Then
@@ -35,15 +38,16 @@ echo        End If
 echo    End Sub
 echo
 echo    Private Sub Workbook_Deactivate()
-echo        DetectCheating
+echo        If Not IsClosing Then DetectCheating
 echo    End Sub
 echo
 echo    Private Sub Workbook_WindowDeactivate(ByVal Wn As Window)
-echo        DetectCheating
+echo        If Not IsClosing Then DetectCheating
 echo    End Sub
 echo
 echo    Sub DetectCheating()
 echo        On Error Resume Next
+echo        If IsClosing Then Exit Sub
 echo        Dim ws As Worksheet
 echo        Set ws = ThisWorkbook.Sheets("Instructions")
 echo        If Not ws Is Nothing Then
@@ -54,6 +58,10 @@ echo                ThisWorkbook.Save
 echo                ThisWorkbook.Close SaveChanges:=True
 echo            End If
 echo        End If
+echo    End Sub
+echo
+echo    Private Sub Workbook_BeforeClose(Cancel As Boolean)
+echo        IsClosing = True
 echo    End Sub
 echo    --------------------------------------------------------
 echo.

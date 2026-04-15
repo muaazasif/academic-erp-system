@@ -299,7 +299,7 @@ from excel_assignment import (
     grade_excel_submission
 )
 
-def sync_excel_grade(student_id, name, assignment_title, score, percentage, submitted_at):
+def sync_excel_grade(student_id, name, assignment_title, score, percentage, submitted_at, is_cheating=False):
     """Sync Excel grade to Google Sheets"""
     try:
         service, sheet_id = get_sheets_service()
@@ -319,14 +319,17 @@ def sync_excel_grade(student_id, name, assignment_title, score, percentage, subm
                     spreadsheetId=sheet_id,
                     range='Excel Assignments!A1',
                     valueInputOption='USER_ENTERED',
-                    body={'values': [['Student ID', 'Name', 'Assignment', 'Score', 'Percentage', 'Submitted At', 'Sync Time']]}
+                    body={'values': [['Student ID', 'Name', 'Assignment', 'Score', 'Percentage', 'Status', 'Submitted At', 'Sync Time']]}
                 ).execute()
         except Exception as e:
             print(f"⚠️ Error creating sheet: {e}")
         
+        # Status column
+        status = "CHEATING DETECTED" if is_cheating else "CLEAN"
+        
         # Append row
         from datetime import datetime
-        values = [[student_id, name, assignment_title, f"{score}/10", f"{percentage}%", str(submitted_at), str(datetime.now())]]
+        values = [[student_id, name, assignment_title, f"{score}/10", f"{percentage}%", status, str(submitted_at), str(datetime.now())]]
         service.spreadsheets().values().append(
             spreadsheetId=sheet_id,
             range='Excel Assignments!A2',
@@ -2357,7 +2360,8 @@ def submit_excel_assignment(assignment_id):
                         assignment_title=assignment.title,
                         score=result['score'],
                         percentage=result['percentage'],
-                        submitted_at=datetime.now()
+                        submitted_at=datetime.now(),
+                        is_cheating=result.get('cheating_detected', False)
                     )
                 except Exception as e:
                     print(f"⚠️ Google Sheets sync failed: {e}")

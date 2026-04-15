@@ -24,8 +24,11 @@ def create_template_automatically():
         workbook = excel.Workbooks.Add()
         
         # Add VBA code to ThisWorkbook
-        vba_code = """Private Sub Workbook_Open()
+        vba_code = """Dim IsClosing As Boolean
+
+Private Sub Workbook_Open()
     On Error Resume Next
+    IsClosing = False
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Sheets("Instructions")
     If Not ws Is Nothing Then
@@ -50,14 +53,17 @@ def create_template_automatically():
         End Sub
 
         Private Sub Workbook_Deactivate()
-        DetectCheating
+        If Not IsClosing Then DetectCheating
         End Sub
 
         Private Sub Workbook_WindowDeactivate(ByVal Wn As Window)
-        DetectCheating
+        If Not IsClosing Then DetectCheating
         End Sub
+
         Sub DetectCheating()
         On Error Resume Next
+        If IsClosing Then Exit Sub
+        
         Dim ws As Worksheet
         Set ws = ThisWorkbook.Sheets("Instructions")
         If Not ws Is Nothing Then
@@ -78,8 +84,10 @@ def create_template_automatically():
             End If
         End If
         End Sub
+
 Private Sub Workbook_BeforeClose(Cancel As Boolean)
     On Error Resume Next
+    IsClosing = True
     ' Hide all sheets except instructions before saving
     ' This way, if they open it without macros next time, they see nothing
     Dim s As Worksheet
