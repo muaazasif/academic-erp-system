@@ -35,40 +35,49 @@ def create_template_automatically():
         
         ' Reset cheating flag at start
         ws.Range("Z100").Value = ""
-    End If
-    
-    ' Show all other sheets only when macros are enabled
-    Dim s As Worksheet
-    For Each s In ThisWorkbook.Worksheets
-        If s.Name <> "Instructions" Then
-            s.Visible = xlSheetVisible
-        End If
-    Next s
-End Sub
 
-Private Sub Workbook_Deactivate()
-    On Error Resume Next
-    Dim ws As Worksheet
-    Set ws = ThisWorkbook.Sheets("Instructions")
-    If Not ws Is Nothing Then
-        ' If they haven't been caught yet, catch them now
-        If ws.Range("Z100").Value <> "CHEATED" Then
-            ws.Range("Z100").Value = "CHEATED"
-            ws.Range("Z100").Font.Color = RGB(255, 255, 255)
-            
-            ' 1. Show Popup Warning
-            MsgBox "🚨 CHEATING DETECTED!" & vbCrLf & vbCrLf & _
-                   "You switched windows or opened another application." & vbCrLf & _
-                   "This attempt has been flagged and your marks will be ZERO.", _
-                   vbCritical, "Academic Integrity Warning"
-            
-            ' 2. Save and Close immediately so they can't change anything
-            ThisWorkbook.Save
-            ThisWorkbook.Close SaveChanges:=True
-        End If
-    End If
-End Sub
+        ' Show all other sheets only when macros are enabled
+        Dim s As Worksheet
+        For Each s In ThisWorkbook.Worksheets
+            If s.Name <> "Instructions" Then
+                s.Visible = xlSheetVisible
+            End If
+        Next s
 
+        ' Force Instructions to be active
+        ws.Activate
+        End If
+        End Sub
+
+        Private Sub Workbook_Deactivate()
+        DetectCheating
+        End Sub
+
+        Private Sub Workbook_WindowDeactivate(ByVal Wn As Window)
+        DetectCheating
+        End Sub
+        Sub DetectCheating()
+        On Error Resume Next
+        Dim ws As Worksheet
+        Set ws = ThisWorkbook.Sheets("Instructions")
+        If Not ws Is Nothing Then
+            ' If they haven't been caught yet, catch them now
+            If ws.Range("Z100").Value <> "CHEATED" Then
+                ws.Range("Z100").Value = "CHEATED"
+                ws.Range("Z100").Font.Color = RGB(255, 255, 255)
+
+                ' 1. Show Popup Warning
+                MsgBox "🚨 CHEATING DETECTED!" & vbCrLf & vbCrLf & _
+                       "You switched windows or opened another application." & vbCrLf & _
+                       "This attempt has been flagged and your marks will be ZERO.", _
+                       vbCritical, "Academic Integrity Warning"
+
+                ' 2. Save and Close immediately so they can't change anything
+                ThisWorkbook.Save
+                ThisWorkbook.Close SaveChanges:=True
+            End If
+        End If
+        End Sub
 Private Sub Workbook_BeforeClose(Cancel As Boolean)
     On Error Resume Next
     ' Hide all sheets except instructions before saving

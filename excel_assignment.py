@@ -50,23 +50,41 @@ def create_excel_exercise_workbook():
     create_if_nested_exercises(wb)
     create_complex_challenge(wb)
     
+    # Force macro enablement: Hide all sheets except Instructions
+    # ONLY do this if we are using the template (which has the VBA to unhide them)
+    if os.path.exists(template_path):
+        for sheetname in wb.sheetnames:
+            if sheetname != 'Instructions':
+                wb[sheetname].sheet_state = 'veryHidden'
+    
+    # Make Instructions the active sheet
+    if 'Instructions' in wb.sheetnames:
+        wb.active = wb['Instructions']
+    
     return wb
 
 def create_instructions(wb):
-    ws = wb.create_sheet("Instructions")
+    # Create Instructions as the first sheet
+    ws = wb.create_sheet("Instructions", 0)
     ws['A1'] = "📊 EXCEL SKILLS ASSIGNMENT - Complete Workbook"
     ws['A1'].font = Font(size=18, bold=True, color="FFFFFF")
     ws['A1'].fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
     ws.merge_cells('A1:F1')
     ws.row_dimensions[1].height = 40
     
-    ws['A2'] = "⚠️ IMPORTANT: YOU MUST ENABLE MACROS (CLICK 'ENABLE CONTENT') TO START"
-    ws['A2'].font = Font(size=12, bold=True, color="FF0000")
+    ws['A2'] = "⚠️ IMPORTANT: YOU MUST ENABLE MACROS TO START"
+    ws['A2'].font = Font(size=14, bold=True, color="FF0000")
     ws.merge_cells('A2:F2')
     
-    ws['A3'] = "🚨 ANTI-CHEATING: IF YOU OPEN ANY OTHER EXCEL OR WINDOW, YOUR MARKS WILL BE ZERO!"
-    ws['A3'].font = Font(size=11, bold=True, color="C00000")
-    ws.merge_cells('A3:F3')
+    ws['A3'] = "🚀 STEPS TO START:"
+    ws['A3'].font = Font(bold=True)
+    ws['A4'] = "1. If you see a 'Security Risk' bar: Close Excel -> Right-click this file -> Properties -> Check 'Unblock' -> OK."
+    ws['A5'] = "2. Open file again and click 'Enable Content' or 'Enable Macros'."
+    ws['A6'] = "3. All exercise sheets will appear automatically once macros are enabled."
+    
+    ws['A8'] = "🚨 ANTI-CHEATING: IF YOU OPEN ANY OTHER WINDOW, YOUR MARKS WILL BE ZERO!"
+    ws['A8'].font = Font(size=11, bold=True, color="C00000")
+    ws.merge_cells('A8:F8')
     
     content = [
         ("", None),

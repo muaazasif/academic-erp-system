@@ -13,26 +13,54 @@ echo.
 echo NOW DO THIS:
 echo.
 echo    a) Click "Blank workbook"
-echo    b) Press ALT + F11 (VBA Editor opens)
-echo    c) Double-click "ThisWorkbook" (left panel)
-echo    d) Paste this code:
+echo    b) Create a sheet named "Instructions" (exactly)
+echo    c) Press ALT + F11 (VBA Editor opens)
+echo    d) Double-click "ThisWorkbook" (left panel)
+echo    e) Paste this code:
 echo.
 echo    --------------------------------------------------------
-echo    Private Sub Workbook_Deactivate()
+echo    Private Sub Workbook_Open()
 echo        On Error Resume Next
 echo        Dim ws As Worksheet
 echo        Set ws = ThisWorkbook.Sheets("Instructions")
 echo        If Not ws Is Nothing Then
-echo            ws.Range("Z100").Value = "CHEATED"
-echo            ws.Range("Z100").Font.Color = RGB(255, 255, 255)
+echo            ws.Range("Z99").Value = "MACROS_OK"
+echo            ws.Range("Z100").Value = ""
+echo            Dim s As Worksheet
+echo            For Each s In ThisWorkbook.Worksheets
+echo                If s.Name ^<^> "Instructions" Then s.Visible = xlSheetVisible
+echo            Next s
+echo            ws.Activate
+echo        End If
+echo    End Sub
+echo
+echo    Private Sub Workbook_Deactivate()
+echo        DetectCheating
+echo    End Sub
+echo
+echo    Private Sub Workbook_WindowDeactivate(ByVal Wn As Window)
+echo        DetectCheating
+echo    End Sub
+echo
+echo    Sub DetectCheating()
+echo        On Error Resume Next
+echo        Dim ws As Worksheet
+echo        Set ws = ThisWorkbook.Sheets("Instructions")
+echo        If Not ws Is Nothing Then
+echo            If ws.Range("Z100").Value ^<^> "CHEATED" Then
+echo                ws.Range("Z100").Value = "CHEATED"
+echo                MsgBox "🚨 CHEATING DETECTED!", vbCritical
+echo                ThisWorkbook.Save
+echo                ThisWorkbook.Close SaveChanges:=True
+echo            End If
 echo        End If
 echo    End Sub
 echo    --------------------------------------------------------
 echo.
-echo    e) Press CTRL + S
-echo    f) Save as "Excel Macro-Enabled Workbook (*.xlsm)"
-echo    g) Save in: %~dp0
-echo    h) File name: excel_template
+echo    f) Press CTRL + S
+echo    g) Save as "Excel Macro-Enabled Workbook (*.xlsm)"
+echo    h) Save in: %~dp0
+echo    i) File name: excel_template
 echo.
 echo 3. After saving, run this to commit to GitHub:
 echo    git add excel_template.xlsm
