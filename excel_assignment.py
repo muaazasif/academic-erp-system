@@ -1,26 +1,37 @@
 """
 Excel Skills Assignment Generator & Auto-Grader
-Creates exercises: VLOOKUP, SUMIF, COUNTIF, LEFT, RIGHT, MID, IF, NESTED (Easy → Hard)
-Auto-grades student submissions out of 10 marks
+With ANTI-CHEATING: Opens other windows = ZERO marks
 """
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 from io import BytesIO
 import json
-
-def style_header(ws, row_num, cols):
-    fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
-    font = Font(bold=True, color="FFFFFF", size=11)
-    for c in range(1, cols+1):
-        cell = ws.cell(row=row_num, column=c)
-        cell.fill = fill
-        cell.font = font
-        cell.alignment = Alignment(horizontal='center', wrap_text=True)
+import os
+import shutil
 
 def create_excel_exercise_workbook():
-    wb = openpyxl.Workbook()
-    wb.remove(wb.active)
+    """Create workbook with anti-cheating protection"""
+    template_path = os.path.join(os.path.dirname(__file__), 'excel_template.xlsm')
     
+    if os.path.exists(template_path):
+        # Use template with VBA cheating detection
+        import tempfile
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsm', dir=os.path.dirname(__file__))
+        shutil.copy(template_path, temp_file.name)
+        temp_file.close()
+        
+        wb = openpyxl.load_workbook(temp_file.name)
+        os.unlink(temp_file.name)
+    else:
+        # Create workbook without VBA (fallback)
+        wb = openpyxl.Workbook()
+    
+    # Remove default sheet if exists
+    if 'Sheet' in wb.sheetnames:
+        wb.remove(wb['Sheet'])
+    
+    # Create all exercise sheets
     create_instructions(wb)
     create_vlookup_exercises(wb)
     create_sumif_countif_exercises(wb)
@@ -378,6 +389,31 @@ def grade_excel_submission(file_path):
     except Exception as e:
         return {'error': f'Cannot open file: {str(e)}', 'score': 0}
     
+    # ==========================================
+    # CHECK FOR CHEATING (anti-cheating detection)
+    # ==========================================
+    cheating_detected = False
+    
+    # Check hidden cell Z100 in Instructions sheet
+    if 'Instructions' in wb.sheetnames:
+        ws = wb['Instructions']
+        cheat_flag = ws.cell(row=100, column=26).value  # Z100
+        
+        if cheat_flag and 'CHEAT' in str(cheat_flag).upper():
+            cheating_detected = True
+            print("🚨 CHEATING DETECTED: Student opened other windows/files!")
+    
+    # If cheating detected, return ZERO marks
+    if cheating_detected:
+        return {
+            'score': 0,
+            'max': 10,
+            'percentage': 0,
+            'cheating_detected': True,
+            'details': {'error': 'Cheating detected - other files/windows were opened'}
+        }
+    
+    # Normal grading
     total_score = 0
     details = {}
     
@@ -396,8 +432,6 @@ def grade_excel_submission(file_path):
     total_score += t_score
     details['Text Functions'] = {'score': t_score, 'max': 2, 'details': t_detail}
     
-    # Grade IF (2 marks, will add in grading)
-    
     # Grade Complex (2 marks, 10 questions = 0.2 each)
     c_score, c_detail = grade_complex(wb)
     total_score += c_score
@@ -407,6 +441,7 @@ def grade_excel_submission(file_path):
         'score': round(min(total_score, 10), 2),
         'max': 10,
         'percentage': round((total_score / 10) * 100, 1),
+        'cheating_detected': False,
         'details': details
     }
 
