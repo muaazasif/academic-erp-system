@@ -7,10 +7,13 @@ import openpyxl
 
 VBA_CODE = '''
 Dim IsClosing As Boolean
+Dim OpenedAt As Double
 
 Private Sub Workbook_Open()
     On Error Resume Next
     IsClosing = False
+    OpenedAt = Timer ' Record time of opening
+    
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Sheets("Instructions")
     If Not ws Is Nothing Then
@@ -34,10 +37,10 @@ Private Sub Workbook_Open()
 End Sub
 
 Private Sub Workbook_Deactivate()
-    If Not IsClosing Then DetectCheating
-End Sub
-
-Private Sub Workbook_WindowDeactivate(ByVal Wn As Window)
+    On Error Resume Next
+    ' GRACE PERIOD: Ignore deactivate for first 5 seconds
+    If Timer - OpenedAt < 5 Then Exit Sub
+    
     If Not IsClosing Then DetectCheating
 End Sub
 
@@ -51,6 +54,7 @@ Sub DetectCheating()
             ws.Range("Z100").Value = "CHEATED"
             ws.Range("Z100").Font.Color = RGB(255, 255, 255)
             MsgBox "🚨 CHEATING DETECTED!", vbCritical
+            IsClosing = True
             ThisWorkbook.Save
             ThisWorkbook.Close SaveChanges:=True
         End If

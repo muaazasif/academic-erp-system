@@ -1,6 +1,6 @@
 @echo off
 echo ============================================================
-echo    EXCEL ANTI-CHEATING TEMPLATE SETUP (FIXED)
+echo    EXCEL ANTI-CHEATING TEMPLATE SETUP (FIXED V2)
 echo ============================================================
 echo.
 echo 1. Opening Excel...
@@ -20,10 +20,12 @@ echo    e) Paste this code (REPLACE EVERYTHING):
 echo.
 echo    --------------------------------------------------------
 echo    Dim IsClosing As Boolean
+echo    Dim OpenedAt As Double
 echo
 echo    Private Sub Workbook_Open()
 echo        On Error Resume Next
 echo        IsClosing = False
+echo        OpenedAt = Timer
 echo        Dim ws As Worksheet
 echo        Set ws = ThisWorkbook.Sheets("Instructions")
 echo        If Not ws Is Nothing Then
@@ -38,6 +40,9 @@ echo        End If
 echo    End Sub
 echo
 echo    Private Sub Workbook_Deactivate()
+echo        On Error Resume Next
+echo        ' 5 SECOND GRACE PERIOD TO ALLOW MACRO ENABLING
+echo        If Timer - OpenedAt ^< 5 Then Exit Sub
 echo        If Not IsClosing Then DetectCheating
 echo    End Sub
 echo
@@ -66,6 +71,6 @@ echo    f) Press CTRL + S
 echo    g) Save as "Excel Macro-Enabled Workbook (*.xlsm)"
 echo    h) File name: excel_template
 echo.
-echo ✅ NOW SHEET SWITCHING IS SAFE!
+echo ✅ FIXED: 5-second grace period added to prevent false positives!
 echo.
 pause
