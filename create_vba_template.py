@@ -24,68 +24,36 @@ def create_template_automatically():
         workbook = excel.Workbooks.Add()
         
         # Add VBA code to ThisWorkbook
-        vba_code = """Dim IsClosing As Boolean
-Dim OpenedAt As Double
-
-Private Sub Workbook_Open()
+        vba_code = """Private Sub Workbook_Open()
     On Error Resume Next
     Application.EnableEvents = True
-    IsClosing = False
-    OpenedAt = Timer
     
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Sheets("Instructions")
     If Not ws Is Nothing Then
+        ' Set flag for auto-grader to know macros are enabled
         ws.Range("Z99").Value = "MACROS_OK"
         ws.Range("Z99").Font.Color = RGB(255, 255, 255)
         ws.Range("Z100").Value = ""
         
+        ' Unhide all sheets
         Dim s As Worksheet
         For Each s In ThisWorkbook.Worksheets
             If s.Name <> "Instructions" Then s.Visible = xlSheetVisible
         Next s
         ws.Activate
+        
+        ' Show Motivational Quote
+        Dim quotes(0 To 4) As String
+        quotes(0) = "🌟 Believe in yourself and all that you are!"
+        quotes(1) = "🚀 The only way to do great work is to love what you do."
+        quotes(2) = "💪 Success is not final, failure is not fatal: it is the courage to continue that counts."
+        quotes(3) = "🔥 Don't watch the clock; do what it does. Keep going!"
+        quotes(4) = "✨ Your limitation—it's only your imagination."
+        
+        Randomize
+        MsgBox quotes(Int(5 * Rnd)) & vbCrLf & vbCrLf & "Best of luck for your Excel Exercise!", vbInformation, "Motivational Boost"
     End If
-End Sub
-
-Private Sub Workbook_Deactivate()
-    On Error Resume Next
-    If IsClosing Then Exit Sub
-    If Timer - OpenedAt < 5 Then Exit Sub
-    
-    ' If we are here, student actually switched windows
-    DetectCheating
-End Sub
-
-Sub DetectCheating()
-    On Error Resume Next
-    If IsClosing Then Exit Sub
-    
-    ' STOP ALL EVENTS TO PREVENT RECURSION ON CLOSE
-    Application.EnableEvents = False
-    IsClosing = True
-    
-    Dim ws As Worksheet
-    Set ws = ThisWorkbook.Sheets("Instructions")
-    If Not ws Is Nothing Then
-        If ws.Range("Z100").Value <> "CHEATED" Then
-            ws.Range("Z100").Value = "CHEATED"
-            ws.Range("Z100").Font.Color = RGB(255, 255, 255)
-
-            MsgBox "🚨 CHEATING DETECTED!" & vbCrLf & vbCrLf & _
-                   "You switched windows or opened another application." & vbCrLf & _
-                   "This attempt is flagged and marks will be ZERO.", _
-                   vbCritical, "Academic Integrity Warning"
-
-            ThisWorkbook.Save
-            ThisWorkbook.Close SaveChanges:=True
-        End If
-    End If
-    Application.EnableEvents = True
-End Sub
-
-Private Sub Workbook_BeforeClose(Cancel As Boolean)
-    IsClosing = True
 End Sub
 """
         
@@ -94,7 +62,10 @@ End Sub
         vba_module.AddFromString(vba_code)
         
         # Save as .xlsm (Excel 52 = xlOpenXMLWorkbookMacroEnabled)
+        # Use DisplayAlerts = False to overwrite without prompt
+        excel.DisplayAlerts = False
         workbook.SaveAs(OUTPUT_PATH, FileFormat=52)
+        excel.DisplayAlerts = True
         
         # Close workbook
         workbook.Close(SaveChanges=False)
@@ -120,23 +91,20 @@ End Sub
         return False
 
 if __name__ == '__main__':
-    # Check if file already exists
-    if os.path.exists(OUTPUT_PATH):
-        print("✅ Template already exists!")
-        print(f"📁 {OUTPUT_PATH}")
+    # Always recreate the template to update VBA code
+    print("🔄 Updating VBA Template...")
+    success = create_template_automatically()
+    if success:
+        print("\n📋 Now run these commands to push to GitHub:")
+        print('git add excel_template.xlsm')
+        print('git commit -m "Update VBA template with motivational quotes"')
+        print('git push origin main')
     else:
-        success = create_template_automatically()
-        if success:
-            print("\n📋 Now run these commands to push to GitHub:")
-            print('git add excel_template.xlsm')
-            print('git commit -m "Add anti-cheating VBA template"')
-            print('git push origin main')
-        else:
-            print("\n❌ Failed to create template!")
-            print("\n📋 MANUAL STEPS:")
-            print("1. Open Excel")
-            print("2. ALT+F11")
-            print("3. Double-click ThisWorkbook")
-            print("4. Paste VBA code")
-            print("5. CTRL+S → Save as .xlsm")
-            print("6. Save in: E:\\Governor Sindh Course\\Application\\myerp_app\\")
+        print("\n❌ Failed to update template!")
+        print("\n📋 MANUAL STEPS:")
+        print("1. Open Excel")
+        print("2. ALT+F11")
+        print("3. Double-click ThisWorkbook")
+        print("4. Paste VBA code")
+        print("5. CTRL+S → Save as .xlsm")
+        print("6. Save in: E:\\Governor Sindh Course\\Application\\myerp_app\\")
