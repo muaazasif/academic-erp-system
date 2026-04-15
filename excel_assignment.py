@@ -10,6 +10,16 @@ import json
 import os
 import shutil
 
+def style_header(ws, row_num, cols):
+    """Style header row"""
+    fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
+    font = Font(bold=True, color="FFFFFF", size=11)
+    for c in range(1, cols+1):
+        cell = ws.cell(row=row_num, column=c)
+        cell.fill = fill
+        cell.font = font
+        cell.alignment = Alignment(horizontal='center', wrap_text=True)
+
 def create_excel_exercise_workbook():
     """Create workbook with anti-cheating protection"""
     template_path = os.path.join(os.path.dirname(__file__), 'excel_template.xlsm')
