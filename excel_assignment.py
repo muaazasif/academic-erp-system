@@ -56,7 +56,6 @@ def create_excel_exercise_workbook(assignment_title=""):
         create_sumif_countif_exercises(wb)
         create_text_functions_exercises(wb)
         create_if_nested_exercises(wb)
-        create_data_validation_exercises(wb)
         create_complex_challenge(wb)
     
     # Force macro enablement: Hide all sheets except Instructions
