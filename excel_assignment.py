@@ -20,7 +20,7 @@ def style_header(ws, row_num, cols):
         cell.font = font
         cell.alignment = Alignment(horizontal='center', wrap_text=True)
 
-def create_excel_exercise_workbook():
+def create_excel_exercise_workbook(assignment_title=""):
     """Create workbook with anti-cheating protection"""
     template_path = os.path.join(os.path.dirname(__file__), 'excel_template.xlsm')
     
@@ -42,13 +42,22 @@ def create_excel_exercise_workbook():
     if 'Sheet' in wb.sheetnames:
         wb.remove(wb['Sheet'])
     
-    # Create all exercise sheets
-    create_instructions(wb)
-    create_vlookup_exercises(wb)
-    create_sumif_countif_exercises(wb)
-    create_text_functions_exercises(wb)
-    create_if_nested_exercises(wb)
-    create_complex_challenge(wb)
+    # Determine which exercises to create based on assignment title
+    if "Data Validation" in assignment_title and "Manager" in assignment_title:
+        create_instructions_dv(wb)
+        create_named_manager_exercises(wb)
+        create_dropdown_basic_exercises(wb)
+        create_dropdown_advanced_exercises(wb)
+        create_workbook_structure_exercise(wb)
+    else:
+        # Default Full Course Workbook
+        create_instructions(wb)
+        create_vlookup_exercises(wb)
+        create_sumif_countif_exercises(wb)
+        create_text_functions_exercises(wb)
+        create_if_nested_exercises(wb)
+        create_data_validation_exercises(wb)
+        create_complex_challenge(wb)
     
     # Force macro enablement: Hide all sheets except Instructions
     # ONLY do this if we are using the template (which has the VBA to unhide them)
@@ -62,6 +71,117 @@ def create_excel_exercise_workbook():
         wb.active = wb['Instructions']
     
     return wb
+
+def create_instructions_dv(wb):
+    # Create Instructions for Data Validation Assignment
+    ws = wb.create_sheet("Instructions", 0)
+    ws['A1'] = "📊 EXCEL SKILLS: DATA VALIDATION & NAME MANAGER"
+    ws['A1'].font = Font(size=18, bold=True, color="FFFFFF")
+    ws['A1'].fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
+    ws.merge_cells('A1:F1')
+    ws.row_dimensions[1].height = 40
+    
+    ws['A2'] = "⚠️ IMPORTANT: YOU MUST ENABLE MACROS TO START"
+    ws['A2'].font = Font(size=14, bold=True, color="FF0000")
+    ws.merge_cells('A2:F2')
+    
+    ws['A4'] = "🚀 STEPS TO START:"
+    ws['A5'] = "1. Enable Content/Macros to see all sheets."
+    ws['A6'] = "2. Complete all tasks in YELLOW cells."
+    ws['A7'] = "3. AI will grade your submission based on correct validation and named ranges."
+    
+    ws['A9'] = "📋 ASSIGNMENT MODULES:"
+    ws['A10'] = "1. Named Manager (2.5 marks)"
+    ws['A11'] = "2. Dropdown Basic (2.5 marks)"
+    ws['A12'] = "3. Dropdown Advanced (2.5 marks)"
+    ws['A13'] = "4. Workbook Data Validation (2.5 marks)"
+    
+    ws.column_dimensions['A'].width = 55
+
+def create_named_manager_exercises(wb):
+    ws = wb.create_sheet("NAMED MANAGER")
+    ws['A1'] = "📝 Task: Create Named Ranges"
+    ws['A1'].font = Font(size=14, bold=True, color="1F4E79")
+    
+    ws['A3'] = "1. Select cells G4:G8 and name them 'ProductList'"
+    ws['A4'] = "2. Select cells H4:H8 and name them 'PriceList'"
+    ws['A5'] = "3. Select cells I4:I8 and name them 'CategoryList'"
+    
+    headers = ['Products', 'Prices', 'Categories']
+    for col, h in enumerate(headers, 7):
+        ws.cell(row=3, column=col, value=h)
+    style_header(ws, 3, 3) # Note: style_header needs adjustment or call carefully
+    
+    data = [
+        ['Laptop', 50000, 'Electronics'],
+        ['Mouse', 1500, 'Accessories'],
+        ['Keyboard', 3500, 'Accessories'],
+        ['Monitor', 15000, 'Electronics'],
+        ['USB', 1200, 'Storage']
+    ]
+    for i, row in enumerate(data):
+        for j, val in enumerate(row):
+            ws.cell(row=4+i, column=7+j, value=val)
+
+def create_dropdown_basic_exercises(wb):
+    ws = wb.create_sheet("DROPDOWN BASIC")
+    ws['A1'] = "📝 Task: Basic Dropdowns"
+    ws['A1'].font = Font(size=14, bold=True, color="1F4E79")
+    
+    ws['A3'] = "1. In cell C5, create a dropdown using the list: Apple, Mango, Banana, Orange"
+    ws['A4'] = "2. In cell C7, create a dropdown using the Named Range 'ProductList' from the previous sheet"
+    
+    ws['B5'] = "Select Fruit:"
+    ws['C5'].fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    ws['B7'] = "Select Product:"
+    ws['C7'].fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    
+    ws.column_dimensions['B'].width = 20
+    ws.column_dimensions['C'].width = 20
+
+def create_dropdown_advanced_exercises(wb):
+    ws = wb.create_sheet("DROPDOWN ADVANCED")
+    ws['A1'] = "📝 Task: Dependent Dropdowns"
+    ws['A1'].font = Font(size=14, bold=True, color="1F4E79")
+    
+    ws['A3'] = "1. Create Named Ranges for 'Electronics' (Laptop, Mobile) and 'Furniture' (Chair, Table)"
+    ws['A4'] = "2. In cell C10, create a dropdown for Category (Electronics, Furniture)"
+    ws['A5'] = "3. In cell D10, create a DEPENDENT dropdown that shows items based on C10"
+    
+    # Data for naming
+    ws['G3'] = "Electronics"
+    ws['G4'] = "Laptop"
+    ws['G5'] = "Mobile"
+    
+    ws['H3'] = "Furniture"
+    ws['H4'] = "Chair"
+    ws['H5'] = "Table"
+    
+    ws['B10'] = "Category:"
+    ws['C10'].fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    ws['B11'] = "Item:"
+    ws['D10'].fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+
+def create_workbook_structure_exercise(wb):
+    ws = wb.create_sheet("WORKBOOK VALIDATION")
+    ws['A1'] = "📝 Task: Whole Number & Date Validation"
+    ws['A1'].font = Font(size=14, bold=True, color="1F4E79")
+    
+    ws['A3'] = "1. Apply validation to cell C5: Whole Number between 10 and 100"
+    ws['A4'] = "2. Apply validation to cell C7: Date between 2024-01-01 and 2024-12-31"
+    ws['A5'] = "3. Apply validation to cell C9: Text Length exactly 5 characters"
+    
+    ws['B5'] = "Enter Number (10-100):"
+    ws['C5'].fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    
+    ws['B7'] = "Enter Date (2024):"
+    ws['C7'].fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    
+    ws['B9'] = "Enter Code (5 chars):"
+    ws['C9'].fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    
+    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['C'].width = 30
 
 def create_instructions(wb):
     # Create Instructions as the first sheet
@@ -347,6 +467,59 @@ def create_if_nested_exercises(wb):
     ws.column_dimensions['E'].width = 20
     ws.column_dimensions['G'].width = 25
 
+def create_data_validation_exercises(wb):
+    ws = wb.create_sheet("DATA VALIDATION")
+    
+    ws.merge_cells('A1:G1')
+    ws['A1'] = "📊 Data Validation & Named Ranges"
+    ws['A1'].font = Font(size=14, bold=True, color="1F4E79")
+    
+    # Instructions for students
+    ws['A3'] = "🚀 INSTRUCTIONS:"
+    ws['A4'] = "1. Create a Named Range 'Departments' for cells I4:I8"
+    ws['A5'] = "2. Create a Named Range 'Cities' for cells J4:J8"
+    ws['A6'] = "3. Apply Data Validation (Whole Number 1-100) to 'Emp ID' column"
+    ws['A7'] = "4. Apply List Validation (Dropdown) to 'Dept' column using 'Departments' range"
+    ws['A8'] = "5. Apply List Validation (Dropdown) to 'City' column using 'Cities' range"
+    ws['A9'] = "6. Create Dependent Dropdown for 'Manager' (Advanced: if IT -> Manager A, if HR -> Manager B)"
+    
+    # Manager Data for reference
+    ws['I3'] = "DEPARTMENTS"
+    ws['J3'] = "CITIES"
+    ws['K3'] = "MANAGERS"
+    style_header(ws, 3, 11) # Header for range area
+    
+    depts = ['IT', 'HR', 'Finance', 'Sales', 'Admin']
+    cities = ['Karachi', 'Lahore', 'Islamabad', 'Quetta', 'Peshawar']
+    managers = ['Manager A', 'Manager B', 'Manager C', 'Manager D', 'Manager E']
+    
+    for i in range(5):
+        ws.cell(row=4+i, column=9, value=depts[i])
+        ws.cell(row=4+i, column=10, value=cities[i])
+        ws.cell(row=4+i, column=11, value=managers[i])
+
+    # Table Area
+    headers = ['Emp ID', 'Emp Name', 'Dept', 'City', 'Manager']
+    for col, h in enumerate(headers, 1):
+        ws.cell(row=12, column=col, value=h)
+    style_header(ws, 12, 5)
+    
+    # Add 5 empty rows for student to fill/apply validation
+    for r in range(13, 18):
+        for c in range(1, 6):
+            ws.cell(row=r, column=c).border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+            if c >= 3: # Validation targets
+                 ws.cell(row=r, column=c).fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+
+    ws.column_dimensions['A'].width = 15
+    ws.column_dimensions['B'].width = 20
+    ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 15
+    ws.column_dimensions['E'].width = 15
+    ws.column_dimensions['I'].width = 15
+    ws.column_dimensions['J'].width = 15
+    ws.column_dimensions['K'].width = 15
+
 def create_complex_challenge(wb):
     ws = wb.create_sheet("COMPLEX CHALLENGE")
     
@@ -417,10 +590,11 @@ def create_complex_challenge(wb):
 # AUTO-GRADER
 # ============================================
 
-def grade_excel_submission(file_path):
+def grade_excel_submission(file_path, assignment_title=""):
     """Auto-grade a completed Excel assignment. Returns score out of 10"""
     try:
-        wb = openpyxl.load_workbook(file_path, data_only=True)
+        wb = openpyxl.load_workbook(file_path, data_only=False) # data_only=False to see formulas/validations
+        # We might need data_only=True for some checks, but for validations we need False
     except Exception as e:
         return {'error': f'Cannot open file: {str(e)}', 'score': 0}
     
@@ -472,33 +646,256 @@ def grade_excel_submission(file_path):
     total_score = 0
     details = {}
     
-    # Grade VLOOKUP (2 marks, 4 questions = 0.5 each)
-    v_score, v_detail = grade_vlookup(wb)
-    total_score += v_score
-    details['VLOOKUP'] = {'score': v_score, 'max': 2, 'details': v_detail}
-    
-    # Grade SUMIF/COUNTIF (2 marks, 6 questions = 0.33 each)
-    s_score, s_detail = grade_sumif_countif(wb)
-    total_score += s_score
-    details['SUMIF/COUNTIF'] = {'score': s_score, 'max': 2, 'details': s_detail}
-    
-    # Grade Text Functions (2 marks, 6 questions = 0.33 each)
-    t_score, t_detail = grade_text_functions(wb)
-    total_score += t_score
-    details['Text Functions'] = {'score': t_score, 'max': 2, 'details': t_detail}
-    
-    # Grade Complex (2 marks, 10 questions = 0.2 each)
-    c_score, c_detail = grade_complex(wb)
-    total_score += c_score
-    details['Complex'] = {'score': c_score, 'max': 2, 'details': c_detail}
+    if "Data Validation" in assignment_title and "Manager" in assignment_title:
+        # Grade the new specific assignment
+        nm_score, nm_detail = grade_named_manager(wb)
+        db_score, db_detail = grade_dropdown_basic(wb)
+        da_score, da_detail = grade_dropdown_advanced(wb)
+        wv_score, wv_detail = grade_workbook_validation(wb)
+        
+        total_score = nm_score + db_score + da_score + wv_score
+        details['Named Manager'] = {'score': nm_score, 'max': 2.5, 'details': nm_detail}
+        details['Dropdown Basic'] = {'score': db_score, 'max': 2.5, 'details': db_detail}
+        details['Dropdown Advanced'] = {'score': da_score, 'max': 2.5, 'details': da_detail}
+        details['Workbook Validation'] = {'score': wv_score, 'max': 2.5, 'details': wv_detail}
+    else:
+        # Default Full Course Workbook Grading (re-load with data_only=True for values)
+        wb_vals = openpyxl.load_workbook(file_path, data_only=True)
+        
+        # Grade VLOOKUP (2 marks, 4 questions = 0.5 each)
+        v_score, v_detail = grade_vlookup(wb_vals)
+        total_score += v_score
+        details['VLOOKUP'] = {'score': v_score, 'max': 2, 'details': v_detail}
+        
+        # Grade SUMIF/COUNTIF (2 marks, 6 questions = 0.33 each)
+        s_score, s_detail = grade_sumif_countif(wb_vals)
+        total_score += s_score
+        details['SUMIF/COUNTIF'] = {'score': s_score, 'max': 2, 'details': s_detail}
+        
+        # Grade Text Functions (2 marks, 6 questions = 0.33 each)
+        t_score, t_detail = grade_text_functions(wb_vals)
+        total_score += t_score
+        details['Text Functions'] = {'score': t_score, 'max': 2, 'details': t_detail}
+        
+        # Grade Complex (2 marks, 10 questions = 0.2 each)
+        c_score, c_detail = grade_complex(wb_vals)
+        total_score += c_score
+        details['Complex'] = {'score': c_score, 'max': 2, 'details': c_detail}
+        
+        # Grade Data Validation & Named Ranges (New: 2 marks)
+        dv_score, dv_detail = grade_data_validation(wb) # Use non-data_only for validations
+        total_score += dv_score
+        details['Data Validation'] = {'score': dv_score, 'max': 2, 'details': dv_detail}
     
     return {
         'score': round(min(total_score, 10), 2),
         'max': 10,
-        'percentage': round((total_score / 10) * 100, 1),
+        'percentage': round((min(total_score, 10) / 10) * 100, 1),
         'cheating_detected': False,
         'details': details
     }
+
+def grade_named_manager(wb):
+    score = 0
+    details = []
+    try:
+        names = wb.defined_names.keys()
+        
+        if 'ProductList' in names:
+            score += 0.8
+            details.append({'task': 'Named Range: ProductList', 'correct': True})
+        else:
+            details.append({'task': 'Named Range: ProductList', 'correct': False, 'error': 'Named Range "ProductList" missing'})
+            
+        if 'PriceList' in names:
+            score += 0.8
+            details.append({'task': 'Named Range: PriceList', 'correct': True})
+        else:
+            details.append({'task': 'Named Range: PriceList', 'correct': False, 'error': 'Named Range "PriceList" missing'})
+            
+        if 'CategoryList' in names:
+            score += 0.9
+            details.append({'task': 'Named Range: CategoryList', 'correct': True})
+        else:
+            details.append({'task': 'Named Range: CategoryList', 'correct': False, 'error': 'Named Range "CategoryList" missing'})
+            
+    except Exception as e:
+        details.append({'error': f'Error: {str(e)}'})
+    return min(score, 2.5), details
+
+def grade_dropdown_basic(wb):
+    score = 0
+    details = []
+    try:
+        if 'DROPDOWN BASIC' in wb.sheetnames:
+            ws = wb['DROPDOWN BASIC']
+            validations = ws.data_validations.dataValidation
+            
+            c5_val = False
+            c7_val = False
+            
+            for dv in validations:
+                for rng in dv.sqref:
+                    if rng.coord == 'C5':
+                        if dv.type == 'list':
+                            c5_val = True
+                    if rng.coord == 'C7':
+                        if dv.type == 'list':
+                            c7_val = True
+            
+            if c5_val:
+                score += 1.25
+                details.append({'task': 'Cell C5 Dropdown (Manual List)', 'correct': True})
+            else:
+                details.append({'task': 'Cell C5 Dropdown (Manual List)', 'correct': False, 'error': 'Missing dropdown in C5'})
+                
+            if c7_val:
+                score += 1.25
+                details.append({'task': 'Cell C7 Dropdown (Named Range)', 'correct': True})
+            else:
+                details.append({'task': 'Cell C7 Dropdown (Named Range)', 'correct': False, 'error': 'Missing dropdown in C7 using ProductList'})
+        else:
+            details.append({'task': 'Sheet check', 'correct': False, 'error': 'DROPDOWN BASIC sheet missing'})
+    except Exception as e:
+        details.append({'error': f'Error: {str(e)}'})
+    return min(score, 2.5), details
+
+def grade_dropdown_advanced(wb):
+    score = 0
+    details = []
+    try:
+        names = wb.defined_names.keys()
+        if 'Electronics' in names and 'Furniture' in names:
+            score += 1.0
+            details.append({'task': 'Named Ranges: Electronics & Furniture', 'correct': True})
+        else:
+            details.append({'task': 'Named Ranges: Electronics & Furniture', 'correct': False, 'error': 'Missing Named Ranges for categories'})
+
+        if 'DROPDOWN ADVANCED' in wb.sheetnames:
+            ws = wb['DROPDOWN ADVANCED']
+            validations = ws.data_validations.dataValidation
+            
+            c10_val = False
+            d10_val = False
+            
+            for dv in validations:
+                for rng in dv.sqref:
+                    if rng.coord == 'C10': c10_val = True
+                    if rng.coord == 'D10':
+                        if dv.type == 'list' and 'INDIRECT' in str(dv.formula1).upper():
+                            d10_val = True
+            
+            if c10_val:
+                score += 0.5
+                details.append({'task': 'Cell C10 Category Dropdown', 'correct': True})
+            else:
+                details.append({'task': 'Cell C10 Category Dropdown', 'correct': False})
+                
+            if d10_val:
+                score += 1.0
+                details.append({'task': 'Cell D10 Dependent Dropdown (INDIRECT)', 'correct': True})
+            else:
+                details.append({'task': 'Cell D10 Dependent Dropdown (INDIRECT)', 'correct': False, 'error': 'Use =INDIRECT(C10) in Data Validation'})
+                
+    except Exception as e:
+        details.append({'error': f'Error: {str(e)}'})
+    return min(score, 2.5), details
+
+def grade_workbook_validation(wb):
+    score = 0
+    details = []
+    try:
+        if 'WORKBOOK VALIDATION' in wb.sheetnames:
+            ws = wb['WORKBOOK VALIDATION']
+            validations = ws.data_validations.dataValidation
+            
+            c5_val = False
+            c7_val = False
+            c9_val = False
+            
+            for dv in validations:
+                for rng in dv.sqref:
+                    if rng.coord == 'C5' and dv.type == 'whole': c5_val = True
+                    if rng.coord == 'C7' and dv.type == 'date': c7_val = True
+                    if rng.coord == 'C9' and dv.type == 'textLength': c9_val = True
+            
+            if c5_val:
+                score += 0.8
+                details.append({'task': 'Cell C5 Whole Number (10-100)', 'correct': True})
+            else:
+                details.append({'task': 'Cell C5 Whole Number (10-100)', 'correct': False})
+                
+            if c7_val:
+                score += 0.8
+                details.append({'task': 'Cell C7 Date Validation', 'correct': True})
+            else:
+                details.append({'task': 'Cell C7 Date Validation', 'correct': False})
+                
+            if c9_val:
+                score += 0.9
+                details.append({'task': 'Cell C9 Text Length (5 chars)', 'correct': True})
+            else:
+                details.append({'task': 'Cell C9 Text Length (5 chars)', 'correct': False})
+                
+    except Exception as e:
+        details.append({'error': f'Error: {str(e)}'})
+    return min(score, 2.5), details
+
+def grade_data_validation(wb):
+    score = 0
+    details = []
+    try:
+        # 1. Check Named Ranges
+        # openpyxl has defined_names attribute
+        names = wb.defined_names.keys()
+        
+        if 'Departments' in names:
+            score += 0.5
+            details.append({'task': 'Named Range: Departments', 'correct': True})
+        else:
+            details.append({'task': 'Named Range: Departments', 'correct': False, 'error': 'Missing Named Range "Departments"'})
+            
+        if 'Cities' in names:
+            score += 0.5
+            details.append({'task': 'Named Range: Cities', 'correct': True})
+        else:
+            details.append({'task': 'Named Range: Cities', 'correct': False, 'error': 'Missing Named Range "Cities"'})
+
+        # 2. Check Data Validation in sheet
+        if 'DATA VALIDATION' in wb.sheetnames:
+            ws = wb['DATA VALIDATION']
+            validations = ws.data_validations.dataValidation
+            
+            # Check for List validation in column C or D
+            has_list_val = False
+            has_num_val = False
+            
+            for dv in validations:
+                # dv.sqref is the range, e.g. "C13:C17"
+                if dv.type == 'list':
+                    has_list_val = True
+                if dv.type == 'whole':
+                    has_num_val = True
+            
+            if has_num_val:
+                score += 0.5
+                details.append({'task': 'ID Number Validation', 'correct': True})
+            else:
+                details.append({'task': 'ID Number Validation', 'correct': False, 'error': 'Apply "Whole Number" validation (1-100) to ID column'})
+                
+            if has_list_val:
+                score += 0.5
+                details.append({'task': 'Dropdown Lists', 'correct': True})
+            else:
+                details.append({'task': 'Dropdown Lists', 'correct': False, 'error': 'Apply "List" validation (Dropdown) to Dept or City columns'})
+        else:
+            details.append({'task': 'Sheet Check', 'correct': False, 'error': 'DATA VALIDATION sheet missing'})
+
+    except Exception as e:
+        print(f"Error grading data validation: {e}")
+        details.append({'error': f'Grading error: {str(e)}'})
+        
+    return min(score, 2), details
 
 def grade_vlookup(wb):
     score = 0

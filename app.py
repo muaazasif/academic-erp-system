@@ -2284,7 +2284,7 @@ def download_excel_exercise(assignment_id):
     assignment = ExcelSkillsAssignment.query.get_or_404(assignment_id)
     
     # Generate workbook with exercises
-    wb = create_excel_exercise_workbook()
+    wb = create_excel_exercise_workbook(assignment_title=assignment.title)
 
     # Save to BytesIO
     output = BytesIO()
@@ -2336,7 +2336,7 @@ def submit_excel_assignment(assignment_id):
             file.save(tmp.name)
             
             # Auto-grade
-            result = grade_excel_submission(tmp.name)
+            result = grade_excel_submission(tmp.name, assignment_title=assignment.title)
             
             if 'macros_disabled' in result and result['macros_disabled']:
                 flash('❌ MARKS: 0 - Macros were NOT enabled. You MUST enable macros to complete the assignment!')
@@ -2411,20 +2411,35 @@ if __name__ == '__main__':
             db.session.add(admin)
             db.session.commit()
         
-        # Create default Excel Skills Assignment if none exists
-        excel_count = ExcelSkillsAssignment.query.count()
-        if excel_count == 0:
+        # Create Advanced Excel assignment if not exists
+        advanced_excel = ExcelSkillsAssignment.query.filter_by(title="Advanced Excel: Data Validation & AI Grading").first()
+        if not advanced_excel:
             from datetime import datetime, timedelta
-            default_excel = ExcelSkillsAssignment(
-                title="Excel Skills Test 1",
-                description="Complete all exercises: VLOOKUP, SUMIF, COUNTIF, LEFT, RIGHT, MID, IF, and Complex Challenge. Total 10 marks. Download the workbook, complete it offline, then upload your solution.",
+            adv_excel = ExcelSkillsAssignment(
+                title="Advanced Excel: Data Validation & AI Grading",
+                description="Master workbook management: 1. Create Named Ranges (Departments, Cities). 2. Apply Data Validation (Number limits). 3. Create Dropdown Lists. 4. Advanced Dropdowns. 5. Complex Challenge. Total 10 marks. AI will grade and provide instant feedback on mistakes.",
                 created_at=datetime.now(),
-                deadline=datetime.now() + timedelta(days=7),
+                deadline=datetime.now() + timedelta(days=14),
                 is_active=True
             )
-            db.session.add(default_excel)
+            db.session.add(adv_excel)
             db.session.commit()
-            print("✅ Default Excel Skills Assignment created!")
+            print("✅ Advanced Excel Skills Assignment created!")
+        
+        # Create Data Validation specific assignment if not exists
+        dv_assignment = ExcelSkillsAssignment.query.filter_by(title="Excel Skills: Data Validation & Named Manager").first()
+        if not dv_assignment:
+            from datetime import datetime, timedelta
+            new_dv = ExcelSkillsAssignment(
+                title="Excel Skills: Data Validation & Named Manager",
+                description="Master Workbook management: 1. Create Named Ranges (Name Manager). 2. Basic Dropdowns. 3. Advanced Dependent Dropdowns. 4. Data Validation (Numbers, Dates, Text). Total 10 marks. AI will provide instant feedback on mistakes.",
+                created_at=datetime.now(),
+                deadline=datetime.now() + timedelta(days=14),
+                is_active=True
+            )
+            db.session.add(new_dv)
+            db.session.commit()
+            print("✅ Data Validation & Named Manager Assignment created!")
 
     # Start background sync worker
     try:
