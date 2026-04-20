@@ -2411,35 +2411,35 @@ if __name__ == '__main__':
             db.session.add(admin)
             db.session.commit()
         
-        # Create Advanced Excel assignment if not exists
-        advanced_excel = ExcelSkillsAssignment.query.filter_by(title="Advanced Excel: Data Validation & AI Grading").first()
-        if not advanced_excel:
+        # Create Excel Skill 1 if not exists
+        skill1 = ExcelSkillsAssignment.query.filter_by(title="Excel Skill 1: Formulas & Basics").first()
+        if not skill1:
             from datetime import datetime, timedelta
-            adv_excel = ExcelSkillsAssignment(
-                title="Advanced Excel: Data Validation & AI Grading",
-                description="Master workbook management: 1. Create Named Ranges (Departments, Cities). 2. Apply Data Validation (Number limits). 3. Create Dropdown Lists. 4. Advanced Dropdowns. 5. Complex Challenge. Total 10 marks. AI will grade and provide instant feedback on mistakes.",
+            new_skill1 = ExcelSkillsAssignment(
+                title="Excel Skill 1: Formulas & Basics",
+                description="Master the basics: 1. VLOOKUP (2 marks). 2. SUMIF & COUNTIF (2 marks). 3. Text Functions (LEFT, RIGHT, MID) (2 marks). 4. Nested IF (2 marks). 5. Complex Challenge (2 marks). Total 10 marks. AI will grade and provide instant feedback.",
                 created_at=datetime.now(),
                 deadline=datetime.now() + timedelta(days=14),
                 is_active=True
             )
-            db.session.add(adv_excel)
+            db.session.add(new_skill1)
             db.session.commit()
-            print("✅ Advanced Excel Skills Assignment created!")
+            print("✅ Excel Skill 1 created!")
         
-        # Create Data Validation specific assignment if not exists
-        dv_assignment = ExcelSkillsAssignment.query.filter_by(title="Excel Skills: Data Validation & Named Manager").first()
-        if not dv_assignment:
+        # Create Excel Skill 2 if not exists
+        skill2 = ExcelSkillsAssignment.query.filter_by(title="Excel Skill 2: Data Validation & Named Manager").first()
+        if not skill2:
             from datetime import datetime, timedelta
-            new_dv = ExcelSkillsAssignment(
-                title="Excel Skills: Data Validation & Named Manager",
+            new_skill2 = ExcelSkillsAssignment(
+                title="Excel Skill 2: Data Validation & Named Manager",
                 description="Master Workbook management: 1. Create Named Ranges (Name Manager). 2. Basic Dropdowns. 3. Advanced Dependent Dropdowns. 4. Data Validation (Numbers, Dates, Text). Total 10 marks. AI will provide instant feedback on mistakes.",
                 created_at=datetime.now(),
                 deadline=datetime.now() + timedelta(days=14),
                 is_active=True
             )
-            db.session.add(new_dv)
+            db.session.add(new_skill2)
             db.session.commit()
-            print("✅ Data Validation & Named Manager Assignment created!")
+            print("✅ Excel Skill 2 created!")
 
     # Start background sync worker
     try:
