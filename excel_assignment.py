@@ -789,13 +789,13 @@ def grade_dropdown_advanced(wb):
                 score += 0.5
                 details.append({'task': 'Cell C10 Category Dropdown', 'correct': True})
             else:
-                details.append({'task': 'Cell C10 Category Dropdown', 'correct': False})
+                details.append({'task': 'Cell C10 Category Dropdown', 'correct': False, 'error': 'Apply List validation to C10 with source Electronics, Furniture'})
                 
             if d10_val:
                 score += 1.0
                 details.append({'task': 'Cell D10 Dependent Dropdown (INDIRECT)', 'correct': True})
             else:
-                details.append({'task': 'Cell D10 Dependent Dropdown (INDIRECT)', 'correct': False, 'error': 'Use =INDIRECT(C10) in Data Validation'})
+                details.append({'task': 'Cell D10 Dependent Dropdown (INDIRECT)', 'correct': False, 'error': 'Apply List validation to D10 using formula =INDIRECT(C10)'})
                 
     except Exception as e:
         details.append({'error': f'Error: {str(e)}'})
@@ -823,19 +823,19 @@ def grade_workbook_validation(wb):
                 score += 0.8
                 details.append({'task': 'Cell C5 Whole Number (10-100)', 'correct': True})
             else:
-                details.append({'task': 'Cell C5 Whole Number (10-100)', 'correct': False})
+                details.append({'task': 'Cell C5 Whole Number (10-100)', 'correct': False, 'error': 'Apply "Whole Number" validation (Between 10 and 100) to C5'})
                 
             if c7_val:
                 score += 0.8
                 details.append({'task': 'Cell C7 Date Validation', 'correct': True})
             else:
-                details.append({'task': 'Cell C7 Date Validation', 'correct': False})
+                details.append({'task': 'Cell C7 Date Validation', 'correct': False, 'error': 'Apply "Date" validation (Between 2024-01-01 and 2024-12-31) to C7'})
                 
             if c9_val:
                 score += 0.9
                 details.append({'task': 'Cell C9 Text Length (5 chars)', 'correct': True})
             else:
-                details.append({'task': 'Cell C9 Text Length (5 chars)', 'correct': False})
+                details.append({'task': 'Cell C9 Text Length (5 chars)', 'correct': False, 'error': 'Apply "Text Length" validation (Equal to 5) to C9'})
                 
     except Exception as e:
         details.append({'error': f'Error: {str(e)}'})

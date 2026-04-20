@@ -37,6 +37,11 @@ def get_current_time():
 
 app = Flask(__name__)
 
+# Register custom Jinja2 filters
+@app.template_filter('from_json')
+def from_json_filter(s):
+    return json.loads(s)
+
 # Load SECRET_KEY from environment variable (Railway/production)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'fallback-dev-secret-key-change-in-production')
 
