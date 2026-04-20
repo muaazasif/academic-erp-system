@@ -14,10 +14,13 @@
                 <h1 class="h2">Admin Dashboard</h1>
                 <div class="btn-toolbar mb-2 mb-md-0">
                     <div class="btn-group me-2">
+                        <a href="/admin/sync-users" class="btn btn-primary" onclick="return confirm('Sync users from Google Sheet? New users will be created automatically.')">
+                            <i class="bi bi-person-plus"></i> Sync Users from Sheets
+                        </a>
                         <a href="/admin/export-to-sheets" class="btn btn-success" onclick="return confirm('Export all data to Google Sheets? This may take a moment.')">
                             <i class="bi bi-google"></i> Export to Google Sheets
                         </a>
-                        <span class="me-3">Welcome, {{ session.username }}!</span>
+                        <span class="ms-3">Welcome, {{ session.username }}!</span>
                     </div>
                 </div>
             </div>

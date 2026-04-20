@@ -234,6 +234,7 @@ def background_sync_worker():
             
             # Periodically sync users from Google Sheet
             print("Background sync worker: Checking for new users from Google Sheet...")
+            from sync_google_form_users import sync_users_from_sheet
             with app.app_context(): # Ensure Flask app context is available
                 sync_users_from_sheet()
             
