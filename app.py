@@ -2399,7 +2399,12 @@ def submit_excel_assignment(assignment_id):
 # APP STARTUP
 # ============================================
 
-if __name__ == '__main__':
+# ============================================
+# APP INITIALIZATION
+# ============================================
+
+def init_app_data():
+    """Initialize database and default data"""
     with app.app_context():
         db.create_all()
 
@@ -2410,11 +2415,13 @@ if __name__ == '__main__':
             admin.set_password('admin123')
             db.session.add(admin)
             db.session.commit()
+            print("✅ Default admin created!")
+        
+        from datetime import datetime, timedelta
         
         # Create Excel Skill 1 if not exists
         skill1 = ExcelSkillsAssignment.query.filter_by(title="Excel Skill 1: Formulas & Basics").first()
         if not skill1:
-            from datetime import datetime, timedelta
             new_skill1 = ExcelSkillsAssignment(
                 title="Excel Skill 1: Formulas & Basics",
                 description="Master the basics: 1. VLOOKUP (2 marks). 2. SUMIF & COUNTIF (2 marks). 3. Text Functions (LEFT, RIGHT, MID) (2 marks). 4. Nested IF (2 marks). 5. Complex Challenge (2 marks). Total 10 marks. AI will grade and provide instant feedback.",
@@ -2425,11 +2432,15 @@ if __name__ == '__main__':
             db.session.add(new_skill1)
             db.session.commit()
             print("✅ Excel Skill 1 created!")
+        else:
+            if not skill1.is_active:
+                skill1.is_active = True
+                db.session.commit()
+                print("✅ Excel Skill 1 activated!")
         
         # Create Excel Skill 2 if not exists
         skill2 = ExcelSkillsAssignment.query.filter_by(title="Excel Skill 2: Data Validation & Named Manager").first()
         if not skill2:
-            from datetime import datetime, timedelta
             new_skill2 = ExcelSkillsAssignment(
                 title="Excel Skill 2: Data Validation & Named Manager",
                 description="Master Workbook management: 1. Create Named Ranges (Name Manager). 2. Basic Dropdowns. 3. Advanced Dependent Dropdowns. 4. Data Validation (Numbers, Dates, Text). Total 10 marks. AI will provide instant feedback on mistakes.",
@@ -2440,7 +2451,16 @@ if __name__ == '__main__':
             db.session.add(new_skill2)
             db.session.commit()
             print("✅ Excel Skill 2 created!")
+        else:
+            if not skill2.is_active:
+                skill2.is_active = True
+                db.session.commit()
+                print("✅ Excel Skill 2 activated!")
 
+# Run initialization
+init_app_data()
+
+if __name__ == '__main__':
     # Start background sync worker
     try:
         from sync_utils import start_background_sync

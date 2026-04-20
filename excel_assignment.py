@@ -163,7 +163,7 @@ def create_dropdown_advanced_exercises(wb):
     ws['D10'].fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
 def create_workbook_structure_exercise(wb):
-    ws = wb.create_sheet("WORKBOOK VALIDATION")
+    ws = wb.create_sheet("DATA VALIDATION")
     ws['A1'] = "📝 Task: Whole Number & Date Validation"
     ws['A1'].font = Font(size=14, bold=True, color="1F4E79")
     
@@ -805,8 +805,8 @@ def grade_workbook_validation(wb):
     score = 0
     details = []
     try:
-        if 'WORKBOOK VALIDATION' in wb.sheetnames:
-            ws = wb['WORKBOOK VALIDATION']
+        if 'DATA VALIDATION' in wb.sheetnames:
+            ws = wb['DATA VALIDATION']
             validations = ws.data_validations.dataValidation
             
             c5_val = False
