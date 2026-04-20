@@ -163,7 +163,7 @@ def create_dropdown_advanced_exercises(wb):
     ws['D10'].fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
 def create_workbook_structure_exercise(wb):
-    ws = wb.create_sheet("DATA VALIDATION")
+    ws = wb.create_sheet("DATA VALIDATION SKILL 2")
     ws['A1'] = "📝 Task: Whole Number & Date Validation"
     ws['A1'].font = Font(size=14, bold=True, color="1F4E79")
     
@@ -468,7 +468,7 @@ def create_if_nested_exercises(wb):
     ws.column_dimensions['G'].width = 25
 
 def create_data_validation_exercises(wb):
-    ws = wb.create_sheet("DATA VALIDATION")
+    ws = wb.create_sheet("DATA VALIDATION SKILL 1")
     
     ws.merge_cells('A1:G1')
     ws['A1'] = "📊 Data Validation & Named Ranges"
@@ -805,8 +805,8 @@ def grade_workbook_validation(wb):
     score = 0
     details = []
     try:
-        if 'DATA VALIDATION' in wb.sheetnames:
-            ws = wb['DATA VALIDATION']
+        if 'DATA VALIDATION SKILL 2' in wb.sheetnames:
+            ws = wb['DATA VALIDATION SKILL 2']
             validations = ws.data_validations.dataValidation
             
             c5_val = False
@@ -862,8 +862,8 @@ def grade_data_validation(wb):
             details.append({'task': 'Named Range: Cities', 'correct': False, 'error': 'Missing Named Range "Cities"'})
 
         # 2. Check Data Validation in sheet
-        if 'DATA VALIDATION' in wb.sheetnames:
-            ws = wb['DATA VALIDATION']
+        if 'DATA VALIDATION SKILL 1' in wb.sheetnames:
+            ws = wb['DATA VALIDATION SKILL 1']
             validations = ws.data_validations.dataValidation
             
             # Check for List validation in column C or D
