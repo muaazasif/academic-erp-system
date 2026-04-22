@@ -50,7 +50,7 @@ def create_excel_exercise_workbook(assignment_title=""):
         create_dropdown_advanced_exercises(wb)
         create_workbook_structure_exercise(wb)
     else:
-        # Default Full Course Workbook
+        # Default Full Course Workbook (Skill 1)
         create_instructions(wb)
         create_vlookup_exercises(wb)
         create_sumif_countif_exercises(wb)
@@ -109,7 +109,7 @@ def create_named_manager_exercises(wb):
     headers = ['Products', 'Prices', 'Categories']
     for col, h in enumerate(headers, 7):
         ws.cell(row=3, column=col, value=h)
-    style_header(ws, 3, 3) # Note: style_header needs adjustment or call carefully
+    style_header(ws, 3, 3)
     
     data = [
         ['Laptop', 50000, 'Electronics'],
@@ -216,7 +216,7 @@ def create_instructions(wb):
         ("1. VLOOKUP (2 marks) - 4 questions", None),
         ("2. SUMIF & COUNTIF (2 marks) - 6 questions", None),
         ("3. LEFT, RIGHT, MID (2 marks) - 6 questions", None),
-        ("4. IF & NESTED IF (2 marks) - 5 questions", None),
+        ("4. IF & NESTED IF (2 marks) - 10 questions (Graded per student)", None),
         ("5. COMPLEX CHALLENGE (2 marks) - 10 questions", None),
         ("", None),
         ("✅ HOW TO COMPLETE:", None),
@@ -593,60 +593,42 @@ def grade_excel_submission(file_path, assignment_title=""):
     """Auto-grade a completed Excel assignment. Returns score out of 10"""
     try:
         wb = openpyxl.load_workbook(file_path, data_only=False) # data_only=False to see formulas/validations
-        # We might need data_only=True for some checks, but for validations we need False
     except Exception as e:
         return {'error': f'Cannot open file: {str(e)}', 'score': 0}
     
     # ==========================================
-    # CHECK FOR CHEATING (anti-cheating detection)
+    # CHECK FOR CHEATING
     # ==========================================
     cheating_detected = False
     macros_disabled = False
     
-    # Check hidden cells in Instructions sheet
     if 'Instructions' in wb.sheetnames:
         ws = wb['Instructions']
         macro_flag = ws.cell(row=99, column=26).value   # Z99
         cheat_flag = ws.cell(row=100, column=26).value  # Z100
         
-        # Check if macros were enabled
         if not macro_flag or str(macro_flag).upper() != 'MACROS_OK':
             macros_disabled = True
-            print("🚨 MACROS DISABLED: Student did not enable macros!")
         
-        # Check if they cheated
         if cheat_flag and 'CHEAT' in str(cheat_flag).upper():
             cheating_detected = True
-            print("🚨 CHEATING DETECTED: Student opened other windows/files!")
     
-    # If macros disabled or cheating detected, return ZERO marks
     if macros_disabled:
         return {
-            'score': 0,
-            'max': 10,
-            'percentage': 0,
-            'cheating_detected': False,
-            'macros_disabled': True,
+            'score': 0, 'max': 10, 'percentage': 0, 'cheating_detected': False, 'macros_disabled': True,
             'details': {'error': 'Macros were not enabled. You must enable macros to complete the assignment.'}
         }
 
     if cheating_detected:
-        print("🚨 CRITICAL: Cheating detected for this submission!")
         return {
-            'score': 0.0,
-            'max': 10,
-            'percentage': 0.0,
-            'cheating_detected': True,
-            'macros_disabled': False,
-            'details': {'error': 'CHEATING DETECTED: You switched windows/applications while completing the assignment.'}
+            'score': 0.0, 'max': 10, 'percentage': 0.0, 'cheating_detected': True, 'macros_disabled': False,
+            'details': {'error': 'CHEATING DETECTED: You switched windows while completing the assignment.'}
         }
     
-    # Normal grading
     total_score = 0
     details = {}
     
     if "Data Validation" in assignment_title and "Manager" in assignment_title:
-        # Grade the new specific assignment
         nm_score, nm_detail = grade_named_manager(wb)
         db_score, db_detail = grade_dropdown_basic(wb)
         da_score, da_detail = grade_dropdown_advanced(wb)
@@ -658,33 +640,28 @@ def grade_excel_submission(file_path, assignment_title=""):
         details['Dropdown Advanced'] = {'score': da_score, 'max': 2.5, 'details': da_detail}
         details['Workbook Validation'] = {'score': wv_score, 'max': 2.5, 'details': wv_detail}
     else:
-        # Default Full Course Workbook Grading (re-load with data_only=True for values)
+        # Skill 1 Grading
         wb_vals = openpyxl.load_workbook(file_path, data_only=True)
         
-        # Grade VLOOKUP (2 marks, 4 questions = 0.5 each)
         v_score, v_detail = grade_vlookup(wb_vals)
         total_score += v_score
         details['VLOOKUP'] = {'score': v_score, 'max': 2, 'details': v_detail}
         
-        # Grade SUMIF/COUNTIF (2 marks, 6 questions = 0.33 each)
         s_score, s_detail = grade_sumif_countif(wb_vals)
         total_score += s_score
         details['SUMIF/COUNTIF'] = {'score': s_score, 'max': 2, 'details': s_detail}
         
-        # Grade Text Functions (2 marks, 6 questions = 0.33 each)
         t_score, t_detail = grade_text_functions(wb_vals)
         total_score += t_score
         details['Text Functions'] = {'score': t_score, 'max': 2, 'details': t_detail}
+
+        if_score, if_detail = grade_if_nested(wb_vals)
+        total_score += if_score
+        details['Nested IF'] = {'score': if_score, 'max': 2, 'details': if_detail}
         
-        # Grade Complex (2 marks, 10 questions = 0.2 each)
         c_score, c_detail = grade_complex(wb_vals)
         total_score += c_score
         details['Complex'] = {'score': c_score, 'max': 2, 'details': c_detail}
-        
-        # Grade Data Validation & Named Ranges (New: 2 marks)
-        dv_score, dv_detail = grade_data_validation(wb) # Use non-data_only for validations
-        total_score += dv_score
-        details['Data Validation'] = {'score': dv_score, 'max': 2, 'details': dv_detail}
     
     return {
         'score': round(min(total_score, 10), 2),
@@ -699,27 +676,13 @@ def grade_named_manager(wb):
     details = []
     try:
         names = wb.defined_names.keys()
-        
-        if 'ProductList' in names:
-            score += 0.8
-            details.append({'task': 'Named Range: ProductList', 'correct': True})
-        else:
-            details.append({'task': 'Named Range: ProductList', 'correct': False, 'error': 'Named Range "ProductList" missing'})
-            
-        if 'PriceList' in names:
-            score += 0.8
-            details.append({'task': 'Named Range: PriceList', 'correct': True})
-        else:
-            details.append({'task': 'Named Range: PriceList', 'correct': False, 'error': 'Named Range "PriceList" missing'})
-            
-        if 'CategoryList' in names:
-            score += 0.9
-            details.append({'task': 'Named Range: CategoryList', 'correct': True})
-        else:
-            details.append({'task': 'Named Range: CategoryList', 'correct': False, 'error': 'Named Range "CategoryList" missing'})
-            
-    except Exception as e:
-        details.append({'error': f'Error: {str(e)}'})
+        if 'ProductList' in names: score += 0.8; details.append({'task': 'Named Range: ProductList', 'correct': True})
+        else: details.append({'task': 'Named Range: ProductList', 'correct': False, 'error': 'Missing ProductList'})
+        if 'PriceList' in names: score += 0.8; details.append({'task': 'Named Range: PriceList', 'correct': True})
+        else: details.append({'task': 'Named Range: PriceList', 'correct': False, 'error': 'Missing PriceList'})
+        if 'CategoryList' in names: score += 0.9; details.append({'task': 'Named Range: CategoryList', 'correct': True})
+        else: details.append({'task': 'Named Range: CategoryList', 'correct': False, 'error': 'Missing CategoryList'})
+    except: pass
     return min(score, 2.5), details
 
 def grade_dropdown_basic(wb):
@@ -729,34 +692,13 @@ def grade_dropdown_basic(wb):
         if 'DROPDOWN BASIC' in wb.sheetnames:
             ws = wb['DROPDOWN BASIC']
             validations = ws.data_validations.dataValidation
-            
-            c5_val = False
-            c7_val = False
-            
-            for dv in validations:
-                for rng in dv.sqref:
-                    if rng.coord == 'C5':
-                        if dv.type == 'list':
-                            c5_val = True
-                    if rng.coord == 'C7':
-                        if dv.type == 'list':
-                            c7_val = True
-            
-            if c5_val:
-                score += 1.25
-                details.append({'task': 'Cell C5 Dropdown (Manual List)', 'correct': True})
-            else:
-                details.append({'task': 'Cell C5 Dropdown (Manual List)', 'correct': False, 'error': 'Missing dropdown in C5'})
-                
-            if c7_val:
-                score += 1.25
-                details.append({'task': 'Cell C7 Dropdown (Named Range)', 'correct': True})
-            else:
-                details.append({'task': 'Cell C7 Dropdown (Named Range)', 'correct': False, 'error': 'Missing dropdown in C7 using ProductList'})
-        else:
-            details.append({'task': 'Sheet check', 'correct': False, 'error': 'DROPDOWN BASIC sheet missing'})
-    except Exception as e:
-        details.append({'error': f'Error: {str(e)}'})
+            c5_val = any('C5' in rng.coord for dv in validations for rng in dv.sqref if dv.type == 'list')
+            c7_val = any('C7' in rng.coord for dv in validations for rng in dv.sqref if dv.type == 'list')
+            if c5_val: score += 1.25; details.append({'task': 'C5 Dropdown', 'correct': True})
+            else: details.append({'task': 'C5 Dropdown', 'correct': False})
+            if c7_val: score += 1.25; details.append({'task': 'C7 Dropdown', 'correct': True})
+            else: details.append({'task': 'C7 Dropdown', 'correct': False})
+    except: pass
     return min(score, 2.5), details
 
 def grade_dropdown_advanced(wb):
@@ -764,40 +706,18 @@ def grade_dropdown_advanced(wb):
     details = []
     try:
         names = wb.defined_names.keys()
-        if 'Electronics' in names and 'Furniture' in names:
-            score += 1.0
-            details.append({'task': 'Named Ranges: Electronics & Furniture', 'correct': True})
-        else:
-            details.append({'task': 'Named Ranges: Electronics & Furniture', 'correct': False, 'error': 'Missing Named Ranges for categories'})
-
+        if 'Electronics' in names and 'Furniture' in names: score += 1.0; details.append({'task': 'Category Ranges', 'correct': True})
+        else: details.append({'task': 'Category Ranges', 'correct': False})
         if 'DROPDOWN ADVANCED' in wb.sheetnames:
             ws = wb['DROPDOWN ADVANCED']
             validations = ws.data_validations.dataValidation
-            
-            c10_val = False
-            d10_val = False
-            
-            for dv in validations:
-                for rng in dv.sqref:
-                    if rng.coord == 'C10': c10_val = True
-                    if rng.coord == 'D10':
-                        if dv.type == 'list' and 'INDIRECT' in str(dv.formula1).upper():
-                            d10_val = True
-            
-            if c10_val:
-                score += 0.5
-                details.append({'task': 'Cell C10 Category Dropdown', 'correct': True})
-            else:
-                details.append({'task': 'Cell C10 Category Dropdown', 'correct': False, 'error': 'Apply List validation to C10 with source Electronics, Furniture'})
-                
-            if d10_val:
-                score += 1.0
-                details.append({'task': 'Cell D10 Dependent Dropdown (INDIRECT)', 'correct': True})
-            else:
-                details.append({'task': 'Cell D10 Dependent Dropdown (INDIRECT)', 'correct': False, 'error': 'Apply List validation to D10 using formula =INDIRECT(C10)'})
-                
-    except Exception as e:
-        details.append({'error': f'Error: {str(e)}'})
+            c10_val = any('C10' in rng.coord for dv in validations for rng in dv.sqref)
+            d10_val = any('D10' in rng.coord for dv in validations for rng in dv.sqref if 'INDIRECT' in str(dv.formula1).upper())
+            if c10_val: score += 0.5; details.append({'task': 'C10 Category', 'correct': True})
+            else: details.append({'task': 'C10 Category', 'correct': False})
+            if d10_val: score += 1.0; details.append({'task': 'D10 Dependent', 'correct': True})
+            else: details.append({'task': 'D10 Dependent', 'correct': False})
+    except: pass
     return min(score, 2.5), details
 
 def grade_workbook_validation(wb):
@@ -807,129 +727,32 @@ def grade_workbook_validation(wb):
         if 'DATA VALIDATION SKILL 2' in wb.sheetnames:
             ws = wb['DATA VALIDATION SKILL 2']
             validations = ws.data_validations.dataValidation
-            
-            c5_val = False
-            c7_val = False
-            c9_val = False
-            
-            for dv in validations:
-                for rng in dv.sqref:
-                    if rng.coord == 'C5' and dv.type == 'whole': c5_val = True
-                    if rng.coord == 'C7' and dv.type == 'date': c7_val = True
-                    if rng.coord == 'C9' and dv.type == 'textLength': c9_val = True
-            
-            if c5_val:
-                score += 0.8
-                details.append({'task': 'Cell C5 Whole Number (10-100)', 'correct': True})
-            else:
-                details.append({'task': 'Cell C5 Whole Number (10-100)', 'correct': False, 'error': 'Apply "Whole Number" validation (Between 10 and 100) to C5'})
-                
-            if c7_val:
-                score += 0.8
-                details.append({'task': 'Cell C7 Date Validation', 'correct': True})
-            else:
-                details.append({'task': 'Cell C7 Date Validation', 'correct': False, 'error': 'Apply "Date" validation (Between 2024-01-01 and 2024-12-31) to C7'})
-                
-            if c9_val:
-                score += 0.9
-                details.append({'task': 'Cell C9 Text Length (5 chars)', 'correct': True})
-            else:
-                details.append({'task': 'Cell C9 Text Length (5 chars)', 'correct': False, 'error': 'Apply "Text Length" validation (Equal to 5) to C9'})
-                
-    except Exception as e:
-        details.append({'error': f'Error: {str(e)}'})
+            c5_val = any('C5' in rng.coord for dv in validations for rng in dv.sqref if dv.type == 'whole')
+            c7_val = any('C7' in rng.coord for dv in validations for rng in dv.sqref if dv.type == 'date')
+            c9_val = any('C9' in rng.coord for dv in validations for rng in dv.sqref if dv.type == 'textLength')
+            if c5_val: score += 0.8; details.append({'task': 'C5 Whole Number', 'correct': True})
+            else: details.append({'task': 'C5 Whole Number', 'correct': False})
+            if c7_val: score += 0.8; details.append({'task': 'C7 Date', 'correct': True})
+            else: details.append({'task': 'C7 Date', 'correct': False})
+            if c9_val: score += 0.9; details.append({'task': 'C9 Text Length', 'correct': True})
+            else: details.append({'task': 'C9 Text Length', 'correct': False})
+    except: pass
     return min(score, 2.5), details
-
-def grade_data_validation(wb):
-    score = 0
-    details = []
-    try:
-        # 1. Check Named Ranges
-        # openpyxl has defined_names attribute
-        names = wb.defined_names.keys()
-        
-        if 'Departments' in names:
-            score += 0.5
-            details.append({'task': 'Named Range: Departments', 'correct': True})
-        else:
-            details.append({'task': 'Named Range: Departments', 'correct': False, 'error': 'Missing Named Range "Departments"'})
-            
-        if 'Cities' in names:
-            score += 0.5
-            details.append({'task': 'Named Range: Cities', 'correct': True})
-        else:
-            details.append({'task': 'Named Range: Cities', 'correct': False, 'error': 'Missing Named Range "Cities"'})
-
-        # 2. Check Data Validation in sheet
-        if 'DATA VALIDATION SKILL 1' in wb.sheetnames:
-            ws = wb['DATA VALIDATION SKILL 1']
-            validations = ws.data_validations.dataValidation
-            
-            # Check for List validation in column C or D
-            has_list_val = False
-            has_num_val = False
-            
-            for dv in validations:
-                # dv.sqref is the range, e.g. "C13:C17"
-                if dv.type == 'list':
-                    has_list_val = True
-                if dv.type == 'whole':
-                    has_num_val = True
-            
-            if has_num_val:
-                score += 0.5
-                details.append({'task': 'ID Number Validation', 'correct': True})
-            else:
-                details.append({'task': 'ID Number Validation', 'correct': False, 'error': 'Apply "Whole Number" validation (1-100) to ID column'})
-                
-            if has_list_val:
-                score += 0.5
-                details.append({'task': 'Dropdown Lists', 'correct': True})
-            else:
-                details.append({'task': 'Dropdown Lists', 'correct': False, 'error': 'Apply "List" validation (Dropdown) to Dept or City columns'})
-        else:
-            details.append({'task': 'Sheet Check', 'correct': False, 'error': 'DATA VALIDATION sheet missing'})
-
-    except Exception as e:
-        print(f"Error grading data validation: {e}")
-        details.append({'error': f'Grading error: {str(e)}'})
-        
-    return min(score, 2), details
 
 def grade_vlookup(wb):
     score = 0
     details = []
     try:
         ws = wb['VLOOKUP']
-        # Q1: B18 - Department of E003 = Finance
-        if ws['D19'].value and 'finance' in str(ws['D19'].value).lower():
-            score += 0.5
-            details.append({'q': 'Q1', 'correct': True})
-        else:
-            details.append({'q': 'Q1', 'correct': False})
-        
-        # Q2: B19 - Salary of Sara Khan = 42000
-        if ws['D20'].value and str(ws['D20'].value).strip() in ['42000', '42000.0']:
-            score += 0.5
-            details.append({'q': 'Q2', 'correct': True})
-        else:
-            details.append({'q': 'Q2', 'correct': False})
-        
-        # Q3: B20 - City of E007 = Islamabad
-        if ws['D21'].value and 'islamabad' in str(ws['D21'].value).lower():
-            score += 0.5
-            details.append({'q': 'Q3', 'correct': True})
-        else:
-            details.append({'q': 'Q3', 'correct': False})
-        
-        # Q4: B21 - Name of E010 = Maryam Fatima
-        if ws['D22'].value and 'maryam' in str(ws['D22'].value).lower():
-            score += 0.5
-            details.append({'q': 'Q4', 'correct': True})
-        else:
-            details.append({'q': 'Q4', 'correct': False})
-    except:
-        pass
+        if ws['D19'].value and 'finance' in str(ws['D19'].value).lower(): score += 0.5; details.append({'q': 'Q1', 'correct': True})
+        else: details.append({'q': 'Q1', 'correct': False})
+        if ws['D20'].value and str(ws['D20'].value).strip() in ['42000', '42000.0']: score += 0.5; details.append({'q': 'Q2', 'correct': True})
+        else: details.append({'q': 'Q2', 'correct': False})
+        if ws['D21'].value and 'islamabad' in str(ws['D21'].value).lower(): score += 0.5; details.append({'q': 'Q3', 'correct': True})
+        else: details.append({'q': 'Q3', 'correct': False})
+        if ws['D22'].value and 'maryam' in str(ws['D22'].value).lower(): score += 0.5; details.append({'q': 'Q4', 'correct': True})
+        else: details.append({'q': 'Q4', 'correct': False})
+    except: pass
     return score, details
 
 def grade_sumif_countif(wb):
@@ -937,49 +760,19 @@ def grade_sumif_countif(wb):
     details = []
     try:
         ws = wb['SUMIF & COUNTIF']
-        # Q5: Total by Ali = 120000+25000+12000 = 157000
-        if ws['D20'].value and str(ws['D20'].value).strip() in ['157000', '157000.0']:
-            score += 0.33
-            details.append({'q': 'Q5', 'correct': True})
-        else:
-            details.append({'q': 'Q5', 'correct': False})
-        
-        # Q6: Count Laptop = 4
-        if ws['D21'].value and str(ws['D21'].value).strip() in ['4', '4.0']:
-            score += 0.33
-            details.append({'q': 'Q6', 'correct': True})
-        else:
-            details.append({'q': 'Q6', 'correct': False})
-        
-        # Q7: Quantity by Sara = 10+4+1 = 15
-        if ws['D22'].value and str(ws['D22'].value).strip() in ['15', '15.0']:
-            score += 0.33
-            details.append({'q': 'Q7', 'correct': True})
-        else:
-            details.append({'q': 'Q7', 'correct': False})
-        
-        # Q8: Count Electronics = 7
-        if ws['D23'].value and str(ws['D23'].value).strip() in ['7', '7.0']:
-            score += 0.33
-            details.append({'q': 'Q8', 'correct': True})
-        else:
-            details.append({'q': 'Q8', 'correct': False})
-        
-        # Q9: Total Accessories = 15000+25000+12000+30000 = 82000
-        if ws['D24'].value and str(ws['D24'].value).strip() in ['82000', '82000.0']:
-            score += 0.33
-            details.append({'q': 'Q9', 'correct': True})
-        else:
-            details.append({'q': 'Q9', 'correct': False})
-        
-        # Q10: Count Fatima = 2
-        if ws['D25'].value and str(ws['D25'].value).strip() in ['2', '2.0']:
-            score += 0.33
-            details.append({'q': 'Q10', 'correct': True})
-        else:
-            details.append({'q': 'Q10', 'correct': False})
-    except:
-        pass
+        if ws['D20'].value and str(ws['D20'].value).strip() in ['157000', '157000.0']: score += 0.33; details.append({'q': 'Q5', 'correct': True})
+        else: details.append({'q': 'Q5', 'correct': False})
+        if ws['D21'].value and str(ws['D21'].value).strip() in ['4', '4.0']: score += 0.33; details.append({'q': 'Q6', 'correct': True})
+        else: details.append({'q': 'Q6', 'correct': False})
+        if ws['D22'].value and str(ws['D22'].value).strip() in ['15', '15.0']: score += 0.33; details.append({'q': 'Q7', 'correct': True})
+        else: details.append({'q': 'Q7', 'correct': False})
+        if ws['D23'].value and str(ws['D23'].value).strip() in ['7', '7.0']: score += 0.33; details.append({'q': 'Q8', 'correct': True})
+        else: details.append({'q': 'Q8', 'correct': False})
+        if ws['D24'].value and str(ws['D24'].value).strip() in ['82000', '82000.0']: score += 0.33; details.append({'q': 'Q9', 'correct': True})
+        else: details.append({'q': 'Q9', 'correct': False})
+        if ws['D25'].value and str(ws['D25'].value).strip() in ['2', '2.0']: score += 0.33; details.append({'q': 'Q10', 'correct': True})
+        else: details.append({'q': 'Q10', 'correct': False})
+    except: pass
     return min(score, 2), details
 
 def grade_text_functions(wb):
@@ -987,49 +780,69 @@ def grade_text_functions(wb):
     details = []
     try:
         ws = wb['LEFT RIGHT MID']
-        # Q11: LEFT(A4,3) = "Ahm"
-        if ws['D15'].value and str(ws['D15'].value).strip().lower() == 'ahm':
-            score += 0.33
-            details.append({'q': 'Q11', 'correct': True})
-        else:
-            details.append({'q': 'Q11', 'correct': False})
+        if ws['D15'].value and str(ws['D15'].value).strip().lower() == 'ahm': score += 0.33; details.append({'q': 'Q11', 'correct': True})
+        else: details.append({'q': 'Q11', 'correct': False})
+        if ws['D16'].value and '1234567' in str(ws['D16'].value): score += 0.33; details.append({'q': 'Q12', 'correct': True})
+        else: details.append({'q': 'Q12', 'correct': False})
+        if ws['D17'].value and 'ahmed' in str(ws['D17'].value).lower(): score += 0.33; details.append({'q': 'Q13', 'correct': True})
+        else: details.append({'q': 'Q13', 'correct': False})
+        if ws['D18'].value and '2024' in str(ws['D18'].value): score += 0.33; details.append({'q': 'Q14', 'correct': True})
+        else: details.append({'q': 'Q14', 'correct': False})
+        if ws['D19'].value and 'hotmail' in str(ws['D19'].value).lower(): score += 0.33; details.append({'q': 'Q15', 'correct': True})
+        else: details.append({'q': 'Q15', 'correct': False})
+        if ws['D20'].value and 'fatima' in str(ws['D20'].value).lower(): score += 0.33; details.append({'q': 'Q16', 'correct': True})
+        else: details.append({'q': 'Q16', 'correct': False})
+    except: pass
+    return min(score, 2), details
+
+def grade_if_nested(wb):
+    score = 0
+    details = []
+    try:
+        if 'IF & NESTED IF' not in wb.sheetnames:
+            return 0, [{'task': 'Sheet Missing', 'correct': False, 'error': 'IF & NESTED IF sheet missing'}]
+            
+        ws = wb['IF & NESTED IF']
+        students = [
+            {'row': 4, 'name': 'Ahmed', 'g': 'A+', 's': 'Pass'},
+            {'row': 5, 'name': 'Sara', 'g': 'A', 's': 'Pass'},
+            {'row': 6, 'name': 'Omar', 'g': 'B', 's': 'Pass'},
+            {'row': 7, 'name': 'Fatima', 'g': 'C', 's': 'Pass'},
+            {'row': 8, 'name': 'Bilal', 'g': 'D', 's': 'Pass'},
+            {'row': 9, 'name': 'Ayesha', 'g': 'F', 's': 'Fail'},
+            {'row': 10, 'name': 'Hassan', 'g': 'F', 's': 'Fail'},
+            {'row': 11, 'name': 'Zainab', 'g': 'A', 's': 'Pass'},
+            {'row': 12, 'name': 'Ali', 'g': 'B', 's': 'Pass'},
+            {'row': 13, 'name': 'Maryam', 'g': 'A+', 's': 'Pass'},
+        ]
         
-        # Q12: RIGHT(B4,7) = "1234567"
-        if ws['D16'].value and '1234567' in str(ws['D16'].value):
-            score += 0.33
-            details.append({'q': 'Q12', 'correct': True})
-        else:
-            details.append({'q': 'Q12', 'correct': False})
-        
-        # Q13: Extract "ahmed.ali" from email
-        if ws['D17'].value and 'ahmed' in str(ws['D17'].value).lower():
-            score += 0.33
-            details.append({'q': 'Q13', 'correct': True})
-        else:
-            details.append({'q': 'Q13', 'correct': False})
-        
-        # Q14: Extract "2024" from code
-        if ws['D18'].value and '2024' in str(ws['D18'].value):
-            score += 0.33
-            details.append({'q': 'Q14', 'correct': True})
-        else:
-            details.append({'q': 'Q14', 'correct': False})
-        
-        # Q15: Extract domain "hotmail.com"
-        if ws['D19'].value and 'hotmail' in str(ws['D19'].value).lower():
-            score += 0.33
-            details.append({'q': 'Q15', 'correct': True})
-        else:
-            details.append({'q': 'Q15', 'correct': False})
-        
-        # Q16: Extract "Fatima" from "Sara Fatima"
-        if ws['D20'].value and 'fatima' in str(ws['D20'].value).lower():
-            score += 0.33
-            details.append({'q': 'Q16', 'correct': True})
-        else:
-            details.append({'q': 'Q16', 'correct': False})
-    except:
-        pass
+        for std in students:
+            g_val = ws.cell(row=std['row'], column=4).value
+            s_val = ws.cell(row=std['row'], column=5).value
+            
+            correct_g = False
+            if g_val:
+                g_str = str(g_val).strip().upper().replace(" ", "")
+                if g_str == std['g'].upper().replace(" ", ""):
+                    correct_g = True
+            
+            correct_s = False
+            if s_val:
+                s_str = str(s_val).strip().lower()
+                if s_str == std['s'].lower():
+                    correct_s = True
+            
+            if correct_g and correct_s:
+                score += 0.2
+                details.append({'task': f'Student {std["name"]}', 'correct': True})
+            else:
+                errs = []
+                if not correct_g: errs.append(f"Wrong Grade (Expected {std['g']})")
+                if not correct_s: errs.append(f"Wrong Status (Expected {std['s']})")
+                details.append({'task': f'Student {std["name"]}', 'correct': False, 'error': " & ".join(errs)})
+                
+    except Exception as e:
+        details.append({'error': f'Grading error: {str(e)}'})
     return min(score, 2), details
 
 def grade_complex(wb):
@@ -1037,49 +850,19 @@ def grade_complex(wb):
     details = []
     try:
         ws = wb['COMPLEX CHALLENGE']
-        # Q21: Extract "LAP" = LAP
-        if ws['D20'].value and 'lap' in str(ws['D20'].value).lower():
-            score += 0.2
-            details.append({'q': 'Q21', 'correct': True})
-        else:
-            details.append({'q': 'Q21', 'correct': False})
-        
-        # Q22: Count Accessories = 5
-        if ws['D21'].value and str(ws['D21'].value).strip() in ['5', '5.0']:
-            score += 0.2
-            details.append({'q': 'Q22', 'correct': True})
-        else:
-            details.append({'q': 'Q22', 'correct': False})
-        
-        # Q23: Stock Electronics = 12+8+5 = 25
-        if ws['D22'].value and str(ws['D22'].value).strip() in ['25', '25.0']:
-            score += 0.2
-            details.append({'q': 'Q23', 'correct': True})
-        else:
-            details.append({'q': 'Q23', 'correct': False})
-        
-        # Q24: Price of PRD-KEY-003 = 4500
-        if ws['D23'].value and str(ws['D23'].value).strip() in ['4500', '4500.0']:
-            score += 0.2
-            details.append({'q': 'Q24', 'correct': True})
-        else:
-            details.append({'q': 'Q24', 'correct': False})
-        
-        # Q25: "Wireless"
-        if ws['D24'].value and 'wireless' in str(ws['D24'].value).lower():
-            score += 0.2
-            details.append({'q': 'Q25', 'correct': True})
-        else:
-            details.append({'q': 'Q25', 'correct': False})
-        
-        # Q26-Q30: Similar checks
+        if ws['D20'].value and 'lap' in str(ws['D20'].value).lower(): score += 0.2; details.append({'q': 'Q21', 'correct': True})
+        else: details.append({'q': 'Q21', 'correct': False})
+        if ws['D21'].value and str(ws['D21'].value).strip() in ['5', '5.0']: score += 0.2; details.append({'q': 'Q22', 'correct': True})
+        else: details.append({'q': 'Q22', 'correct': False})
+        if ws['D22'].value and str(ws['D22'].value).strip() in ['25', '25.0']: score += 0.2; details.append({'q': 'Q23', 'correct': True})
+        else: details.append({'q': 'Q23', 'correct': False})
+        if ws['D23'].value and str(ws['D23'].value).strip() in ['4500', '4500.0']: score += 0.2; details.append({'q': 'Q24', 'correct': True})
+        else: details.append({'q': 'Q24', 'correct': False})
+        if ws['D24'].value and 'wireless' in str(ws['D24'].value).lower(): score += 0.2; details.append({'q': 'Q25', 'correct': True})
+        else: details.append({'q': 'Q25', 'correct': False})
         for i in range(5):
-            cell = ws.cell(row=25+i, column=4)
-            if cell.value and len(str(cell.value).strip()) > 0:
-                score += 0.2
-                details.append({'q': f'Q{i+26}', 'correct': True})
-            else:
-                details.append({'q': f'Q{i+26}', 'correct': False})
-    except:
-        pass
+            val = ws.cell(row=25+i, column=4).value
+            if val: score += 0.2; details.append({'q': f'Q{26+i}', 'correct': True})
+            else: details.append({'q': f'Q{26+i}', 'correct': False})
+    except: pass
     return min(score, 2), details
