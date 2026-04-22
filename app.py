@@ -2404,7 +2404,15 @@ def submit_excel_assignment(assignment_id):
 # APP STARTUP
 # ============================================
 
-from final_marks_sync import export_final_marks
+from final_marks_sync import export_final_marks, get_final_marks_from_sheet
+
+@app.route('/final-results')
+def final_results():
+    if 'admin_id' not in session and 'student_id' not in session:
+        return redirect(url_for('login'))
+        
+    marks_data = get_final_marks_from_sheet()
+    return render_template('final_results.html', marks=marks_data)
 
 @app.route('/admin/export-final-marks')
 def admin_export_final_marks():

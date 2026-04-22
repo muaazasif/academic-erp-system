@@ -151,5 +151,35 @@ def export_final_marks():
     print("✅ Final Marks and Individual Marks exported successfully!")
     return True, "Export successful"
 
+def get_final_marks_from_sheet():
+    """Fetch the Final Marks data from Google Sheets to display in the app"""
+    service, sheet_id = get_sheets_service()
+    if not service:
+        return None
+        
+    try:
+        result = service.spreadsheets().values().get(
+            spreadsheetId=sheet_id,
+            range="'Final Marks'!A:H"
+        ).execute()
+        
+        rows = result.get('values', [])
+        if not rows or len(rows) < 2:
+            return []
+            
+        # Convert to list of dictionaries
+        headers = rows[0]
+        data = []
+        for row in rows[1:]:
+            # Ensure row has enough columns
+            while len(row) < len(headers):
+                row.append("-")
+            data.append(dict(zip(headers, row)))
+            
+        return data
+    except Exception as e:
+        print(f"Error fetching from sheets: {e}")
+        return None
+
 if __name__ == "__main__":
     export_final_marks()

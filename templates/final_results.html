@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Final Results & Rankings{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>🏆 Final Marks & Student Rankings</h2>
+        <div class="text-muted small">Live Data from Google Sheets</div>
+    </div>
+
+    {% if marks is none %}
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle"></i> Google Sheets is not configured or the 'Final Marks' sheet is missing. 
+        {% if session.admin_id %}
+        <br><a href="/admin/export-final-marks" class="btn btn-sm btn-primary mt-2">Generate Final Marks Now</a>
+        {% endif %}
+    </div>
+    {% elif not marks %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> No results found yet. Rankings will appear once the administrator calculates final marks.
+    </div>
+    {% else %}
+    
+    <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">Academic Performance Leaderboard</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Rank</th>
+                            <th>Student ID</th>
+                            <th>Student Name</th>
+                            <th class="text-center">Excel Skills</th>
+                            <th class="text-center">Quizzes</th>
+                            <th class="text-center">Total Avg</th>
+                            <th class="text-center pe-4">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in marks %}
+                        <tr>
+                            <td class="ps-4">
+                                {% if student.Rank == '1' %}
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-trophy-fill"></i> 1st</span>
+                                {% elif student.Rank == '2' %}
+                                    <span class="badge bg-secondary">2nd</span>
+                                {% elif student.Rank == '3' %}
+                                    <span class="badge bg-danger">3rd</span>
+                                {% else %}
+                                    <span class="text-muted">{{ student.Rank }}</span>
+                                {% endif %}
+                            </td>
+                            <td><code>{{ student['Student ID'] }}</code></td>
+                            <td class="fw-bold text-primary">{{ student.Name }}</td>
+                            <td class="text-center">{{ student['Excel Skills (Avg %)'] }}</td>
+                            <td class="text-center">{{ student['Quizzes (Avg %)'] }}</td>
+                            <td class="text-center">
+                                <div class="progress" style="height: 20px;">
+                                    {% set pct = student['Total Avg %']|replace('%', '')|float %}
+                                    <div class="progress-bar {% if pct >= 80 %}bg-success{% elif pct >= 50 %}bg-info{% else %}bg-danger{% endif %}" 
+                                         role="progressbar" style="width: {{ pct }}%;" 
+                                         aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100">
+                                        {{ student['Total Avg %'] }}
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center pe-4">
+                                {% if student.Status == 'PASS' %}
+                                    <span class="badge rounded-pill bg-success px-3">Passed</span>
+                                {% else %}
+                                    <span class="badge rounded-pill bg-danger px-3">Failed</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-4 alert alert-light border border-info">
+        <i class="bi bi-lightbulb text-info"></i> <strong>Note:</strong> These results are calculated based on your performance in all Excel Skill tasks and Quizzes. 
+        Individual task details can be found in the respective assignment tabs.
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .table th { font-weight: 600; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; }
+    .table td { vertical-align: middle; padding: 1rem 0.5rem; }
+    .progress { background-color: #e9ecef; border-radius: 10px; overflow: hidden; }
+    .badge { font-weight: 500; }
+</style>
+{% endblock %}
