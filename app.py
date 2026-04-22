@@ -2404,6 +2404,21 @@ def submit_excel_assignment(assignment_id):
 # APP STARTUP
 # ============================================
 
+from final_marks_sync import export_final_marks
+
+@app.route('/admin/export-final-marks')
+def admin_export_final_marks():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    success, message = export_final_marks()
+    if success:
+        flash("✅ Final Marks and Individual Marks exported to Google Sheets!", "success")
+    else:
+        flash(f"❌ Export failed: {message}", "danger")
+    
+    return redirect(url_for('admin_dashboard'))
+
 # ============================================
 # APP INITIALIZATION
 # ============================================

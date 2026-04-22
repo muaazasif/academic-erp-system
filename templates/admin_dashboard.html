@@ -18,7 +18,10 @@
                             <i class="bi bi-person-plus"></i> Sync Users from Sheets
                         </a>
                         <a href="/admin/export-to-sheets" class="btn btn-success" onclick="return confirm('Export all data to Google Sheets? This may take a moment.')">
-                            <i class="bi bi-google"></i> Export to Google Sheets
+                            <i class="bi bi-google"></i> Export All Data
+                        </a>
+                        <a href="/admin/export-final-marks" class="btn btn-dark" onclick="return confirm('Export Final Marks & Rankings to Google Sheets? This will create professional formatted tables.')">
+                            <i class="bi bi-trophy"></i> Export Final Marks
                         </a>
                         <span class="ms-3">Welcome, {{ session.username }}!</span>
                     </div>
