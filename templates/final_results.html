@@ -5,8 +5,8 @@
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>🏆 Final Marks & Student Rankings</h2>
-        <div class="text-muted small">Live Data from Google Sheets</div>
+        <h2>🏆 Student Leaderboard & Performance</h2>
+        <div class="text-muted small">Live sync with Google Sheets</div>
     </div>
 
     {% if marks is none %}
@@ -16,63 +16,68 @@
         <br><a href="/admin/export-final-marks" class="btn btn-sm btn-primary mt-2">Generate Final Marks Now</a>
         {% endif %}
     </div>
-    {% elif not marks %}
+    {% elif not marks.data %}
     <div class="alert alert-info">
         <i class="bi bi-info-circle"></i> No results found yet. Rankings will appear once the administrator calculates final marks.
     </div>
     {% else %}
     
-    <div class="card shadow-sm">
-        <div class="card-header bg-dark text-white">
-            <h5 class="mb-0">Academic Performance Leaderboard</h5>
+    <div class="card shadow-sm border-0 overflow-hidden">
+        <div class="card-header bg-dark text-white p-3">
+            <h5 class="mb-0"><i class="bi bi-award"></i> Academic Performance Ranking</h5>
         </div>
-        <div class="card-body p-0">
+        <div class="card-body p-0 bg-darker">
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="ps-4">Rank</th>
-                            <th>Student ID</th>
-                            <th>Student Name</th>
-                            <th class="text-center">Excel Skills</th>
-                            <th class="text-center">Quizzes</th>
-                            <th class="text-center">Total Avg</th>
-                            <th class="text-center pe-4">Status</th>
+                <table class="table table-hover table-dark mb-0 align-middle">
+                    <thead>
+                        <tr class="bg-secondary bg-opacity-10 text-uppercase small letter-spacing-1">
+                            {% for header in marks.headers %}
+                            <th class="{% if loop.first %}ps-4{% endif %} {% if loop.last %}pe-4{% endif %} {% if 'Rank' not in header and 'Name' not in header and 'ID' not in header %}text-center{% endif %}">
+                                {{ header }}
+                            </th>
+                            {% endfor %}
                         </tr>
                     </thead>
                     <tbody>
-                        {% for student in marks %}
+                        {% for student in marks.data %}
                         <tr>
                             <td class="ps-4">
                                 {% if student.Rank == '1' %}
-                                    <span class="badge bg-warning text-dark"><i class="bi bi-trophy-fill"></i> 1st</span>
+                                    <span class="badge bg-warning text-dark shadow-sm"><i class="bi bi-trophy-fill"></i> 1st</span>
                                 {% elif student.Rank == '2' %}
-                                    <span class="badge bg-secondary">2nd</span>
+                                    <span class="badge bg-light text-dark">2nd</span>
                                 {% elif student.Rank == '3' %}
-                                    <span class="badge bg-danger">3rd</span>
+                                    <span class="badge bg-info text-dark">3rd</span>
                                 {% else %}
-                                    <span class="text-muted">{{ student.Rank }}</span>
+                                    <span class="text-secondary fw-bold ms-2">{{ student.Rank }}</span>
                                 {% endif %}
                             </td>
                             <td><code>{{ student['Student ID'] }}</code></td>
-                            <td class="fw-bold text-primary">{{ student.Name }}</td>
-                            <td class="text-center">{{ student['Excel Skills (Avg %)'] }}</td>
-                            <td class="text-center">{{ student['Quizzes (Avg %)'] }}</td>
+                            <td class="fw-bold">{{ student.Name }}</td>
+                            
+                            {# Dynamic columns for Skills/Quizzes #}
+                            {% for header in marks.headers %}
+                                {% if header not in ['Rank', 'Student ID', 'Name', 'Total Avg %', 'Status'] %}
+                                    <td class="text-center">{{ student[header] }}</td>
+                                {% endif %}
+                            {% endfor %}
+
                             <td class="text-center">
-                                <div class="progress" style="height: 20px;">
-                                    {% set pct = student['Total Avg %']|replace('%', '')|float %}
-                                    <div class="progress-bar {% if pct >= 80 %}bg-success{% elif pct >= 50 %}bg-info{% else %}bg-danger{% endif %}" 
-                                         role="progressbar" style="width: {{ pct }}%;" 
-                                         aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100">
-                                        {{ student['Total Avg %'] }}
+                                {% set pct_val = student['Total Avg %']|replace('%', '')|float %}
+                                <div class="d-flex align-items-center justify-content-center">
+                                    <div class="progress w-100" style="height: 12px; max-width: 100px;">
+                                        <div class="progress-bar {% if pct_val >= 80 %}bg-success{% elif pct_val >= 40 %}bg-primary{% else %}bg-danger{% endif %}" 
+                                             role="progressbar" style="width: {{ pct_val }}%;">
+                                        </div>
                                     </div>
+                                    <span class="ms-2 small fw-bold">{{ student['Total Avg %'] }}</span>
                                 </div>
                             </td>
                             <td class="text-center pe-4">
                                 {% if student.Status == 'PASS' %}
-                                    <span class="badge rounded-pill bg-success px-3">Passed</span>
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3">PASS</span>
                                 {% else %}
-                                    <span class="badge rounded-pill bg-danger px-3">Failed</span>
+                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3">FAIL</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -83,17 +88,21 @@
         </div>
     </div>
     
-    <div class="mt-4 alert alert-light border border-info">
-        <i class="bi bi-lightbulb text-info"></i> <strong>Note:</strong> These results are calculated based on your performance in all Excel Skill tasks and Quizzes. 
-        Individual task details can be found in the respective assignment tabs.
+    <div class="mt-4 p-3 bg-dark bg-opacity-50 rounded border border-secondary border-opacity-25">
+        <p class="mb-0 text-secondary small">
+            <i class="bi bi-info-circle me-1"></i>
+            <strong>Calculation Method:</strong> Total Average is computed as the mean of all Excel Skills and Quiz scores. 
+            Students with at least 40% overall are currently marked as PASS during the mid-course evaluation.
+        </p>
     </div>
     {% endif %}
 </div>
 
 <style>
-    .table th { font-weight: 600; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; }
-    .table td { vertical-align: middle; padding: 1rem 0.5rem; }
-    .progress { background-color: #e9ecef; border-radius: 10px; overflow: hidden; }
-    .badge { font-weight: 500; }
+    .bg-darker { background-color: #0b0e14; }
+    .letter-spacing-1 { letter-spacing: 1px; }
+    .table th { border: none; padding: 15px 10px; color: #6c757d; font-size: 0.75rem; }
+    .table td { border-color: rgba(255,255,255,0.05); padding: 15px 10px; }
+    .progress { background-color: rgba(255,255,255,0.1); }
 </style>
 {% endblock %}
