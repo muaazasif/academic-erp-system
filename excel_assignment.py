@@ -744,9 +744,35 @@ def grade_excel_submission(file_path, assignment_title=""):
         details['Power Query Basics'] = {'score': pq_score, 'max': 5, 'details': pq_detail}
     else:
         # Skill 1 Grading
-... (around line 1087) ...
-    except: pass
-    return min(score, 2), details
+        wb_vals = openpyxl.load_workbook(file_path, data_only=True)
+        
+        v_score, v_detail = grade_vlookup(wb_vals)
+        total_score += v_score
+        details['VLOOKUP'] = {'score': v_score, 'max': 2, 'details': v_detail}
+        
+        s_score, s_detail = grade_sumif_countif(wb_vals)
+        total_score += s_score
+        details['SUMIF/COUNTIF'] = {'score': s_score, 'max': 2, 'details': s_detail}
+        
+        t_score, t_detail = grade_text_functions(wb_vals)
+        total_score += t_score
+        details['Text Functions'] = {'score': t_score, 'max': 2, 'details': t_detail}
+
+        if_score, if_detail = grade_if_nested(wb_vals)
+        total_score += if_score
+        details['Nested IF'] = {'score': if_score, 'max': 2, 'details': if_detail}
+        
+        c_score, c_detail = grade_complex(wb_vals)
+        total_score += c_score
+        details['Complex'] = {'score': c_score, 'max': 2, 'details': c_detail}
+    
+    return {
+        'score': round(min(total_score, 10), 2),
+        'max': 10,
+        'percentage': round((min(total_score, 10) / 10) * 100, 1),
+        'cheating_detected': False,
+        'details': details
+    }
 
 def grade_data_cleaning(wb):
     score = 0
@@ -803,36 +829,6 @@ def grade_power_query(wb):
             details.append({'task': 'Uppercase Transformation', 'correct': False})
     except: pass
     return min(score, 5), details
-
-        wb_vals = openpyxl.load_workbook(file_path, data_only=True)
-        
-        v_score, v_detail = grade_vlookup(wb_vals)
-        total_score += v_score
-        details['VLOOKUP'] = {'score': v_score, 'max': 2, 'details': v_detail}
-        
-        s_score, s_detail = grade_sumif_countif(wb_vals)
-        total_score += s_score
-        details['SUMIF/COUNTIF'] = {'score': s_score, 'max': 2, 'details': s_detail}
-        
-        t_score, t_detail = grade_text_functions(wb_vals)
-        total_score += t_score
-        details['Text Functions'] = {'score': t_score, 'max': 2, 'details': t_detail}
-
-        if_score, if_detail = grade_if_nested(wb_vals)
-        total_score += if_score
-        details['Nested IF'] = {'score': if_score, 'max': 2, 'details': if_detail}
-        
-        c_score, c_detail = grade_complex(wb_vals)
-        total_score += c_score
-        details['Complex'] = {'score': c_score, 'max': 2, 'details': c_detail}
-    
-    return {
-        'score': round(min(total_score, 10), 2),
-        'max': 10,
-        'percentage': round((min(total_score, 10) / 10) * 100, 1),
-        'cheating_detected': False,
-        'details': details
-    }
 
 def grade_named_manager(wb):
     score = 0
