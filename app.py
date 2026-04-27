@@ -2484,6 +2484,25 @@ def init_app_data():
                 skill2.is_active = True
                 db.session.commit()
                 print("✅ Excel Skill 2 activated!")
+        
+        # Create Excel Skill 3 if not exists
+        skill3 = ExcelSkillsAssignment.query.filter_by(title="Excel Skill 3: Data Cleaning & Power Query").first()
+        if not skill3:
+            new_skill3 = ExcelSkillsAssignment(
+                title="Excel Skill 3: Data Cleaning & Power Query",
+                description="Master Data Preparation: 1. Cleaning Raw Data (Spaces, Case, Duplicates). 2. Text-to-Columns & Flash Fill. 3. Power Query Basics (Transforming & Loading). Total 10 marks. AI will check for clean data and proper transformations.",
+                created_at=datetime.now(),
+                deadline=datetime.now() + timedelta(days=14),
+                is_active=True
+            )
+            db.session.add(new_skill3)
+            db.session.commit()
+            print("✅ Excel Skill 3 created!")
+        else:
+            if not skill3.is_active:
+                skill3.is_active = True
+                db.session.commit()
+                print("✅ Excel Skill 3 activated!")
 
 # Run initialization
 init_app_data()

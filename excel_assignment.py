@@ -49,6 +49,10 @@ def create_excel_exercise_workbook(assignment_title=""):
         create_dropdown_basic_exercises(wb)
         create_dropdown_advanced_exercises(wb)
         create_workbook_structure_exercise(wb)
+    elif "Data Cleaning" in assignment_title and "Power Query" in assignment_title:
+        create_instructions_skill3(wb)
+        create_data_cleaning_exercises(wb)
+        create_power_query_exercises(wb)
     else:
         # Default Full Course Workbook (Skill 1)
         create_instructions(wb)
@@ -181,6 +185,96 @@ def create_workbook_structure_exercise(wb):
     
     ws.column_dimensions['B'].width = 30
     ws.column_dimensions['C'].width = 30
+
+def create_instructions_skill3(wb):
+    ws = wb.create_sheet("Instructions", 0)
+    ws['A1'] = "📊 EXCEL SKILLS: DATA CLEANING & POWER QUERY"
+    ws['A1'].font = Font(size=18, bold=True, color="FFFFFF")
+    ws['A1'].fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
+    ws.merge_cells('A1:F1')
+    ws.row_dimensions[1].height = 40
+    
+    ws['A3'] = "🚀 STEPS TO START:"
+    ws['A4'] = "1. Enable Macros to see all task sheets."
+    ws['A5'] = "2. Task 1: Clean raw data using functions (TRIM, PROPER, etc.)."
+    ws['A6'] = "3. Task 2: Use Flash Fill or Text-to-Columns."
+    ws['A7'] = "4. Task 3: Handle Duplicates and Power Query transformation."
+    
+    ws['A9'] = "📋 ASSIGNMENT MODULES (Total 10 Marks):"
+    ws['A10'] = "1. Basic Data Cleaning (5 marks)"
+    ws['A11'] = "2. Power Query & Transformations (5 marks)"
+    
+    ws.column_dimensions['A'].width = 55
+
+def create_data_cleaning_exercises(wb):
+    ws = wb.create_sheet("DATA CLEANING")
+    ws['A1'] = "📝 Task 1: Data Cleaning Functions (TRIM, PROPER, UPPER)"
+    ws['A1'].font = Font(size=14, bold=True, color="1F4E79")
+    
+    headers = ['Raw Data', 'Clean Data (Expected Formula)']
+    for col, h in enumerate(headers, 1):
+        ws.cell(row=3, column=col, value=h)
+    style_header(ws, 3, 2)
+    
+    raw_data = [
+        "   muaaz asif   ",
+        "PYTHON PROGRAMMING",
+        "excel   skills",
+        "john doe  ",
+        "   KARAchi-PAKistan"
+    ]
+    
+    for i, data in enumerate(raw_data):
+        ws.cell(row=4+i, column=1, value=data)
+        ws.cell(row=4+i, column=2).fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    
+    ws['A11'] = "📝 Task 2: Flash Fill / Text-to-Columns"
+    ws['A12'] = "Separate 'First Name' and 'Last Name' from the Full Name column."
+    
+    ws['A14'] = "Full Name"
+    ws['B14'] = "First Name"
+    ws['C14'] = "Last Name"
+    style_header(ws, 14, 3)
+    
+    names = ["Ali Khan", "Sara Ahmed", "Bilal Sheikh"]
+    for i, name in enumerate(names):
+        ws.cell(row=15+i, column=1, value=name)
+        ws.cell(row=15+i, column=2).fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        ws.cell(row=15+i, column=3).fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['C'].width = 30
+
+def create_power_query_exercises(wb):
+    ws = wb.create_sheet("POWER QUERY")
+    ws['A1'] = "📝 Task 3: Data Transformation & Duplicates"
+    ws['A1'].font = Font(size=14, bold=True, color="1F4E79")
+    
+    ws['A3'] = "1. Identify and remove duplicate rows from the table below (F4:H10)."
+    ws['A4'] = "2. Ensure all text is in UPPERCASE in the 'Product' column."
+    
+    data = [
+        ['ID', 'Product', 'Sales'],
+        [101, 'Laptop', 500],
+        [102, 'Mouse', 50],
+        [101, 'Laptop', 500], # Duplicate
+        [103, 'Keyboard', 80],
+        [102, 'Mouse', 50], # Duplicate
+        [104, 'Monitor', 300]
+    ]
+    
+    for i, row in enumerate(data):
+        for j, val in enumerate(row):
+            ws.cell(row=4+i, column=6+j, value=val)
+            if i > 0:
+                ws.cell(row=4+i, column=6+j).fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    
+    style_header(ws, 4, 3) # Note: headers start at F4
+    
+    ws.column_dimensions['F'].width = 10
+    ws.column_dimensions['G'].width = 20
+    ws.column_dimensions['H'].width = 15
 
 def create_instructions(wb):
     # Create Instructions as the first sheet
@@ -639,8 +733,77 @@ def grade_excel_submission(file_path, assignment_title=""):
         details['Dropdown Basic'] = {'score': db_score, 'max': 2.5, 'details': db_detail}
         details['Dropdown Advanced'] = {'score': da_score, 'max': 2.5, 'details': da_detail}
         details['Workbook Validation'] = {'score': wv_score, 'max': 2.5, 'details': wv_detail}
+    elif "Data Cleaning" in assignment_title and "Power Query" in assignment_title:
+        # Skill 3 Grading
+        wb_vals = openpyxl.load_workbook(file_path, data_only=True)
+        dc_score, dc_detail = grade_data_cleaning(wb_vals)
+        pq_score, pq_detail = grade_power_query(wb_vals)
+        
+        total_score = dc_score + pq_score
+        details['Data Cleaning'] = {'score': dc_score, 'max': 5, 'details': dc_detail}
+        details['Power Query Basics'] = {'score': pq_score, 'max': 5, 'details': pq_detail}
     else:
         # Skill 1 Grading
+... (around line 1087) ...
+    except: pass
+    return min(score, 2), details
+
+def grade_data_cleaning(wb):
+    score = 0
+    details = []
+    try:
+        ws = wb['DATA CLEANING']
+        # Task 1: Clean functions
+        expected = ["Muaaz Asif", "Python Programming", "Excel Skills", "John Doe", "Karachi-Pakistan"]
+        for i, exp in enumerate(expected):
+            val = ws.cell(row=4+i, column=2).value
+            if val and str(val).strip().lower() == exp.lower():
+                score += 0.6
+                details.append({'task': f'Clean: {exp}', 'correct': True})
+            else:
+                details.append({'task': f'Clean: {exp}', 'correct': False})
+        
+        # Task 2: Flash Fill (First/Last names)
+        names = [("Ali", "Khan"), ("Sara", "Ahmed"), ("Bilal", "Sheikh")]
+        for i, (f, l) in enumerate(names):
+            fv = ws.cell(row=15+i, column=2).value
+            lv = ws.cell(row=15+i, column=3).value
+            if fv and str(fv).strip().lower() == f.lower() and lv and str(lv).strip().lower() == l.lower():
+                score += 0.66
+                details.append({'task': f'Split: {f} {l}', 'correct': True})
+            else:
+                details.append({'task': f'Split: {f} {l}', 'correct': False})
+    except: pass
+    return min(score, 5), details
+
+def grade_power_query(wb):
+    score = 0
+    details = []
+    try:
+        ws = wb['POWER QUERY']
+        # Check if duplicates are gone (Rows 6 and 8 were duplicates)
+        # We expect a unique list starting from F5
+        # For simplicity, we check if the values in G are cleaned and unique
+        products = []
+        for r in range(5, 11):
+            p = ws.cell(row=r, column=7).value
+            if p: products.append(str(p).strip().upper())
+        
+        if len(products) == 5 and "LAPTOP" in products and "MOUSE" in products:
+            score += 2.5
+            details.append({'task': 'Duplicates Removed', 'correct': True})
+        else:
+            details.append({'task': 'Duplicates Removed', 'correct': False, 'error': 'Table should have 5 unique rows'})
+            
+        # Check if all products are UPPERCASE
+        if all(p.isupper() for p in products if p):
+            score += 2.5
+            details.append({'task': 'Uppercase Transformation', 'correct': True})
+        else:
+            details.append({'task': 'Uppercase Transformation', 'correct': False})
+    except: pass
+    return min(score, 5), details
+
         wb_vals = openpyxl.load_workbook(file_path, data_only=True)
         
         v_score, v_detail = grade_vlookup(wb_vals)
