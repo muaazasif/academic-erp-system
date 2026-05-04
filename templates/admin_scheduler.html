@@ -102,9 +102,17 @@
                                         <span class="badge bg-secondary">Inactive</span>
                                     {% endif %}
                                 </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Google Bridge: 
+                                    {% if config.get('EMAIL_BRIDGE_URL') %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </li>
                                 <li class="list-group-item">
                                     <small class="text-muted">
-                                        <i class="fas fa-info-circle"></i> If SMTP is blocked, use a <code>SENDGRID_API_KEY</code> in your <code>.env</code>.
+                                        <i class="fas fa-info-circle"></i> If SMTP is blocked, use <code>SENDGRID_API_KEY</code> or <code>EMAIL_BRIDGE_URL</code>.
                                     </small>
                                 </li>
                             </ul>

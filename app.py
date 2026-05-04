@@ -2489,17 +2489,45 @@ def admin_scheduler_run():
             flash("ℹ️ No students found needing emails.")
             return redirect(url_for('admin_scheduler'))
 
-        # Load credentials from .env
-        # Check both generic and Gmail-specific variable names
         sender_email = os.getenv('GMAIL_EMAIL') or os.getenv('SENDER_EMAIL', "fiverrs2021@gmail.com")
         app_password = os.getenv('GMAIL_APP_PASSWORD') or os.getenv('APP_PASSWORD')
         smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
         smtp_port = int(os.getenv('SMTP_PORT', 587))
         sendgrid_api_key = os.getenv('SENDGRID_API_KEY')
+        email_bridge_url = os.getenv('EMAIL_BRIDGE_URL')
         
         students_emailed = 0
         
-        # Method 1: Try SendGrid API (Best for blocked networks like PythonAnywhere Free)
+        # Method 1: Try Google Apps Script Bridge (Best for restricted free servers)
+        if email_bridge_url:
+            print("🚀 Attempting to send via Google Apps Script Bridge...")
+            try:
+                for student in students_needing_email:
+                    student_name = student['name']
+                    student_email = student['email']
+                    missing = student['missing']
+                    
+                    if not student_email or "@" not in student_email:
+                        continue
+                        
+                    payload = {
+                        "to": student_email,
+                        "subject": f"Action Required: Incomplete Excel Assignments - {student_name}",
+                        "body": f"Dear {student_name},\n\nOur records show that you have not completed all required Excel Skill assignments.\nMissing assignments: {', '.join(missing)}\n\nPlease complete them as soon as possible.\n\nRegards,\nAdmin Team"
+                    }
+                    response = requests.post(email_bridge_url, json=payload, timeout=15)
+                    if response.status_code == 200:
+                        students_emailed += 1
+                    else:
+                        print(f"❌ Bridge error for {student_email}: {response.text}")
+                
+                if students_emailed > 0:
+                    flash(f"✅ Successfully sent {students_emailed} emails via Google Bridge.")
+                    return render_template('admin_scheduler.html', students_needing_email=students_needing_email)
+            except Exception as bridge_e:
+                print(f"❌ Google Bridge failed: {bridge_e}. Trying next method...")
+
+        # Method 2: Try SendGrid API
         if sendgrid_api_key:
             print("🚀 Attempting to send via SendGrid API...")
             try:
