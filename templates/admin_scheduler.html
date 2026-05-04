@@ -107,7 +107,16 @@
                                     {% if config.get('EMAIL_BRIDGE_URL') %}
                                         <span class="badge bg-success">Active</span>
                                     {% else %}
-                                        <span class="badge bg-secondary">Inactive</span>
+                                        <div class="text-end">
+                                            <span class="badge bg-secondary">Inactive</span>
+                                            <div class="x-small text-danger mt-1" style="font-size: 0.7rem;">
+                                                {% if not config.get('ENV_FILE_EXISTS') %}
+                                                    .env file missing
+                                                {% else %}
+                                                    URL missing in .env
+                                                {% endif %}
+                                            </div>
+                                        </div>
                                     {% endif %}
                                 </li>
                                 <li class="list-group-item">

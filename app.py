@@ -20,8 +20,10 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-# Load environment variables
-load_dotenv()
+# Load environment variables with absolute path
+from pathlib import Path
+env_path = Path(__file__).parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 # Timezone helper function
 def get_current_time():
@@ -55,9 +57,12 @@ app.config['SENDGRID_API_KEY'] = os.getenv('SENDGRID_API_KEY')
 app.config['EMAIL_BRIDGE_URL'] = os.getenv('EMAIL_BRIDGE_URL')
 app.config['GMAIL_EMAIL'] = os.getenv('GMAIL_EMAIL') or os.getenv('SENDER_EMAIL')
 
+# Debugging checks for UI
+app.config['ENV_FILE_EXISTS'] = env_path.exists()
+app.config['ENV_PATH'] = str(env_path)
+
+print(f"DEBUG: .env file exists at {env_path}: {app.config['ENV_FILE_EXISTS']}")
 print(f"DEBUG: EMAIL_BRIDGE_URL loaded: {'Yes' if app.config['EMAIL_BRIDGE_URL'] else 'No'}")
-print(f"DEBUG: SENDGRID_API_KEY loaded: {'Yes' if app.config['SENDGRID_API_KEY'] else 'No'}")
-print(f"DEBUG: GMAIL_EMAIL loaded: {app.config['GMAIL_EMAIL']}")
 
 # Database configuration - Support both SQLite and PostgreSQL
 import os
