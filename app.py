@@ -2448,6 +2448,8 @@ def admin_scheduler_run():
 
         sender_email = os.getenv('SENDER_EMAIL', "fiverrs2021@gmail.com") # Fallback for dev
         app_password = os.getenv('APP_PASSWORD')
+        print(f"DEBUG: SENDER_EMAIL loaded: {sender_email}")
+        print(f"DEBUG: APP_PASSWORD loaded: {'*' * len(app_password) if app_password else 'None'}") # Mask for security
 
         students_emailed = 0
         students_needing_email = []
