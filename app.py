@@ -48,6 +48,13 @@ def from_json_filter(s):
 # Load SECRET_KEY from environment variable (Railway/production)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'fallback-dev-secret-key-change-in-production')
 
+# Email Configuration for UI/Template
+app.config['SMTP_SERVER'] = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+app.config['SMTP_PORT'] = os.getenv('SMTP_PORT', '587')
+app.config['SENDGRID_API_KEY'] = os.getenv('SENDGRID_API_KEY')
+app.config['EMAIL_BRIDGE_URL'] = os.getenv('EMAIL_BRIDGE_URL')
+app.config['GMAIL_EMAIL'] = os.getenv('GMAIL_EMAIL') or os.getenv('SENDER_EMAIL')
+
 # Database configuration - Support both SQLite and PostgreSQL
 import os
 
