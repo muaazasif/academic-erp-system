@@ -1,7 +1,6 @@
 import os
 import json
 from datetime import datetime
-from app import app, db, Student, ExcelSubmission, QuizSubmission, MidTerm, AssignmentSubmission, ExcelSkillsAssignment, Quiz
 from clean_sheets_sync import get_sheets_service
 
 def create_professional_sheet(service, sheet_id, sheet_name, headers):
@@ -70,6 +69,7 @@ def create_professional_sheet(service, sheet_id, sheet_name, headers):
 def export_final_marks():
     """Calculate and export final marks with individual skill columns"""
     print("🚀 Starting Professional Final Marks export...")
+    from app import app, db, Student, ExcelSubmission, QuizSubmission, ExcelSkillsAssignment, Quiz
     service, sheet_id = get_sheets_service()
     if not service:
         return False, "Google Sheets not configured"

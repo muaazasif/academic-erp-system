@@ -10,8 +10,8 @@ COPY . .
 # Make startup script executable
 RUN chmod +x startup.sh
 
-EXPOSE 8000
+EXPOSE 8080
 
 # Use startup script to initialize database before starting app
-# Railway provides the PORT environment variable, which we should bind to.
-CMD ["sh", "-c", "./startup.sh gunicorn --bind 0.0.0.0:${PORT:-8000} --workers 2 app:app"]
+# Railway provides the PORT environment variable. We use a generous timeout for initialization.
+CMD ["sh", "-c", "./startup.sh gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 120 --preload app:app"]

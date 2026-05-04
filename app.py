@@ -55,9 +55,13 @@ import os
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL:
     # Railway and other platforms use postgres://, SQLAlchemy needs postgresql://
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
-    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
-    print(f"✅ Using PostgreSQL database: {DATABASE_URL[:50]}...")
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+        print(f"✅ Using PostgreSQL database")
+    else:
+        app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+        print(f"✅ Using database from environment: {DATABASE_URL[:50]}...")
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///erp_system.db'
     print("✅ Using SQLite database (development mode)")
@@ -2516,13 +2520,12 @@ def admin_scheduler_run():
 # APP STARTUP
 # ============================================
 
-from final_marks_sync import export_final_marks, get_final_marks_from_sheet
-
 @app.route('/final-results')
 def final_results():
     if 'admin_id' not in session and 'student_id' not in session:
         return redirect(url_for('login'))
-        
+
+    from final_marks_sync import get_final_marks_from_sheet
     marks_data = get_final_marks_from_sheet()
     return render_template('final_results.html', marks=marks_data)
 
@@ -2530,9 +2533,9 @@ def final_results():
 def admin_export_final_marks():
     if 'admin_id' not in session:
         return redirect(url_for('login'))
-    
-    success, message = export_final_marks()
-    if success:
+
+    from final_marks_sync import export_final_marks
+    success, message = export_final_marks()    if success:
         flash("✅ Final Marks and Individual Marks exported to Google Sheets!", "success")
     else:
         flash(f"❌ Export failed: {message}", "danger")
