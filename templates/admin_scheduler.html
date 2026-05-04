@@ -94,9 +94,17 @@
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
                                     Auth: <span class="text-muted">SSL/TLS</span>
                                 </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    SendGrid API: 
+                                    {% if config.get('SENDGRID_API_KEY') %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </li>
                                 <li class="list-group-item">
                                     <small class="text-muted">
-                                        <i class="fas fa-info-circle"></i> If you see "Network unreachable", your server (like PythonAnywhere Free) may be blocking SMTP ports.
+                                        <i class="fas fa-info-circle"></i> If SMTP is blocked, use a <code>SENDGRID_API_KEY</code> in your <code>.env</code>.
                                     </small>
                                 </li>
                             </ul>

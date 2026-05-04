@@ -2493,8 +2493,52 @@ def admin_scheduler_run():
         app_password = os.getenv('APP_PASSWORD')
         smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
         smtp_port = int(os.getenv('SMTP_PORT', 587))
-
+        sendgrid_api_key = os.getenv('SENDGRID_API_KEY')
+        
         students_emailed = 0
+        
+        # Method 1: Try SendGrid API (Best for blocked networks like PythonAnywhere Free)
+        if sendgrid_api_key:
+            print("🚀 Attempting to send via SendGrid API...")
+            try:
+                for student in students_needing_email:
+                    student_name = student['name']
+                    student_email = student['email']
+                    missing = student['missing']
+                    
+                    if not student_email or "@" not in student_email:
+                        continue
+                        
+                    url = "https://api.sendgrid.com/v3/mail/send"
+                    headers = {
+                        "Authorization": f"Bearer {sendgrid_api_key}",
+                        "Content-Type": "application/json"
+                    }
+                    data = {
+                        "personalizations": [{"to": [{"email": student_email}]}],
+                        "from": {"email": sender_email, "name": "ERP Admin"},
+                        "subject": f"Action Required: Incomplete Excel Assignments - {student_name}",
+                        "content": [{
+                            "type": "text/plain",
+                            "value": f"Dear {student_name},\n\nOur records show that you have not completed all required Excel Skill assignments.\nMissing assignments: {', '.join(missing)}\n\nPlease complete them as soon as possible.\n\nRegards,\nAdmin Team"
+                        }]
+                    }
+                    response = requests.post(url, headers=headers, json=data)
+                    if response.status_code in [200, 201, 202]:
+                        students_emailed += 1
+                    else:
+                        print(f"❌ SendGrid error for {student_email}: {response.text}")
+                
+                if students_emailed > 0:
+                    flash(f"✅ Successfully sent {students_emailed} emails via SendGrid API.")
+                    return render_template('admin_scheduler.html', students_needing_email=students_needing_email)
+                else:
+                    flash("⚠️ SendGrid API was used but no emails were successfully sent.")
+                    return redirect(url_for('admin_scheduler'))
+            except Exception as sg_e:
+                print(f"❌ SendGrid API failed: {sg_e}. Falling back to SMTP...")
+
+        # Method 2: Fallback to SMTP (Original logic)
         server = None
         try:
             print(f"🔗 Connecting to SMTP server {smtp_server}:{smtp_port}...")
