@@ -2524,7 +2524,8 @@ def admin_scheduler_run():
                     print(f"✅ Connected via fallback port {fallback_port}")
                 except Exception as fallback_e:
                     raise Exception(f"Connection failed to {smtp_server}. Port {smtp_port}: {primary_e}, Port {fallback_port if smtp_port == 587 else 587}: {fallback_e}")
-        except Exception as conn_e:            print(f"❌ SMTP connection failed: {conn_e}")
+        except Exception as conn_e:
+            print(f"❌ SMTP connection failed: {conn_e}")
             flash(f"❌ Could not connect to email server: {str(conn_e)}")
             return redirect(url_for('admin_scheduler'))
 
