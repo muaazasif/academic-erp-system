@@ -2516,7 +2516,8 @@ def admin_scheduler_run():
         
         # Method 1: Try Google Apps Script Bridge (Best for restricted free servers)
         if email_bridge_url:
-            print("🚀 Attempting to send via Google Apps Script Bridge...")
+            print(f"🚀 Attempting to send via Google Apps Script Bridge to {len(students_needing_email)} students...")
+            bridge_errors = []
             try:
                 for student in students_needing_email:
                     student_name = student['name']
@@ -2524,6 +2525,7 @@ def admin_scheduler_run():
                     missing = student['missing']
                     
                     if not student_email or "@" not in student_email:
+                        print(f"⚠️ Skipping student {student_name} - Invalid email: {student_email}")
                         continue
                         
                     payload = {
@@ -2531,17 +2533,28 @@ def admin_scheduler_run():
                         "subject": f"Action Required: Incomplete Excel Assignments - {student_name}",
                         "body": f"Dear {student_name},\n\nOur records show that you have not completed all required Excel Skill assignments.\nMissing assignments: {', '.join(missing)}\n\nPlease complete them as soon as possible.\n\nRegards,\nAdmin Team"
                     }
-                    response = requests.post(email_bridge_url, json=payload, timeout=15)
-                    if response.status_code == 200:
-                        students_emailed += 1
-                    else:
-                        print(f"❌ Bridge error for {student_email}: {response.status_code} - {response.text}")
+                    try:
+                        response = requests.post(email_bridge_url, json=payload, timeout=15)
+                        if response.status_code == 200:
+                            students_emailed += 1
+                        else:
+                            err = f"Bridge error for {student_email}: {response.status_code} - {response.text[:100]}"
+                            print(f"❌ {err}")
+                            if err not in bridge_errors: bridge_errors.append(err)
+                    except Exception as e:
+                        err = f"Request failed for {student_email}: {str(e)}"
+                        print(f"❌ {err}")
+                        if err not in bridge_errors: bridge_errors.append(err)
                 
                 if students_emailed > 0:
                     flash(f"✅ Successfully sent {students_emailed} emails via Google Bridge.")
+                    if bridge_errors:
+                        flash(f"⚠️ Note: {len(bridge_errors)} errors occurred during Bridge delivery.")
                     return render_template('admin_scheduler.html', students_needing_email=students_needing_email)
                 else:
                     print("⚠️ Google Bridge attempted but 0 emails were sent successfully.")
+                    if bridge_errors:
+                        flash(f"❌ Google Bridge failed: {bridge_errors[0]}")
             except Exception as bridge_e:
                 print(f"❌ Google Bridge failed: {bridge_e}. Trying next method...")
                 flash(f"⚠️ Google Bridge connection failed: {str(bridge_e)}. Attempting fallback methods...")
