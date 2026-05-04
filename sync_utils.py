@@ -1,6 +1,7 @@
 import os
 import json
-from datetime import datetime, time
+import time
+from datetime import datetime, time as dt_time
 import threading
 
 # Global lock for thread-safe file operations
@@ -15,7 +16,7 @@ def store_failed_sync(data_type, data):
     # Convert any complex objects to JSON serializable format
     serializable_data = {}
     for key, value in data.items():
-        if isinstance(value, (datetime, time)):
+        if isinstance(value, (datetime, dt_time)):
             # Convert datetime objects to string
             serializable_data[key] = str(value)
         elif hasattr(value, '__dict__'):  # Object with attributes
@@ -234,6 +235,7 @@ def background_sync_worker():
             
             # Periodically sync users from Google Sheet
             print("Background sync worker: Checking for new users from Google Sheet...")
+            from app import app
             from sync_google_form_users import sync_users_from_sheet
             with app.app_context(): # Ensure Flask app context is available
                 sync_users_from_sheet()

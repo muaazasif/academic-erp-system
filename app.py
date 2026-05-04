@@ -2535,7 +2535,8 @@ def admin_export_final_marks():
         return redirect(url_for('login'))
 
     from final_marks_sync import export_final_marks
-    success, message = export_final_marks()    if success:
+    success, message = export_final_marks()
+    if success:
         flash("✅ Final Marks and Individual Marks exported to Google Sheets!", "success")
     else:
         flash(f"❌ Export failed: {message}", "danger")
