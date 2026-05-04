@@ -2411,30 +2411,15 @@ def submit_excel_assignment(assignment_id):
     return render_template('submit_excel.html', assignment=assignment, existing=existing)
 
 
-@app.route('/admin/scheduler')
-def admin_scheduler():
-    """View the email scheduler page"""
-    if 'admin_id' not in session:
-        return redirect(url_for('login'))
-
-    return render_template('admin_scheduler.html', students_needing_email=[])
-
-
-@app.route('/admin/scheduler/run', methods=['POST'])
-def admin_scheduler_run():
-    """Run the email automation"""
-    if 'admin_id' not in session:
-        return redirect(url_for('login'))
-
+def get_students_needing_email():
+    """Helper to identify students who haven't completed all Excel skills"""
     try:
         service, _ = get_sheets_service()
         if not service:
-            flash("❌ Google Sheets service not available")
-            return redirect(url_for('admin_scheduler'))
+            return [], "❌ Google Sheets service not available"
 
-        # Use the specific sheet ID provided by the user
         target_sheet_id = "1kRoHe5BFJG-Y2xPr29deuI79exsqgeGBl--gQOPAf20"
-        range_name = "'Excel Assignments'!A2:I"  # Assuming row 1 is headers
+        range_name = "'Excel Assignments'!A2:I"
 
         result = service.spreadsheets().values().get(
             spreadsheetId=target_sheet_id,
@@ -2443,86 +2428,120 @@ def admin_scheduler_run():
 
         rows = result.get('values', [])
         if not rows:
-            flash("⚠️ No data found in the 'Excel Assignments' sheet")
+            return [], "⚠️ No data found in the 'Excel Assignments' sheet"
+
+        students_needing_email = []
+        for row in rows:
+            if len(row) < 3:
+                continue
+
+            student_id = row[0]
+            student_name = row[1]
+            assignments_done = row[2] if len(row) > 2 else ""
+            student_email = row[8] if len(row) > 8 else ""
+
+            completed = []
+            if "Excel Skill 1" in assignments_done or "Excel 1" in assignments_done:
+                completed.append(1)
+            if "Excel Skill 2" in assignments_done or "Excel 2" in assignments_done:
+                completed.append(2)
+            if "Excel Skill 3" in assignments_done or "Excel 3" in assignments_done:
+                completed.append(3)
+
+            if len(completed) < 3:
+                missing = [f"Excel Skill {i}" for i in [1, 2, 3] if i not in completed]
+                students_needing_email.append({
+                    'id': student_id,
+                    'name': student_name,
+                    'email': student_email,
+                    'assignments': assignments_done or "None",
+                    'missing': missing
+                })
+        return students_needing_email, None
+    except Exception as e:
+        return [], str(e)
+
+@app.route('/admin/scheduler')
+def admin_scheduler():
+    """View the email scheduler page"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+
+    students, error = get_students_needing_email()
+    if error:
+        flash(error)
+
+    return render_template('admin_scheduler.html', students_needing_email=students)
+
+@app.route('/admin/scheduler/run', methods=['POST'])
+def admin_scheduler_run():
+    """Run the email automation"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+
+    try:
+        students_needing_email, error = get_students_needing_email()
+        if error:
+            flash(error)
             return redirect(url_for('admin_scheduler'))
 
-        sender_email = os.getenv('SENDER_EMAIL', "fiverrs2021@gmail.com") # Fallback for dev
+        if not students_needing_email:
+            flash("ℹ️ No students found needing emails.")
+            return redirect(url_for('admin_scheduler'))
+
+        sender_email = os.getenv('SENDER_EMAIL', "fiverrs2021@gmail.com")
         app_password = os.getenv('APP_PASSWORD')
-        print(f"DEBUG: SENDER_EMAIL loaded: {sender_email}")
-        print(f"DEBUG: APP_PASSWORD loaded: {'*' * len(app_password) if app_password else 'None'}") # Mask for security
 
         students_emailed = 0
-        students_needing_email = []
-
-        # Connect to SMTP server once outside the loop
         server = None
         try:
             print("🔗 Connecting to SMTP server...")
             try:
-                # Try Port 465 (SSL) first
-                server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15)
-                server.login(sender_email, app_password)
-                print("✅ Connected via Port 465 (SSL)")
-            except Exception as e465:
-                print(f"⚠️ Port 465 failed: {e465}. Trying Port 587...")
+                # Try Port 587 (STARTTLS) first as it's often more reliable
+                print("Trying Port 587...")
                 server = smtplib.SMTP('smtp.gmail.com', 587, timeout=15)
                 server.starttls()
                 server.login(sender_email, app_password)
                 print("✅ Connected via Port 587 (STARTTLS)")
+            except Exception as e587:
+                print(f"⚠️ Port 587 failed: {e587}. Trying Port 465...")
+                try:
+                    server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15)
+                    server.login(sender_email, app_password)
+                    print("✅ Connected via Port 465 (SSL)")
+                except Exception as e465:
+                    raise Exception(f"Both Port 587 and 465 failed. 587: {e587}, 465: {e465}")
         except Exception as conn_e:
             print(f"❌ SMTP connection failed: {conn_e}")
             flash(f"❌ Could not connect to email server: {str(conn_e)}")
             return redirect(url_for('admin_scheduler'))
 
         try:
-            for row in rows:
-                # Column A (0): ID, Column B (1): Name, Column C (2): Assignments, Column I (8): Email
-                if len(row) < 3:
-                    continue
+            for student in students_needing_email:
+                student_name = student['name']
+                student_email = student['email']
+                missing = student['missing']
 
-                student_id = row[0]
-                student_name = row[1]
-                assignments_done = row[2] if len(row) > 2 else ""
-                student_email = row[8] if len(row) > 8 else ""
+                if student_email and "@" in student_email:
+                    try:
+                        # Send Email
+                        msg = MIMEMultipart()
+                        msg['From'] = f"ERP Admin <{sender_email}>"
+                        msg['To'] = student_email
+                        msg['Subject'] = f"Action Required: Incomplete Excel Assignments - {student_name}"
 
-                # Logic: check if they completed Excel Skill 1, 2, and 3
-                completed = []
-                if "Excel Skill 1" in assignments_done or "Excel 1" in assignments_done:
-                    completed.append(1)
-                if "Excel Skill 2" in assignments_done or "Excel 2" in assignments_done:
-                    completed.append(2)
-                if "Excel Skill 3" in assignments_done or "Excel 3" in assignments_done:
-                    completed.append(3)
+                        body = f"Dear {student_name},\n\n"
+                        body += f"Our records show that you have not completed all required Excel Skill assignments.\n"
+                        body += f"Missing assignments: {', '.join(missing)}\n\n"
+                        body += f"Please complete them as soon as possible to ensure your progress is tracked correctly.\n\n"
+                        body += f"Regards,\nAdmin Team"
 
-                if len(completed) < 3:
-                    missing = [f"Excel Skill {i}" for i in [1, 2, 3] if i not in completed]
-                    students_needing_email.append({
-                        'id': student_id,
-                        'name': student_name,
-                        'email': student_email,
-                        'assignments': assignments_done or "None"
-                    })
+                        msg.attach(MIMEText(body, 'plain'))
 
-                    if student_email and "@" in student_email:
-                        try:
-                            # Send Email
-                            msg = MIMEMultipart()
-                            msg['From'] = f"ERP Admin <{sender_email}>"
-                            msg['To'] = student_email
-                            msg['Subject'] = f"Action Required: Incomplete Excel Assignments - {student_name}"
-
-                            body = f"Dear {student_name},\n\n"
-                            body += f"Our records show that you have not completed all required Excel Skill assignments.\n"
-                            body += f"Missing assignments: {', '.join(missing)}\n\n"
-                            body += f"Please complete them as soon as possible to ensure your progress is tracked correctly.\n\n"
-                            body += f"Regards,\nAdmin Team"
-
-                            msg.attach(MIMEText(body, 'plain'))
-
-                            server.send_message(msg)
-                            students_emailed += 1
-                        except Exception as e:
-                            print(f"❌ Error sending email to {student_email}: {e}")
+                        server.send_message(msg)
+                        students_emailed += 1
+                    except Exception as e:
+                        print(f"❌ Error sending email to {student_email}: {e}")
         finally:
             if server:
                 try:
@@ -2533,7 +2552,7 @@ def admin_scheduler_run():
         if students_emailed > 0:
             flash(f"✅ Successfully sent emails to {students_emailed} students.")
         else:
-            flash("ℹ️ No students found needing emails or errors occurred during sending.")
+            flash("ℹ️ Processed students but no emails were sent (check email addresses).")
 
         return render_template('admin_scheduler.html', students_needing_email=students_needing_email)
 
@@ -2542,6 +2561,7 @@ def admin_scheduler_run():
         import traceback
         traceback.print_exc()
         return redirect(url_for('admin_scheduler'))
+
 
 
 # ============================================
