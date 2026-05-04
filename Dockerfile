@@ -13,5 +13,6 @@ RUN chmod +x startup.sh
 EXPOSE 8080
 
 # Use startup script to initialize database before starting app
-# Railway provides the PORT environment variable. We use a generous timeout for initialization.
-CMD ["sh", "-c", "./startup.sh gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 120 --preload app:app"]
+# Switch to gthread for better performance on memory-limited environments
+# Use 1 worker to ensure memory isn't the issue during heavy initialization
+CMD ["sh", "-c", "./startup.sh gunicorn --bind 0.0.0.0:${PORT} --workers 1 --worker-class gthread --threads 4 --timeout 120 --preload app:app"]
