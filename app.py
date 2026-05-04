@@ -2535,13 +2535,16 @@ def admin_scheduler_run():
                     if response.status_code == 200:
                         students_emailed += 1
                     else:
-                        print(f"❌ Bridge error for {student_email}: {response.text}")
+                        print(f"❌ Bridge error for {student_email}: {response.status_code} - {response.text}")
                 
                 if students_emailed > 0:
                     flash(f"✅ Successfully sent {students_emailed} emails via Google Bridge.")
                     return render_template('admin_scheduler.html', students_needing_email=students_needing_email)
+                else:
+                    print("⚠️ Google Bridge attempted but 0 emails were sent successfully.")
             except Exception as bridge_e:
                 print(f"❌ Google Bridge failed: {bridge_e}. Trying next method...")
+                flash(f"⚠️ Google Bridge connection failed: {str(bridge_e)}. Attempting fallback methods...")
 
         # Method 2: Try SendGrid API
         if sendgrid_api_key:
@@ -2584,7 +2587,7 @@ def admin_scheduler_run():
             except Exception as sg_e:
                 print(f"❌ SendGrid API failed: {sg_e}. Falling back to SMTP...")
 
-        # Method 2: Fallback to SMTP (Original logic)
+        # Method 3: Fallback to SMTP (Original logic)
         server = None
         try:
             print(f"🔗 Connecting to SMTP server {smtp_server}:{smtp_port}...")
@@ -2613,10 +2616,17 @@ def admin_scheduler_run():
                     server.login(sender_email, app_password)
                     print(f"✅ Connected via fallback port {fallback_port}")
                 except Exception as fallback_e:
-                    raise Exception(f"Connection failed to {smtp_server}. Port {smtp_port}: {primary_e}, Port {fallback_port if smtp_port == 587 else 587}: {fallback_e}")
+                    raise Exception(f"Connection failed to {smtp_server}. Port {smtp_port}: {primary_e}, Port {fallback_port}: {fallback_e}")
         except Exception as conn_e:
-            print(f"❌ SMTP connection failed: {conn_e}")
-            flash(f"❌ Could not connect to email server: {str(conn_e)}")
+            error_msg = str(conn_e)
+            print(f"❌ SMTP connection failed: {error_msg}")
+            
+            # Provide more helpful guidance for common hosting restrictions
+            if "Network is unreachable" in error_msg or "Timeout" in error_msg or "Connection refused" in error_msg:
+                flash(f"❌ SMTP Blocked: Your server cannot connect to {smtp_server}. Please set 'EMAIL_BRIDGE_URL' or 'SENDGRID_API_KEY' in your environment settings.")
+            else:
+                flash(f"❌ Could not connect to email server: {error_msg}")
+            
             return redirect(url_for('admin_scheduler'))
 
         try:
