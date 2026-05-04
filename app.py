@@ -2446,8 +2446,8 @@ def admin_scheduler_run():
             flash("⚠️ No data found in the 'Excel Assignments' sheet")
             return redirect(url_for('admin_scheduler'))
 
-        sender_email = "fiverrs2021@gmail.com"
-        app_password = "yxcu qfzu brcv swmc"
+        sender_email = os.getenv('SENDER_EMAIL', "fiverrs2021@gmail.com") # Fallback for dev
+        app_password = os.getenv('APP_PASSWORD')
 
         students_emailed = 0
         students_needing_email = []
