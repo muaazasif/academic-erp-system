@@ -1,6 +1,7 @@
 import os
 import json
 import sys
+import time
 from datetime import datetime
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
@@ -16,18 +17,35 @@ SHEET_NAME = 'username'  # User requested sheet name 'username'
 # Fallback sheet names if 'username' is not found
 FALLBACK_SHEET_NAMES = ['users', 'Form Responses 1', 'Sheet1']
 
+LOCK_FILE = 'instance/sync_users.lock'
+
 from clean_sheets_sync import get_sheets_service
 
 def sync_users_from_sheet():
-    print(f"🚀 Starting User Sync from Google Sheet: {SPREADSHEET_ID}")
-    
-    # Use the existing service getter from clean_sheets_sync
-    service, _ = get_sheets_service()
-    if not service:
-        print("❌ Could not initialize Google Sheets service. Check environment variables.")
-        return
+    # Simple file-based lock to prevent concurrent syncs
+    if os.path.exists(LOCK_FILE):
+        # Check if lock is old (more than 10 minutes)
+        if time.time() - os.path.getmtime(LOCK_FILE) < 600:
+            print(f"⚠️ Sync already in progress (locked at {datetime.fromtimestamp(os.path.getmtime(LOCK_FILE))}). Skipping.")
+            return
+        else:
+            print("⚠️ Old lock file found, removing it.")
+            os.remove(LOCK_FILE)
+
+    # Create lock file
+    os.makedirs('instance', exist_ok=True)
+    with open(LOCK_FILE, 'w') as f:
+        f.write(str(os.getpid()))
 
     try:
+        print(f"🚀 Starting User Sync from Google Sheet: {SPREADSHEET_ID}")
+        
+        # Use the existing service getter from clean_sheets_sync
+        service, _ = get_sheets_service()
+        if not service:
+            print("❌ Could not initialize Google Sheets service. Check environment variables.")
+            return
+
         # First, try to find which sheet exists
         spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
         sheets = [s['properties']['title'] for s in spreadsheet.get('sheets', [])]
@@ -92,50 +110,70 @@ def sync_users_from_sheet():
         existing_users_count = 0
         
         with app.app_context():
-            for i, row in enumerate(values[1:], start=2):
-                if len(row) <= max(student_id_col, name_col):
-                    # Pad row if it's shorter than expected columns
-                    row.extend([''] * (max(student_id_col, name_col) - len(row) + 1))
-                
-                student_id = str(row[student_id_col]).strip()
-                if not student_id or student_id.lower() in ['studentid', 'roll number', 'student id']:
-                    continue
-                
-                name = str(row[name_col]).strip() if name_col < len(row) else student_id
-                if not name:
-                    name = student_id
-                
-                # Check if student already exists
-                student = Student.query.filter_by(student_id=student_id).first()
-                
-                if not student:
-                    print(f"➕ Creating new user: {student_id} ({name})")
-                    new_student = Student(
-                        student_id=student_id,
-                        name=name
-                    )
-                    # Username and Password are the same (student_id)
-                    new_student.set_password(student_id)
-                    db.session.add(new_student)
-                    new_users_count += 1
-                else:
-                    # Update name if it's different and not empty? 
-                    # For now, just count existing
-                    existing_users_count += 1
+            # Get all existing student IDs in one go to avoid autoflush issues
+            existing_student_ids = {s.student_id for s in Student.query.with_entities(Student.student_id).all()}
+            processed_in_this_run = set()
+            
+            with db.session.no_autoflush:
+                for i, row in enumerate(values[1:], start=2):
+                    if len(row) <= max(student_id_col, name_col):
+                        # Pad row if it's shorter than expected columns
+                        row.extend([''] * (max(student_id_col, name_col) - len(row) + 1))
+                    
+                    student_id = str(row[student_id_col]).strip()
+                    if not student_id or student_id.lower() in ['studentid', 'roll number', 'student id', 'roll_number', 'user id', 'username']:
+                        continue
+                    
+                    # Skip if we already processed this ID in this run
+                    if student_id in processed_in_this_run:
+                        continue
+                    processed_in_this_run.add(student_id)
+                    
+                    name = str(row[name_col]).strip() if name_col < len(row) else student_id
+                    if not name:
+                        name = student_id
+                    
+                    # Check if student already exists in our pre-fetched set
+                    if student_id not in existing_student_ids:
+                        print(f"➕ Creating new user: {student_id} ({name})")
+                        try:
+                            new_student = Student(
+                                student_id=student_id,
+                                name=name
+                            )
+                            # Username and Password are the same (student_id)
+                            new_student.set_password(student_id)
+                            db.session.add(new_student)
+                            new_users_count += 1
+                        except Exception as inner_e:
+                            print(f"⚠️ Failed to add student {student_id}: {inner_e}")
+                    else:
+                        existing_users_count += 1
             
             if new_users_count > 0:
-                db.session.commit()
-                print(f"✅ Successfully created {new_users_count} new users.")
+                try:
+                    db.session.commit()
+                    print(f"✅ Successfully created {new_users_count} new users.")
+                except Exception as commit_e:
+                    db.session.rollback()
+                    print(f"❌ Failed to commit new users: {commit_e}")
             else:
                 print("ℹ️ No new users to create.")
             
-            print(f"📊 Total processed: {new_users_count + existing_users_count}")
+            print(f"📊 Total processed: {len(processed_in_this_run)}")
             print(f"📊 Existing users: {existing_users_count}")
 
     except Exception as e:
         print(f"❌ Error during sync: {e}")
         import traceback
         traceback.print_exc()
+    finally:
+        # Always remove lock file
+        if os.path.exists(LOCK_FILE):
+            os.remove(LOCK_FILE)
+
+if __name__ == "__main__":
+    sync_users_from_sheet()
 
 if __name__ == "__main__":
     sync_users_from_sheet()

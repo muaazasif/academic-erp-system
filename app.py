@@ -64,7 +64,11 @@ if DATABASE_URL:
         print(f"✅ Using database from environment: {DATABASE_URL[:50]}...")
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///erp_system.db'
-    print("✅ Using SQLite database (development mode)")
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'connect_args': {'timeout': 30},
+        'pool_pre_ping': True
+    }
+    print("✅ Using SQLite database (development mode) with 30s timeout")
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -2448,59 +2452,81 @@ def admin_scheduler_run():
         students_emailed = 0
         students_needing_email = []
 
-        for row in rows:
-            # Column A (0): ID, Column B (1): Name, Column C (2): Assignments, Column I (8): Email
-            if len(row) < 3:
-                continue
+        # Connect to SMTP server once outside the loop
+        server = None
+        try:
+            print("🔗 Connecting to SMTP server...")
+            try:
+                # Try Port 465 (SSL) first
+                server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15)
+                server.login(sender_email, app_password)
+                print("✅ Connected via Port 465 (SSL)")
+            except Exception as e465:
+                print(f"⚠️ Port 465 failed: {e465}. Trying Port 587...")
+                server = smtplib.SMTP('smtp.gmail.com', 587, timeout=15)
+                server.starttls()
+                server.login(sender_email, app_password)
+                print("✅ Connected via Port 587 (STARTTLS)")
+        except Exception as conn_e:
+            print(f"❌ SMTP connection failed: {conn_e}")
+            flash(f"❌ Could not connect to email server: {str(conn_e)}")
+            return redirect(url_for('admin_scheduler'))
 
-            student_id = row[0]
-            student_name = row[1]
-            assignments_done = row[2] if len(row) > 2 else ""
-            student_email = row[8] if len(row) > 8 else ""
+        try:
+            for row in rows:
+                # Column A (0): ID, Column B (1): Name, Column C (2): Assignments, Column I (8): Email
+                if len(row) < 3:
+                    continue
 
-            # Logic: check if they completed Excel Skill 1, 2, and 3
-            completed = []
-            if "Excel Skill 1" in assignments_done or "Excel 1" in assignments_done:
-                completed.append(1)
-            if "Excel Skill 2" in assignments_done or "Excel 2" in assignments_done:
-                completed.append(2)
-            if "Excel Skill 3" in assignments_done or "Excel 3" in assignments_done:
-                completed.append(3)
+                student_id = row[0]
+                student_name = row[1]
+                assignments_done = row[2] if len(row) > 2 else ""
+                student_email = row[8] if len(row) > 8 else ""
 
-            if len(completed) < 3:
-                missing = [f"Excel Skill {i}" for i in [1, 2, 3] if i not in completed]
-                students_needing_email.append({
-                    'id': student_id,
-                    'name': student_name,
-                    'email': student_email,
-                    'assignments': assignments_done or "None"
-                })
+                # Logic: check if they completed Excel Skill 1, 2, and 3
+                completed = []
+                if "Excel Skill 1" in assignments_done or "Excel 1" in assignments_done:
+                    completed.append(1)
+                if "Excel Skill 2" in assignments_done or "Excel 2" in assignments_done:
+                    completed.append(2)
+                if "Excel Skill 3" in assignments_done or "Excel 3" in assignments_done:
+                    completed.append(3)
 
-                if student_email and "@" in student_email:
-                    try:
-                        # Send Email
-                        msg = MIMEMultipart()
-                        msg['From'] = f"ERP Admin <{sender_email}>"
-                        msg['To'] = student_email
-                        msg['Subject'] = f"Action Required: Incomplete Excel Assignments - {student_name}"
+                if len(completed) < 3:
+                    missing = [f"Excel Skill {i}" for i in [1, 2, 3] if i not in completed]
+                    students_needing_email.append({
+                        'id': student_id,
+                        'name': student_name,
+                        'email': student_email,
+                        'assignments': assignments_done or "None"
+                    })
 
-                        body = f"Dear {student_name},\n\n"
-                        body += f"Our records show that you have not completed all required Excel Skill assignments.\n"
-                        body += f"Missing assignments: {', '.join(missing)}\n\n"
-                        body += f"Please complete them as soon as possible to ensure your progress is tracked correctly.\n\n"
-                        body += f"Regards,\nAdmin Team"
+                    if student_email and "@" in student_email:
+                        try:
+                            # Send Email
+                            msg = MIMEMultipart()
+                            msg['From'] = f"ERP Admin <{sender_email}>"
+                            msg['To'] = student_email
+                            msg['Subject'] = f"Action Required: Incomplete Excel Assignments - {student_name}"
 
-                        msg.attach(MIMEText(body, 'plain'))
+                            body = f"Dear {student_name},\n\n"
+                            body += f"Our records show that you have not completed all required Excel Skill assignments.\n"
+                            body += f"Missing assignments: {', '.join(missing)}\n\n"
+                            body += f"Please complete them as soon as possible to ensure your progress is tracked correctly.\n\n"
+                            body += f"Regards,\nAdmin Team"
 
-                        server = smtplib.SMTP('smtp.gmail.com', 587)
-                        server.starttls()
-                        server.login(sender_email, app_password)
-                        server.send_message(msg)
-                        server.quit()
+                            msg.attach(MIMEText(body, 'plain'))
 
-                        students_emailed += 1
-                    except Exception as e:
-                        print(f"❌ Error sending email to {student_email}: {e}")
+                            server.send_message(msg)
+                            students_emailed += 1
+                        except Exception as e:
+                            print(f"❌ Error sending email to {student_email}: {e}")
+        finally:
+            if server:
+                try:
+                    server.quit()
+                except:
+                    pass
 
         if students_emailed > 0:
             flash(f"✅ Successfully sent emails to {students_emailed} students.")
