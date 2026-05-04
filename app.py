@@ -2491,28 +2491,40 @@ def admin_scheduler_run():
 
         sender_email = os.getenv('SENDER_EMAIL', "fiverrs2021@gmail.com")
         app_password = os.getenv('APP_PASSWORD')
+        smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.getenv('SMTP_PORT', 587))
 
         students_emailed = 0
         server = None
         try:
-            print("🔗 Connecting to SMTP server...")
+            print(f"🔗 Connecting to SMTP server {smtp_server}:{smtp_port}...")
             try:
-                # Try Port 587 (STARTTLS) first as it's often more reliable
-                print("Trying Port 587...")
-                server = smtplib.SMTP('smtp.gmail.com', 587, timeout=15)
-                server.starttls()
+                # Primary attempt using configured port (usually 587)
+                if smtp_port == 465:
+                    server = smtplib.SMTP_SSL(smtp_server, 465, timeout=15)
+                else:
+                    server = smtplib.SMTP(smtp_server, smtp_port, timeout=15)
+                    if smtp_port == 587:
+                        server.starttls()
+
                 server.login(sender_email, app_password)
-                print("✅ Connected via Port 587 (STARTTLS)")
-            except Exception as e587:
-                print(f"⚠️ Port 587 failed: {e587}. Trying Port 465...")
+                print(f"✅ Connected via {smtp_server}:{smtp_port}")
+            except Exception as primary_e:
+                print(f"⚠️ Primary port {smtp_port} failed: {primary_e}. Trying fallback...")
                 try:
-                    server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15)
+                    # Fallback to the other common port
+                    fallback_port = 465 if smtp_port == 587 else 587
+                    if fallback_port == 465:
+                        server = smtplib.SMTP_SSL(smtp_server, 465, timeout=15)
+                    else:
+                        server = smtplib.SMTP(smtp_server, 587, timeout=15)
+                        server.starttls()
+
                     server.login(sender_email, app_password)
-                    print("✅ Connected via Port 465 (SSL)")
-                except Exception as e465:
-                    raise Exception(f"Both Port 587 and 465 failed. 587: {e587}, 465: {e465}")
-        except Exception as conn_e:
-            print(f"❌ SMTP connection failed: {conn_e}")
+                    print(f"✅ Connected via fallback port {fallback_port}")
+                except Exception as fallback_e:
+                    raise Exception(f"Connection failed to {smtp_server}. Port {smtp_port}: {primary_e}, Port {fallback_port if smtp_port == 587 else 587}: {fallback_e}")
+        except Exception as conn_e:            print(f"❌ SMTP connection failed: {conn_e}")
             flash(f"❌ Could not connect to email server: {str(conn_e)}")
             return redirect(url_for('admin_scheduler'))
 

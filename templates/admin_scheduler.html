@@ -86,17 +86,17 @@
                         <div class="card-body">
                             <ul class="list-group list-group-flush">
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Server: <span class="text-muted">smtp.gmail.com</span>
+                                    Server: <span class="text-muted">{{ config.get('SMTP_SERVER', 'smtp.gmail.com') }}</span>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Port: <span class="badge bg-success">587 (STARTTLS)</span>
+                                    Port: <span class="badge bg-success">{{ config.get('SMTP_PORT', '587') }}</span>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Backup Port: <span class="text-muted">465 (SSL)</span>
+                                    Auth: <span class="text-muted">SSL/TLS</span>
                                 </li>
                                 <li class="list-group-item">
                                     <small class="text-muted">
-                                        <i class="fas fa-info-circle"></i> Emails are sent using the <code>SENDER_EMAIL</code> and <code>APP_PASSWORD</code> defined in your <code>.env</code> file.
+                                        <i class="fas fa-info-circle"></i> If you see "Network unreachable", your server (like PythonAnywhere Free) may be blocking SMTP ports.
                                     </small>
                                 </li>
                             </ul>
