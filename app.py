@@ -55,6 +55,10 @@ app.config['SENDGRID_API_KEY'] = os.getenv('SENDGRID_API_KEY')
 app.config['EMAIL_BRIDGE_URL'] = os.getenv('EMAIL_BRIDGE_URL')
 app.config['GMAIL_EMAIL'] = os.getenv('GMAIL_EMAIL') or os.getenv('SENDER_EMAIL')
 
+print(f"DEBUG: EMAIL_BRIDGE_URL loaded: {'Yes' if app.config['EMAIL_BRIDGE_URL'] else 'No'}")
+print(f"DEBUG: SENDGRID_API_KEY loaded: {'Yes' if app.config['SENDGRID_API_KEY'] else 'No'}")
+print(f"DEBUG: GMAIL_EMAIL loaded: {app.config['GMAIL_EMAIL']}")
+
 # Database configuration - Support both SQLite and PostgreSQL
 import os
 
