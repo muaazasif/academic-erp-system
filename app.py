@@ -2489,8 +2489,10 @@ def admin_scheduler_run():
             flash("ℹ️ No students found needing emails.")
             return redirect(url_for('admin_scheduler'))
 
-        sender_email = os.getenv('SENDER_EMAIL', "fiverrs2021@gmail.com")
-        app_password = os.getenv('APP_PASSWORD')
+        # Load credentials from .env
+        # Check both generic and Gmail-specific variable names
+        sender_email = os.getenv('GMAIL_EMAIL') or os.getenv('SENDER_EMAIL', "fiverrs2021@gmail.com")
+        app_password = os.getenv('GMAIL_APP_PASSWORD') or os.getenv('APP_PASSWORD')
         smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
         smtp_port = int(os.getenv('SMTP_PORT', 587))
         sendgrid_api_key = os.getenv('SENDGRID_API_KEY')
