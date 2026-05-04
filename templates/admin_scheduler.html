@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Email Scheduler - ERP System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        {% include 'sidebar.html' %}
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Email Scheduler</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <form action="{{ url_for('admin_scheduler_run') }}" method="POST">
+                            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to send emails to all students who have not completed their assignments?')">
+                                <i class="fas fa-paper-plane"></i> Send Automation Emails
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Students Needing Emails</h5>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages() %}
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-info">{{ message }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <p class="text-muted">This list shows students who have not completed all three Excel Skill assignments (Excel Skill 1, 2, and 3) based on the Google Sheet data.</p>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Student ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Assignments Done</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if students_needing_email %}
+                                    {% for student in students_needing_email %}
+                                    <tr>
+                                        <td>{{ student.id }}</td>
+                                        <td>{{ student.name }}</td>
+                                        <td>{{ student.email }}</td>
+                                        <td>{{ student.assignments }}</td>
+                                        <td><span class="badge bg-danger">Incomplete</span></td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center">No students identified yet. Click "Send Automation Emails" to process or wait for the list to refresh.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}
