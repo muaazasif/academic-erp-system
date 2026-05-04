@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Ensure instance directory exists
 mkdir -p instance
@@ -8,8 +9,8 @@ mkdir -p instance
 # If using SQLite, we only run if the file doesn't exist
 if [ -n "$DATABASE_URL" ]; then
     echo "🚀 Using PostgreSQL database. Ensuring tables and initial data exist..."
-    python init_db.py
-    python create_initial_data.py
+    python init_db.py || echo "⚠️ init_db.py failed, but continuing..."
+    python create_initial_data.py || echo "⚠️ create_initial_data.py failed, but continuing..."
 elif [ ! -f "instance/erp_system.db" ]; then
     echo "🚀 Initializing SQLite database..."
     python init_db.py
