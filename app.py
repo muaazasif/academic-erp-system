@@ -2616,10 +2616,11 @@ def init_app_data():
                 db.session.commit()
                 print("✅ Excel Skill 3 activated!")
 
-# Run initialization
-init_app_data()
-
+# Run initialization ONLY if running directly (not via gunicorn)
 if __name__ == '__main__':
+    # Initialize data
+    init_app_data()
+    
     # Start background sync worker
     try:
         from sync_utils import start_background_sync
@@ -2628,4 +2629,6 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"Could not start background sync worker: {e}")
 
-    app.run(debug=True)
+    # Use port from environment or default to 5000
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=True, host='0.0.0.0', port=port)
