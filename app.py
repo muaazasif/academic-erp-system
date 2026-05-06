@@ -2472,15 +2472,15 @@ def submit_excel_assignment(assignment_id):
 def get_students_needing_email():
     """Helper to identify students who haven't completed all Excel skills"""
     try:
-        service, _ = get_sheets_service()
+        service, sheet_id = get_sheets_service()
         if not service:
             return [], "❌ Google Sheets service not available"
 
-        target_sheet_id = "1kRoHe5BFJG-Y2xPr29deuI79exsqgeGBl--gQOPAf20"
+        # Use the configured sheet ID from environment
         range_name = "'Excel Assignments'!A2:I"
 
         result = service.spreadsheets().values().get(
-            spreadsheetId=target_sheet_id,
+            spreadsheetId=sheet_id,
             range=range_name
         ).execute()
 
@@ -2488,35 +2488,51 @@ def get_students_needing_email():
         if not rows:
             return [], "⚠️ No data found in the 'Excel Assignments' sheet"
 
-        students_needing_email = []
+        # Group rows by Student ID
+        student_data = {}
         for row in rows:
             if len(row) < 3:
                 continue
 
-            student_id = row[0]
-            student_name = row[1]
-            assignments_done = row[2] if len(row) > 2 else ""
-            student_email = row[8] if len(row) > 8 else ""
+            sid = str(row[0]).strip()
+            name = row[1]
+            assignment_title = row[2]
+            email = row[8] if len(row) > 8 else ""
 
-            completed = []
-            if "Excel Skill 1" in assignments_done or "Excel 1" in assignments_done:
-                completed.append(1)
-            if "Excel Skill 2" in assignments_done or "Excel 2" in assignments_done:
-                completed.append(2)
-            if "Excel Skill 3" in assignments_done or "Excel 3" in assignments_done:
-                completed.append(3)
+            if sid not in student_data:
+                student_data[sid] = {
+                    'name': name,
+                    'email': email,
+                    'completed_nums': set(),
+                    'all_assignments': []
+                }
+            
+            student_data[sid]['all_assignments'].append(assignment_title)
+            
+            if "Excel Skill 1" in assignment_title or "Excel 1" in assignment_title:
+                student_data[sid]['completed_nums'].add(1)
+            if "Excel Skill 2" in assignment_title or "Excel 2" in assignment_title:
+                student_data[sid]['completed_nums'].add(2)
+            if "Excel Skill 3" in assignment_title or "Excel 3" in assignment_title:
+                student_data[sid]['completed_nums'].add(3)
 
+        students_needing_email = []
+        for sid, data in student_data.items():
+            completed = sorted(list(data['completed_nums']))
+            
             if len(completed) < 3:
                 missing = [f"Excel Skill {i}" for i in [1, 2, 3] if i not in completed]
                 students_needing_email.append({
-                    'id': student_id,
-                    'name': student_name,
-                    'email': student_email,
-                    'assignments': assignments_done or "None",
+                    'id': sid,
+                    'name': data['name'],
+                    'email': data['email'],
+                    'assignments': ", ".join(data['all_assignments']),
                     'missing': missing
                 })
+        
         return students_needing_email, None
     except Exception as e:
+        print(f"❌ Error in get_students_needing_email: {e}")
         return [], str(e)
 
 @app.route('/admin/scheduler')
