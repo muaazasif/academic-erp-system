@@ -101,9 +101,9 @@
             <div class="card">
                 <div class="card-header">Step 2: Upload Completed File</div>
                 <div class="card-body">
-                    <form method="POST" enctype="multipart/form-data">
+                    <form method="POST" enctype="multipart/form-data" id="uploadForm">
                         <input type="file" name="file" class="form-control" accept=".xlsx,.xlsm" required>
-                        <button type="submit" class="btn btn-primary mt-2">
+                        <button type="submit" class="btn btn-primary mt-2" id="submitBtn">
                             📤 Submit & Auto-Grade
                         </button>
                     </form>
@@ -111,6 +111,14 @@
             </div>
         </div>
     </div>
+    
+    <script>
+    document.getElementById('uploadForm').addEventListener('submit', function() {
+        var btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Grading... Please wait';
+    });
+    </script>
     
     {% endif %}
 </div>

@@ -332,24 +332,26 @@ from excel_assignment import (
 )
 
 def sync_excel_grade(student_id, name, assignment_title, score, percentage, submitted_at, is_cheating=False):
-    """Sync Excel grade to Google Sheets"""
+    """Sync Excel grade to Google Sheets - Updates row if exists, otherwise appends"""
     try:
         service, sheet_id = get_sheets_service()
         if not service:
             return False
         
+        sheet_name = 'Excel Assignments'
+        
         # Ensure sheet exists
         try:
             spreadsheet = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
             sheets = [s['properties']['title'] for s in spreadsheet.get('sheets', [])]
-            if 'Excel Assignments' not in sheets:
+            if sheet_name not in sheets:
                 service.spreadsheets().batchUpdate(
                     spreadsheetId=sheet_id,
-                    body={'requests': [{'addSheet': {'properties': {'title': 'Excel Assignments'}}}]}
+                    body={'requests': [{'addSheet': {'properties': {'title': sheet_name}}}]}
                 ).execute()
                 service.spreadsheets().values().update(
                     spreadsheetId=sheet_id,
-                    range='Excel Assignments!A1',
+                    range=f'{sheet_name}!A1',
                     valueInputOption='USER_ENTERED',
                     body={'values': [['Student ID', 'Name', 'Assignment', 'Score', 'Percentage', 'Status', 'Submitted At', 'Sync Time']]}
                 ).execute()
@@ -359,18 +361,58 @@ def sync_excel_grade(student_id, name, assignment_title, score, percentage, subm
         # Status column
         status = "CHEATING DETECTED" if is_cheating else "CLEAN"
         
-        # Append row
+        # Prepare data
         from datetime import datetime
-        values = [[student_id, name, assignment_title, f"{score}/10", f"{percentage}%", status, str(submitted_at), str(datetime.now())]]
-        service.spreadsheets().values().append(
-            spreadsheetId=sheet_id,
-            range='Excel Assignments!A2',
-            valueInputOption='USER_ENTERED',
-            body={'values': values}
-        ).execute()
+        now_str = str(datetime.now())
+        values = [[student_id, name, assignment_title, f"{score}/10", f"{percentage}%", status, str(submitted_at), now_str]]
         
-        print(f"✅ Excel grade synced: {student_id} - {score}/10")
-        return True
+        # Check if student already has a row for this assignment
+        try:
+            result = service.spreadsheets().values().get(
+                spreadsheetId=sheet_id,
+                range=f'{sheet_name}!A:C'
+            ).execute()
+            rows = result.get('values', [])
+            
+            row_index = -1
+            for i, row in enumerate(rows):
+                if len(row) >= 3:
+                    # Match Student ID (col A) and Assignment Title (col C)
+                    if str(row[0]).strip() == str(student_id).strip() and str(row[2]).strip() == str(assignment_title).strip():
+                        row_index = i + 1 # 1-based index
+                        break
+            
+            if row_index > 0:
+                # Update existing row
+                service.spreadsheets().values().update(
+                    spreadsheetId=sheet_id,
+                    range=f'{sheet_name}!A{row_index}',
+                    valueInputOption='USER_ENTERED',
+                    body={'values': values}
+                ).execute()
+                print(f"✅ Excel grade UPDATED: {student_id} - {score}/10")
+            else:
+                # Append new row
+                service.spreadsheets().values().append(
+                    spreadsheetId=sheet_id,
+                    range=f'{sheet_name}!A2',
+                    valueInputOption='USER_ENTERED',
+                    body={'values': values}
+                ).execute()
+                print(f"✅ Excel grade APPENDED: {student_id} - {score}/10")
+                
+            return True
+        except Exception as e:
+            print(f"⚠️ Error checking/updating existing row: {e}")
+            # Fallback to append if something goes wrong
+            service.spreadsheets().values().append(
+                spreadsheetId=sheet_id,
+                range=f'{sheet_name}!A2',
+                valueInputOption='USER_ENTERED',
+                body={'values': values}
+            ).execute()
+            return True
+
     except Exception as e:
         print(f"❌ Excel grade sync FAILED: {e}")
         return False
