@@ -3004,7 +3004,21 @@ def admin_export_final_marks():
 # APP INITIALIZATION
 # ============================================
 
-from sql_grader import grade_sql_submission, get_sql_assignment_questions
+from sql_grader import grade_sql_submission, get_sql_assignment_questions, get_sample_data_as_excel
+
+@app.route('/student/sql/download-sample')
+def download_sql_sample():
+    """Download sample SQL tables as Excel"""
+    if 'student_id' not in session and 'admin_id' not in session:
+        return redirect(url_for('login'))
+        
+    excel_file = get_sample_data_as_excel()
+    return send_file(
+        excel_file,
+        as_attachment=True,
+        download_name='sql_sample_tables.xlsx',
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
 
 def init_app_data():
     """Initialize database and default data"""

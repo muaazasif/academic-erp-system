@@ -10,8 +10,15 @@
     </div>
 
     <div class="alert alert-info">
-        <strong>📝 Instructions:</strong> Write your SQLite queries for each task below. 
-        The system uses a sample database with tables: <code>Students</code>, <code>Courses</code>, and <code>Enrollments</code>.
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <strong>📝 Instructions:</strong> Write your SQLite queries for each task below. 
+                The system uses a sample database with tables: <code>Students</code>, <code>Courses</code>, and <code>Enrollments</code>.
+            </div>
+            <a href="{{ url_for('download_sql_sample') }}" class="btn btn-outline-info btn-sm bg-white">
+                📊 Download Tables (Excel)
+            </a>
+        </div>
     </div>
 
     {% if existing and existing.grade_details %}

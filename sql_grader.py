@@ -1,6 +1,7 @@
 import sqlite3
 import pandas as pd
 import json
+from io import BytesIO
 
 def get_sample_data_sql():
     """Returns the SQL to initialize the sample database"""
@@ -102,6 +103,33 @@ def get_sql_assignment_questions():
             "expected_query": "SELECT Students.name, Courses.title FROM Students INNER JOIN Enrollments ON Students.id = Enrollments.student_id INNER JOIN Courses ON Enrollments.course_id = Courses.id"
         }
     ]
+
+def get_sample_data_as_excel():
+    """Returns an Excel file as BytesIO containing all sample tables"""
+    conn = sqlite3.connect(':memory:')
+    cursor = conn.cursor()
+    
+    try:
+        # Initialize schema and data
+        cursor.executescript(get_sample_data_sql())
+        conn.commit()
+        
+        # Read all tables
+        students_df = pd.read_sql_query("SELECT * FROM Students", conn)
+        courses_df = pd.read_sql_query("SELECT * FROM Courses", conn)
+        enrollments_df = pd.read_sql_query("SELECT * FROM Enrollments", conn)
+        
+        # Create Excel in memory
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            students_df.to_excel(writer, index=False, sheet_name='Students')
+            courses_df.to_excel(writer, index=False, sheet_name='Courses')
+            enrollments_df.to_excel(writer, index=False, sheet_name='Enrollments')
+        
+        output.seek(0)
+        return output
+    finally:
+        conn.close()
 
 def grade_sql_submission(student_queries):
     """
