@@ -2598,6 +2598,22 @@ def admin_sql_assignments():
     return render_template('admin_sql_assignments.html', assignments=assignments, submissions=submissions)
 
 
+@app.route('/admin/sql/init-data')
+def admin_sql_init_data():
+    """Manually trigger SQL data initialization"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+        
+    try:
+        from create_initial_data import create_initial_data
+        create_initial_data()
+        flash("✅ SQL Assignment data initialized successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Failed to initialize SQL data: {str(e)}", "danger")
+        
+    return redirect(url_for('admin_sql_assignments'))
+
+
 def sync_sql_grade(student_id, name, assignment_title, score, percentage, submitted_at):
     """Sync SQL grade to Google Sheets - Updates row if exists, otherwise appends"""
     try:

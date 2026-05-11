@@ -9,7 +9,50 @@
 
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                <h1 class="h2">💾 SQL Skills Submissions</h1>
+                <h1 class="h2">💾 SQL Skills Management</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <a href="/admin/sql/init-data" class="btn btn-warning" onclick="return confirm('Ensure default SQL assignments are created?')">
+                        <i class="bi bi-gear"></i> Reset/Initialize SQL Data
+                    </a>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header bg-dark text-white">
+                    <h5>Current SQL Assignments</h5>
+                </div>
+                <div class="card-body">
+                    {% if assignments %}
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Deadline</th>
+                                <th>Status</th>
+                                <th>Submissions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for a in assignments %}
+                            <tr>
+                                <td>{{ a.title }}</td>
+                                <td>{{ a.deadline.strftime('%Y-%m-%d') if a.deadline else 'None' }}</td>
+                                <td>
+                                    {% if a.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ a.submissions|length }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="alert alert-warning">No SQL assignments found in database. Click "Reset/Initialize SQL Data" above.</div>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="card">
