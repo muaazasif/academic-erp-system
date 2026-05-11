@@ -2537,6 +2537,10 @@ def take_sql_assignment(assignment_id):
     ).first()
     
     if request.method == 'POST':
+        if existing:
+            flash('⚠️ You have already submitted this assignment. Retakes are not allowed.', 'danger')
+            return redirect(url_for('student_sql_assignments'))
+
         student_queries = []
         for i in range(1, 11):
             query = request.form.get(f'query_{i}', '').strip()
@@ -2545,23 +2549,16 @@ def take_sql_assignment(assignment_id):
         # Auto-grade
         result = grade_sql_submission(student_queries)
         
-        # Create or update submission
-        if existing:
-            existing.score = result['score']
-            existing.percentage = result['percentage']
-            existing.grade_details = json.dumps(result['details'])
-            existing.status = 'graded'
-            existing.submitted_at = datetime.now()
-        else:
-            submission = SQLSubmission(
-                assignment_id=assignment_id,
-                student_id=student_id,
-                score=result['score'],
-                percentage=result['percentage'],
-                grade_details=json.dumps(result['details']),
-                status='graded'
-            )
-            db.session.add(submission)
+        # Create submission (update is no longer allowed based on the logic above)
+        submission = SQLSubmission(
+            assignment_id=assignment_id,
+            student_id=student_id,
+            score=result['score'],
+            percentage=result['percentage'],
+            grade_details=json.dumps(result['details']),
+            status='graded'
+        )
+        db.session.add(submission)
         
         db.session.commit()
         

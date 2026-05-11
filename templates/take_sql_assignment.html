@@ -24,10 +24,13 @@
     {% if existing and existing.grade_details %}
     <div class="card border-primary mb-4">
         <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">Previous Result: {{ existing.score }}/10 ({{ existing.percentage }}%)</h5>
+            <h5 class="mb-0">Your Final Result: {{ existing.score }}/10 ({{ existing.percentage }}%)</h5>
         </div>
         <div class="card-body">
-            <h6 class="card-title">Mistake Report:</h6>
+            <div class="alert alert-warning">
+                ⚠️ <strong>Note:</strong> You have already submitted this assignment. Retakes are not allowed.
+            </div>
+            <h6 class="card-title">Performance Report:</h6>
             <div class="row">
                 {% set details = existing.grade_details|from_json %}
                 {% for item in details %}
@@ -43,11 +46,11 @@
                 </div>
                 {% endfor %}
             </div>
-            <p class="mt-2 text-muted small">Tip: Read the error messages and fix your queries below to improve your score.</p>
         </div>
     </div>
     {% endif %}
 
+    {% if not existing %}
     <form method="POST" id="sqlForm">
         {% for q in questions %}
         <div class="card mb-3">
@@ -66,6 +69,7 @@
             </button>
         </div>
     </form>
+    {% endif %}
 </div>
 
 <style>

@@ -33,16 +33,18 @@
                             Score: <strong>{{ a.submission.score }}/10</strong> ({{ a.submission.percentage }}%)<br>
                             <small>Submitted: {{ a.submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</small>
                         </div>
+                        <a href="/student/sql/take/{{ a.id }}" class="btn btn-outline-success w-100">
+                            View Your Submission
+                        </a>
                     {% else %}
                         <div class="alert alert-warning py-2">
                             ⏳ <strong>Pending</strong><br>
                             Deadline: {{ a.deadline.strftime('%Y-%m-%d') if a.deadline else 'No deadline' }}
                         </div>
+                        <a href="/student/sql/take/{{ a.id }}" class="btn btn-primary w-100">
+                            Start Assignment
+                        </a>
                     {% endif %}
-                    
-                    <a href="/student/sql/take/{{ a.id }}" class="btn btn-primary w-100">
-                        {% if a.submission %}Retry & Improve{% else %}Start Assignment{% endif %}
-                    </a>
                 </div>
             </div>
         </div>
