@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}SQL Assignments - Student{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <h2>💾 SQL Skills Assignments</h2>
+        <a href="{{ url_for('student_dashboard') }}" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+    </div>
+    
+    {% if assignments %}
+    <div class="row mt-3">
+        {% for a in assignments %}
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-dark text-white">
+                    <strong>{{ a.title }}</strong>
+                </div>
+                <div class="card-body">
+                    {% if a.description %}
+                    <p class="text-muted small">{{ a.description }}</p>
+                    {% endif %}
+                    
+                    {% if a.submission %}
+                        <div class="alert alert-success py-2">
+                            ✅ <strong>Completed!</strong><br>
+                            Score: <strong>{{ a.submission.score }}/10</strong> ({{ a.submission.percentage }}%)<br>
+                            <small>Submitted: {{ a.submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning py-2">
+                            ⏳ <strong>Pending</strong><br>
+                            Deadline: {{ a.deadline.strftime('%Y-%m-%d') if a.deadline else 'No deadline' }}
+                        </div>
+                    {% endif %}
+                    
+                    <a href="/student/sql/take/{{ a.id }}" class="btn btn-primary w-100">
+                        {% if a.submission %}Retry & Improve{% else %}Start Assignment{% endif %}
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info mt-3">No SQL assignments available yet.</div>
+    {% endif %}
+</div>
+{% endblock %}

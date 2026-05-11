@@ -32,6 +32,11 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'admin_sql_assignments' %}active{% endif %}" href="/admin/sql-assignments">
+                    <i class="fas fa-database"></i> SQL Skills
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'final_results' %}active{% endif %}" href="/final-results">
                     <i class="fas fa-trophy"></i> Final Results
                 </a>

@@ -265,6 +265,34 @@ class ExcelSubmission(db.Model):
     student = db.relationship('Student', backref=db.backref('excel_submissions', lazy=True))
 
 
+class SQLSkillsAssignment(db.Model):
+    """SQL Skills Assignment with auto-grading"""
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    questions_json = db.Column(db.Text)  # JSON containing list of questions and expected queries
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    deadline = db.Column(db.DateTime)
+    max_marks = db.Column(db.Integer, default=10)
+    is_active = db.Column(db.Boolean, default=True)
+
+
+class SQLSubmission(db.Model):
+    """Track SQL assignment submissions"""
+    id = db.Column(db.Integer, primary_key=True)
+    assignment_id = db.Column(db.Integer, db.ForeignKey('sql_skills_assignment.id'), nullable=False)
+    student_id = db.Column(db.String(50), db.ForeignKey('student.student_id'), nullable=False)
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+    score = db.Column(db.Float)  # Auto-graded score out of 10
+    percentage = db.Column(db.Float)
+    grade_details = db.Column(db.Text)  # JSON with detailed breakdown (which queries were correct)
+    status = db.Column(db.String(20), default='submitted')  # submitted, graded
+
+    # Relationships
+    assignment = db.relationship('SQLSkillsAssignment', backref=db.backref('submissions', lazy=True))
+    student = db.relationship('Student', backref=db.backref('sql_submissions', lazy=True))
+
+
 class MidTermAssignment(db.Model):
     """Link table to assign mid-term sheets to students"""
     id = db.Column(db.Integer, primary_key=True)
@@ -503,10 +531,13 @@ def admin_dashboard():
         Attendance.status == 'present'
     ).count()
 
+    sql_submission_count = SQLSubmission.query.count()
+
     return render_template('admin_dashboard.html',
                           students=students,
                           total_students=total_students,
-                          present_count=present_count)
+                          present_count=present_count,
+                          sql_submission_count=sql_submission_count)
 
 
 @app.route('/admin/sync-users')
@@ -2469,6 +2500,184 @@ def submit_excel_assignment(assignment_id):
     return render_template('submit_excel.html', assignment=assignment, existing=existing)
 
 
+# ============================================
+# SQL SKILLS ROUTES
+# ============================================
+
+@app.route('/student/sql-assignments')
+def student_sql_assignments():
+    """List SQL assignments for student"""
+    if 'student_id' not in session:
+        return redirect(url_for('login'))
+    
+    student_id = session['student_id']
+    assignments = SQLSkillsAssignment.query.filter_by(is_active=True).all()
+    
+    # Get submission status for each
+    for a in assignments:
+        a.submission = SQLSubmission.query.filter_by(assignment_id=a.id, student_id=student_id).first()
+        
+    return render_template('student_sql_assignments.html', assignments=assignments)
+
+
+@app.route('/student/sql/take/<int:assignment_id>', methods=['GET', 'POST'])
+def take_sql_assignment(assignment_id):
+    """Student taking the SQL assignment"""
+    if 'student_id' not in session:
+        return redirect(url_for('login'))
+    
+    assignment = SQLSkillsAssignment.query.get_or_404(assignment_id)
+    student_id = session['student_id']
+    questions = json.loads(assignment.questions_json)
+    
+    # Check if already submitted
+    existing = SQLSubmission.query.filter_by(
+        assignment_id=assignment_id,
+        student_id=student_id
+    ).first()
+    
+    if request.method == 'POST':
+        student_queries = []
+        for i in range(1, 11):
+            query = request.form.get(f'query_{i}', '').strip()
+            student_queries.append(query)
+        
+        # Auto-grade
+        result = grade_sql_submission(student_queries)
+        
+        # Create or update submission
+        if existing:
+            existing.score = result['score']
+            existing.percentage = result['percentage']
+            existing.grade_details = json.dumps(result['details'])
+            existing.status = 'graded'
+            existing.submitted_at = datetime.now()
+        else:
+            submission = SQLSubmission(
+                assignment_id=assignment_id,
+                student_id=student_id,
+                score=result['score'],
+                percentage=result['percentage'],
+                grade_details=json.dumps(result['details']),
+                status='graded'
+            )
+            db.session.add(submission)
+        
+        db.session.commit()
+        
+        # Sync to Google Sheets
+        student = Student.query.filter_by(student_id=student_id).first()
+        if student:
+            try:
+                sync_sql_grade(
+                    student_id=student.student_id,
+                    name=student.name,
+                    assignment_title=assignment.title,
+                    score=result['score'],
+                    percentage=result['percentage'],
+                    submitted_at=datetime.now()
+                )
+            except Exception as e:
+                print(f"⚠️ Google Sheets SQL sync failed: {e}")
+        
+        flash(f'✅ SQL Assignment Submitted! Score: {result["score"]}/10 ({result["percentage"]}%)')
+        return redirect(url_for('student_sql_assignments'))
+
+    return render_template('take_sql_assignment.html', assignment=assignment, questions=questions, existing=existing)
+
+
+@app.route('/admin/sql-assignments')
+def admin_sql_assignments():
+    """Admin view of all SQL assignments and submissions"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+        
+    assignments = SQLSkillsAssignment.query.all()
+    submissions = SQLSubmission.query.all()
+    
+    return render_template('admin_sql_assignments.html', assignments=assignments, submissions=submissions)
+
+
+def sync_sql_grade(student_id, name, assignment_title, score, percentage, submitted_at):
+    """Sync SQL grade to Google Sheets - Updates row if exists, otherwise appends"""
+    try:
+        service, sheet_id = get_sheets_service()
+        if not service:
+            return False
+        
+        sheet_name = 'SQL Assignments'
+        
+        # Ensure sheet exists
+        try:
+            spreadsheet = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+            sheets = [s['properties']['title'] for s in spreadsheet.get('sheets', [])]
+            if sheet_name not in sheets:
+                service.spreadsheets().batchUpdate(
+                    spreadsheetId=sheet_id,
+                    body={'requests': [{'addSheet': {'properties': {'title': sheet_name}}}]}
+                ).execute()
+                service.spreadsheets().values().update(
+                    spreadsheetId=sheet_id,
+                    range=f'{sheet_name}!A1',
+                    valueInputOption='USER_ENTERED',
+                    body={'values': [['Student ID', 'Name', 'Assignment', 'Score', 'Percentage', 'Status', 'Submitted At', 'Sync Time']]}
+                ).execute()
+        except Exception as e:
+            print(f"⚠️ Error creating SQL sheet: {e}")
+        
+        # Prepare data
+        from datetime import datetime
+        now_str = str(datetime.now())
+        values = [[student_id, name, assignment_title, f"{score}/10", f"{percentage}%", "CLEAN", str(submitted_at), now_str]]
+        
+        # Check if student already has a row for this assignment
+        try:
+            result = service.spreadsheets().values().get(
+                spreadsheetId=sheet_id,
+                range=f'{sheet_name}!A:C'
+            ).execute()
+            rows = result.get('values', [])
+            
+            row_index = -1
+            for i, row in enumerate(rows):
+                if len(row) >= 3:
+                    if str(row[0]).strip() == str(student_id).strip() and str(row[2]).strip() == str(assignment_title).strip():
+                        row_index = i + 1
+                        break
+            
+            if row_index > 0:
+                service.spreadsheets().values().update(
+                    spreadsheetId=sheet_id,
+                    range=f'{sheet_name}!A{row_index}',
+                    valueInputOption='USER_ENTERED',
+                    body={'values': values}
+                ).execute()
+                print(f"✅ SQL grade UPDATED: {student_id} - {score}/10")
+            else:
+                service.spreadsheets().values().append(
+                    spreadsheetId=sheet_id,
+                    range=f'{sheet_name}!A2',
+                    valueInputOption='USER_ENTERED',
+                    body={'values': values}
+                ).execute()
+                print(f"✅ SQL grade APPENDED: {student_id} - {score}/10")
+                
+            return True
+        except Exception as e:
+            print(f"⚠️ Error updating SQL row: {e}")
+            service.spreadsheets().values().append(
+                spreadsheetId=sheet_id,
+                range=f'{sheet_name}!A2',
+                valueInputOption='USER_ENTERED',
+                body={'values': values}
+            ).execute()
+            return True
+
+    except Exception as e:
+        print(f"❌ SQL grade sync FAILED: {e}")
+        return False
+
+
 def get_students_needing_email():
     """Helper to identify students who haven't completed all Excel skills"""
     try:
@@ -2779,6 +2988,8 @@ def admin_export_final_marks():
 # APP INITIALIZATION
 # ============================================
 
+from sql_grader import grade_sql_submission, get_sql_assignment_questions
+
 def init_app_data():
     """Initialize database and default data"""
     with app.app_context():
@@ -2808,6 +3019,22 @@ def init_app_data():
             db.session.add(new_skill1)
             db.session.commit()
             print("✅ Excel Skill 1 created!")
+        
+        # Create SQL Basic Practical if not exists
+        sql_assignment = SQLSkillsAssignment.query.filter_by(title="SQL Basic Practical").first()
+        if not sql_assignment:
+            questions = get_sql_assignment_questions()
+            new_sql = SQLSkillsAssignment(
+                title="SQL Basic Practical",
+                description="Master basic SQL queries: SELECT, LIMIT, WHERE, LIKE, GROUP BY, ORDER BY, and INNER JOIN. Total 10 marks. AI will grade your queries instantly.",
+                questions_json=json.dumps(questions),
+                created_at=datetime.now(),
+                deadline=datetime.now() + timedelta(days=14),
+                is_active=True
+            )
+            db.session.add(new_sql)
+            db.session.commit()
+            print("✅ SQL Basic Practical assignment created!")
         else:
             if not skill1.is_active:
                 skill1.is_active = True

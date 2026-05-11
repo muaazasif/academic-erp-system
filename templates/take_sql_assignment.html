@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Take SQL Assignment{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>💾 {{ assignment.title }}</h2>
+        <a href="{{ url_for('student_sql_assignments') }}" class="btn btn-secondary btn-sm">Back to List</a>
+    </div>
+
+    <div class="alert alert-info">
+        <strong>📝 Instructions:</strong> Write your SQLite queries for each task below. 
+        The system uses a sample database with tables: <code>Students</code>, <code>Courses</code>, and <code>Enrollments</code>.
+    </div>
+
+    {% if existing and existing.grade_details %}
+    <div class="card border-primary mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Previous Result: {{ existing.score }}/10 ({{ existing.percentage }}%)</h5>
+        </div>
+        <div class="card-body">
+            <h6 class="card-title">Mistake Report:</h6>
+            <div class="row">
+                {% set details = existing.grade_details|from_json %}
+                {% for item in details %}
+                <div class="col-md-6 mb-2">
+                    <div class="p-2 border rounded {% if item.correct %}bg-light-success text-success{% else %}bg-light-danger text-danger{% endif %}" style="font-size: 0.9rem;">
+                        <strong>Task {{ item.id }}:</strong> 
+                        {% if item.correct %}
+                            ✅ Correct!
+                        {% else %}
+                            ❌ {{ item.error }}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <p class="mt-2 text-muted small">Tip: Read the error messages and fix your queries below to improve your score.</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <form method="POST" id="sqlForm">
+        {% for q in questions %}
+        <div class="card mb-3">
+            <div class="card-header">
+                <strong>Task {{ q.id }}:</strong> {{ q.task }}
+            </div>
+            <div class="card-body">
+                <textarea name="query_{{ q.id }}" class="form-control font-monospace" rows="3" placeholder="SELECT ..."></textarea>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="text-center mt-4 mb-5">
+            <button type="submit" class="btn btn-success btn-lg px-5" id="submitBtn">
+                🚀 Submit Queries & Get Marks
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+    .bg-light-success { background-color: #d4edda; }
+    .bg-light-danger { background-color: #f8d7da; }
+    .font-monospace { font-family: 'Courier New', Courier, monospace; }
+</style>
+
+<script>
+    document.getElementById('sqlForm').addEventListener('submit', function() {
+        var btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Grading your queries... Please wait';
+    });
+</script>
+{% endblock %}
