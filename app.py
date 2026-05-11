@@ -2692,27 +2692,41 @@ def sync_sql_grade(student_id, name, assignment_title, score, percentage, submit
 
 
 def get_students_needing_email():
-    """Helper to identify students who haven't completed all Excel skills"""
+    """Helper to identify students who haven't completed all Excel and SQL skills"""
     try:
         service, sheet_id = get_sheets_service()
         if not service:
             return [], "❌ Google Sheets service not available"
 
-        # Use the configured sheet ID from environment
-        range_name = "'Excel Assignments'!A2:I"
+        # 1. Get Excel Assignments
+        excel_range = "'Excel Assignments'!A2:I"
+        try:
+            excel_result = service.spreadsheets().values().get(
+                spreadsheetId=sheet_id,
+                range=excel_range
+            ).execute()
+            excel_rows = excel_result.get('values', [])
+        except Exception as e:
+            print(f"⚠️ Could not read Excel Assignments sheet: {e}")
+            excel_rows = []
 
-        result = service.spreadsheets().values().get(
-            spreadsheetId=sheet_id,
-            range=range_name
-        ).execute()
-
-        rows = result.get('values', [])
-        if not rows:
-            return [], "⚠️ No data found in the 'Excel Assignments' sheet"
+        # 2. Get SQL Assignments
+        sql_range = "'SQL Assignments'!A2:I"
+        try:
+            sql_result = service.spreadsheets().values().get(
+                spreadsheetId=sheet_id,
+                range=sql_range
+            ).execute()
+            sql_rows = sql_result.get('values', [])
+        except Exception as e:
+            print(f"⚠️ Could not read SQL Assignments sheet: {e}")
+            sql_rows = []
 
         # Group rows by Student ID
         student_data = {}
-        for row in rows:
+        
+        # Process Excel Rows
+        for row in excel_rows:
             if len(row) < 3:
                 continue
 
@@ -2725,25 +2739,61 @@ def get_students_needing_email():
                 student_data[sid] = {
                     'name': name,
                     'email': email,
-                    'completed_nums': set(),
+                    'excel_completed': set(),
+                    'sql_completed': False,
                     'all_assignments': []
                 }
             
             student_data[sid]['all_assignments'].append(assignment_title)
             
             if "Excel Skill 1" in assignment_title or "Excel 1" in assignment_title:
-                student_data[sid]['completed_nums'].add(1)
+                student_data[sid]['excel_completed'].add(1)
             if "Excel Skill 2" in assignment_title or "Excel 2" in assignment_title:
-                student_data[sid]['completed_nums'].add(2)
+                student_data[sid]['excel_completed'].add(2)
             if "Excel Skill 3" in assignment_title or "Excel 3" in assignment_title:
-                student_data[sid]['completed_nums'].add(3)
+                student_data[sid]['excel_completed'].add(3)
+
+        # Process SQL Rows
+        for row in sql_rows:
+            if len(row) < 3:
+                continue
+
+            sid = str(row[0]).strip()
+            name = row[1]
+            assignment_title = row[2]
+            email = row[8] if len(row) > 8 else ""
+
+            if sid not in student_data:
+                student_data[sid] = {
+                    'name': name,
+                    'email': email,
+                    'excel_completed': set(),
+                    'sql_completed': False,
+                    'all_assignments': []
+                }
+            
+            # Update email if missing and found in SQL sheet
+            if not student_data[sid]['email'] and email:
+                student_data[sid]['email'] = email
+                
+            student_data[sid]['all_assignments'].append(assignment_title)
+            
+            if "SQL" in assignment_title:
+                student_data[sid]['sql_completed'] = True
 
         students_needing_email = []
         for sid, data in student_data.items():
-            completed = sorted(list(data['completed_nums']))
+            missing = []
             
-            if len(completed) < 3:
-                missing = [f"Excel Skill {i}" for i in [1, 2, 3] if i not in completed]
+            # Check Excel missing
+            excel_missing = [f"Excel Skill {i}" for i in [1, 2, 3] if i not in data['excel_completed']]
+            missing.extend(excel_missing)
+            
+            # Check SQL missing
+            if not data['sql_completed']:
+                missing.append("SQL Basic Practical")
+            
+            if missing:
                 students_needing_email.append({
                     'id': sid,
                     'name': data['name'],
@@ -2810,8 +2860,8 @@ def admin_scheduler_run():
                         
                     payload = {
                         "to": student_email,
-                        "subject": f"Action Required: Incomplete Excel Assignments - {student_name}",
-                        "body": f"Dear {student_name},\n\nOur records show that you have not completed all required Excel Skill assignments.\nMissing assignments: {', '.join(missing)}\n\nPlease complete them as soon as possible.\n\nRegards,\nAdmin Team"
+                        "subject": f"Action Required: Incomplete Assignments - {student_name}",
+                        "body": f"Dear {student_name},\n\nOur records show that you have not completed all required assignments (Excel/SQL).\nMissing assignments: {', '.join(missing)}\n\nPlease complete them as soon as possible.\n\nRegards,\nAdmin Team"
                     }
                     try:
                         response = requests.post(email_bridge_url, json=payload, timeout=15)
@@ -2859,10 +2909,10 @@ def admin_scheduler_run():
                     data = {
                         "personalizations": [{"to": [{"email": student_email}]}],
                         "from": {"email": sender_email, "name": "ERP Admin"},
-                        "subject": f"Action Required: Incomplete Excel Assignments - {student_name}",
+                        "subject": f"Action Required: Incomplete Assignments - {student_name}",
                         "content": [{
                             "type": "text/plain",
-                            "value": f"Dear {student_name},\n\nOur records show that you have not completed all required Excel Skill assignments.\nMissing assignments: {', '.join(missing)}\n\nPlease complete them as soon as possible.\n\nRegards,\nAdmin Team"
+                            "value": f"Dear {student_name},\n\nOur records show that you have not completed all required assignments (Excel/SQL).\nMissing assignments: {', '.join(missing)}\n\nPlease complete them as soon as possible.\n\nRegards,\nAdmin Team"
                         }]
                     }
                     response = requests.post(url, headers=headers, json=data)
@@ -2934,10 +2984,10 @@ def admin_scheduler_run():
                         msg = MIMEMultipart()
                         msg['From'] = f"ERP Admin <{sender_email}>"
                         msg['To'] = student_email
-                        msg['Subject'] = f"Action Required: Incomplete Excel Assignments - {student_name}"
+                        msg['Subject'] = f"Action Required: Incomplete Assignments - {student_name}"
 
                         body = f"Dear {student_name},\n\n"
-                        body += f"Our records show that you have not completed all required Excel Skill assignments.\n"
+                        body += f"Our records show that you have not completed all required assignments (Excel/SQL).\n"
                         body += f"Missing assignments: {', '.join(missing)}\n\n"
                         body += f"Please complete them as soon as possible to ensure your progress is tracked correctly.\n\n"
                         body += f"Regards,\nAdmin Team"
