@@ -1,7 +1,9 @@
 import os
-from app import app, db, Admin, Student, ExcelSkillsAssignment
+import json
+from app import app, db, Admin, Student, ExcelSkillsAssignment, SQLSkillsAssignment
 from werkzeug.security import generate_password_hash
 from datetime import datetime, timedelta
+from sql_grader import get_sql_assignment_questions
 
 def create_initial_data():
     # Ensure the instance directory exists
@@ -71,6 +73,25 @@ def create_initial_data():
                     skill.is_active = True
                 print(f"✅ {skill_data['title']} exists/activated.")
         
+        # 4. Create SQL Basic Practical assignment
+        sql_assignment = SQLSkillsAssignment.query.filter_by(title="SQL Basic Practical").first()
+        if not sql_assignment:
+            questions = get_sql_assignment_questions()
+            new_sql = SQLSkillsAssignment(
+                title="SQL Basic Practical",
+                description="Master basic SQL queries: SELECT, LIMIT, WHERE, LIKE, GROUP BY, ORDER BY, and INNER JOIN. Total 10 marks. AI will grade your queries instantly.",
+                questions_json=json.dumps(questions),
+                created_at=datetime.now(),
+                deadline=datetime.now() + timedelta(days=14),
+                is_active=True
+            )
+            db.session.add(new_sql)
+            print("✅ SQL Basic Practical assignment created!")
+        else:
+            if not sql_assignment.is_active:
+                sql_assignment.is_active = True
+            print("✅ SQL Basic Practical assignment exists/activated.")
+
         db.session.commit()
 
 if __name__ == '__main__':
