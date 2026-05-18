@@ -140,7 +140,7 @@ def export_final_marks():
             quiz_subs = QuizSubmission.query.filter_by(student_id=sid_str).all()
             total_quiz_pct = 0
             for sub in quiz_subs:
-                total_q = len(sub.quiz.questions)
+                total_q = len(sub.quiz.questions) if sub.quiz and sub.quiz.questions else 0
                 if total_q > 0:
                     total_quiz_pct += (sub.score / total_q) * 100
                 
@@ -163,24 +163,11 @@ def export_final_marks():
             summary_data.append(row)
             
         # Sort by Total Avg
-        summary_data.sort(key=lambda x: float(x[-2].replace('%', '')), reverse=True)
-        for i, row in enumerate(summary_data, 1):
-            row[0] = i # Set rank
-            
         if summary_data:
-            service.spreadsheets().values().update(
-                spreadsheetId=sheet_id, range="'Final Marks'!A2",
-                valueInputOption='USER_ENTERED', body={'values': summary_data}
-            ).execute()
+            summary_data.sort(key=lambda x: float(str(x[-2]).replace('%', '')), reverse=True)
+            for i, row in enumerate(summary_data, 1):
+                row[0] = i # Set rank
             
-    return True, "Export successful"
-            
-        # Sort by Total Avg
-        summary_data.sort(key=lambda x: float(x[-2].replace('%', '')), reverse=True)
-        for i, row in enumerate(summary_data, 1):
-            row[0] = i # Set rank
-            
-        if summary_data:
             service.spreadsheets().values().update(
                 spreadsheetId=sheet_id, range="'Final Marks'!A2",
                 valueInputOption='USER_ENTERED', body={'values': summary_data}
@@ -195,7 +182,7 @@ def get_final_marks_from_sheet():
     try:
         result = service.spreadsheets().values().get(spreadsheetId=sheet_id, range="'Final Marks'!A:Z").execute()
         rows = result.get('values', [])
-        if not rows or len(rows) < 2: return []
+        if not rows or len(rows) < 2: return {'headers': [], 'data': []}
         
         headers = rows[0]
         data = []
