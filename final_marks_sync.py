@@ -96,6 +96,9 @@ def export_final_marks():
         summary_headers += ['Excel Avg %', 'SQL Avg %', 'Quizzes Avg %', 'Total Avg %', 'Status']
         print(f"📊 Debug Headers: {summary_headers}")
         
+        # RESTORED: This creates the sheet and sets the headers!
+        create_professional_sheet(service, sheet_id, 'Final Marks', summary_headers)
+        
         summary_data = []
         for student in students:
             # Use student.student_id (the string ID) for filtering submissions
