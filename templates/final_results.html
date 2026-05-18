@@ -102,11 +102,20 @@
     </div>
     
     <div class="mt-4 p-3 bg-dark bg-opacity-50 rounded border border-secondary border-opacity-25">
-        <p class="mb-0 text-secondary small">
+        <p class="mb-2 text-secondary small">
             <i class="bi bi-info-circle me-1"></i>
-            <strong>Calculation Method:</strong> Total Average is computed as the mean of all Excel Skills and Quiz scores. 
-            Students with at least 40% overall are currently marked as PASS during the mid-course evaluation.
+            <strong>Calculation Method:</strong> Total Average is computed as the mean of all Excel Skills, SQL Assignments, and Quiz scores. 
+            Students with at least <strong>70%</strong> overall are currently marked as <strong>PASS</strong>.
         </p>
+        <hr class="border-secondary border-opacity-25">
+        <div class="d-flex justify-content-between align-items-center">
+            <span class="text-muted small">
+                <i class="bi bi-person-check"></i> Prepared By <strong>MuaazAsif</strong> | Enterprise Resource Planning System
+            </span>
+            <span class="text-muted small">
+                © {{ now.year if now else '2026' }} All Rights Reserved
+            </span>
+        </div>
     </div>
     {% endif %}
 </div>

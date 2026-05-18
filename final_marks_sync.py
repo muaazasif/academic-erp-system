@@ -69,7 +69,7 @@ def create_professional_sheet(service, sheet_id, sheet_name, headers):
 def export_final_marks():
     """Calculate and export final marks with individual skill columns"""
     print("🚀 Starting Professional Final Marks export...")
-    from app import app, db, Student, ExcelSubmission, QuizSubmission, ExcelSkillsAssignment, Quiz
+    from app import app, db, Student, ExcelSubmission, QuizSubmission, SQLSubmission, ExcelSkillsAssignment, Quiz, SQLSkillsAssignment
     service, sheet_id = get_sheets_service()
     if not service:
         return False, "Google Sheets not configured"
@@ -77,12 +77,16 @@ def export_final_marks():
     with app.app_context():
         students = Student.query.all()
         excel_assignments = ExcelSkillsAssignment.query.all()
+        sql_assignments = SQLSkillsAssignment.query.all()
         quizzes = Quiz.query.all()
         
         # Dynamic Headers
         summary_headers = ['Rank', 'Student ID', 'Name']
         for ea in excel_assignments:
             summary_headers.append(ea.title)
+        
+        for sa in sql_assignments:
+            summary_headers.append(sa.title)
         
         summary_headers += ['Quizzes Avg %', 'Total Avg %', 'Status']
         
@@ -102,17 +106,33 @@ def export_final_marks():
             
             excel_avg = total_excel_pct / len(excel_assignments) if excel_assignments else 0
             
-            # 2. Quiz Average
+            # 2. SQL Individual Skills
+            total_sql_pct = 0
+            for sa in sql_assignments:
+                sub = SQLSubmission.query.filter_by(student_id=student.id, assignment_id=sa.id).first()
+                pct = sub.percentage if sub else 0
+                row.append(f"{pct}%")
+                total_sql_pct += pct
+            
+            sql_avg = total_sql_pct / len(sql_assignments) if sql_assignments else 0
+            
+            # 3. Quiz Average
             quiz_subs = QuizSubmission.query.filter_by(student_id=student.id).all()
             quiz_avg = sum([sub.percentage for sub in quiz_subs]) / len(quiz_subs) if quiz_subs else 0
             row.append(f"{round(quiz_avg, 1)}%")
             
-            # 3. Total Average (Excel 50%, Quiz 50%)
-            total_avg = (excel_avg + quiz_avg) / 2
+            # 4. Total Average (Excel, SQL, Quiz - Equal weight)
+            # Count how many categories we have
+            categories = []
+            if excel_assignments: categories.append(excel_avg)
+            if sql_assignments: categories.append(sql_avg)
+            if quizzes: categories.append(quiz_avg)
+            
+            total_avg = sum(categories) / len(categories) if categories else 0
             row.append(f"{round(total_avg, 1)}%")
             
-            # 4. Status (Passing threshold 40% to be more lenient during course)
-            status = 'PASS' if total_avg >= 40 else 'FAIL'
+            # 5. Status (Passing threshold 70%)
+            status = 'PASS' if total_avg >= 70 else 'FAIL'
             row.append(status)
             
             summary_data.append(row)
