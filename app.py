@@ -3054,21 +3054,30 @@ def admin_export_final_marks():
 
 from sql_grader import grade_sql_submission, get_sql_assignment_questions, get_sample_data_as_excel
 
+@app.route('/student/sql/download-sample')
 @app.route('/student/sql/download-sample/<int:assignment_id>')
-def download_sql_sample(assignment_id):
-    """Download sample SQL tables as Excel for a specific assignment"""
+def download_sql_sample(assignment_id=None):
+    """Download sample SQL tables as Excel (optional assignment specific)"""
     if 'student_id' not in session and 'admin_id' not in session:
         return redirect(url_for('login'))
 
-    assignment = SQLSkillsAssignment.query.get_or_404(assignment_id)
-    excel_file = get_sample_data_as_excel(assignment.sample_sql)
+    sample_sql = None
+    title = "default"
+
+    if assignment_id:
+        assignment = SQLSkillsAssignment.query.get_or_404(assignment_id)
+        sample_sql = assignment.sample_sql
+        title = assignment.title.replace(" ", "_")
+
+    excel_file = get_sample_data_as_excel(sample_sql)
 
     return send_file(
         excel_file,
         as_attachment=True,
-        download_name=f'sql_sample_{assignment.title.replace(" ", "_")}.xlsx',
+        download_name=f'sql_sample_{title}.xlsx',
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+
 def init_app_data():
     """Initialize database and default data"""
     with app.app_context():
