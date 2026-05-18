@@ -32,21 +32,18 @@
                     <thead>
                         <tr class="bg-secondary bg-opacity-10 text-uppercase small letter-spacing-1">
                             {% for header in marks.headers %}
-                                {# Hide individual Skill and SQL columns #}
-                                {% if header in ['Rank', 'Student ID', 'Name', 'Quizzes Avg %', 'Total Avg %', 'Status'] %}
                                 <th class="{% if loop.first %}ps-4{% endif %} {% if loop.last %}pe-4{% endif %} {% if header not in ['Rank', 'Name', 'Student ID'] %}text-center{% endif %}">
                                     {{ header }}
                                 </th>
-                                {% endif %}
                             {% endfor %}
                         </tr>
                     </thead>
                     <tbody>
                         {% for student in marks.data %}
-                            {# Logic: Filter out students who haven't done any Excel or SQL assignments (same as scheduler filtering) #}
+                            {# Logic: Show students with ANY activity in Excel, SQL or Quizzes #}
                             {% set has_activity = false %}
                             {% for header, value in student.items() %}
-                                {% if ('Skill' in header or 'SQL' in header) and value != '0%' and value != '-' and value != '0.0%' %}
+                                {% if header in ['Excel Avg %', 'SQL Avg %', 'Quizzes Avg %'] and value != '0%' and value != '-' and value != '0.0%' %}
                                     {% set has_activity = true %}
                                 {% endif %}
                             {% endfor %}
@@ -67,23 +64,21 @@
                                 <td><code>{{ student['Student ID'] }}</code></td>
                                 <td class="fw-bold">{{ student.Name }}</td>
                                 
-                                {# Only show Quiz and Summary columns #}
-                                {% for header in marks.headers %}
-                                    {% if header in ['Quizzes Avg %'] %}
-                                        <td class="text-center">{{ student[header] }}</td>
-                                    {% endif %}
-                                {% endfor %}
+                                {# Dynamic data for Excel, SQL and Quiz averages #}
+                                <td class="text-center">{{ student['Excel Avg %'] }}</td>
+                                <td class="text-center">{{ student['SQL Avg %'] }}</td>
+                                <td class="text-center">{{ student['Quizzes Avg %'] }}</td>
 
                                 <td class="text-center">
                                     {% set pct_val = student['Total Avg %']|replace('%', '')|float %}
                                     <div class="d-flex align-items-center justify-content-center">
                                         <div class="progress w-100" style="height: 12px; max-width: 100px;">
-                                            <div class="progress-bar {% if pct_val >= 80 %}bg-success{% elif pct_val >= 40 %}bg-primary{% else %}bg-danger{% endif %}" 
+                                            <div class="progress-bar {% if pct_val >= 80 %}bg-success{% elif pct_val >= 70 %}bg-primary{% else %}bg-danger{% endif %}" 
                                                  role="progressbar" style="width: {{ pct_val }}%;">
-                                            </div>
                                         </div>
-                                        <span class="ms-2 small fw-bold">{{ student['Total Avg %'] }}</span>
                                     </div>
+                                    <span class="ms-2 small fw-bold">{{ student['Total Avg %'] }}</span>
+                                </div>
                                 </td>
                                 <td class="text-center pe-4">
                                     {% if student.Status == 'PASS' %}
