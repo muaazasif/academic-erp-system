@@ -80,7 +80,12 @@ def export_final_marks():
         sql_assignments = SQLSkillsAssignment.query.all()
         quizzes = Quiz.query.all()
         
-        # Dynamic Headers: Individual Assignments + Averages
+        print(f"📊 Debug Export: Found {len(students)} students")
+        print(f"📊 Debug Export: Found {len(excel_assignments)} Excel assignments")
+        print(f"📊 Debug Export: Found {len(sql_assignments)} SQL assignments")
+        print(f"📊 Debug Export: Found {len(quizzes)} quizzes")
+        
+        # Consolidated Headers
         summary_headers = ['Rank', 'Student ID', 'Name']
         for ea in excel_assignments:
             summary_headers.append(ea.title)
@@ -89,8 +94,7 @@ def export_final_marks():
             summary_headers.append(sa.title)
         
         summary_headers += ['Excel Avg %', 'SQL Avg %', 'Quizzes Avg %', 'Total Avg %', 'Status']
-        
-        create_professional_sheet(service, sheet_id, 'Final Marks', summary_headers)
+        print(f"📊 Debug Headers: {summary_headers}")
         
         summary_data = []
         for student in students:
