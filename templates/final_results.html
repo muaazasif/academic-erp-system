@@ -40,53 +40,60 @@
                     </thead>
                     <tbody>
                         {% for student in marks.data %}
-                            {# Logic: Show students with ANY activity in Excel, SQL or Quizzes #}
+                            {# Improved Logic: Show students who have ANY marks (>0) in any assignment column #}
                             {% set has_activity = false %}
                             {% for header, value in student.items() %}
-                                {% if header in ['Excel Avg %', 'SQL Avg %', 'Quizzes Avg %'] and value != '0%' and value != '-' and value != '0.0%' %}
-                                    {% set has_activity = true %}
+                                {% if header not in ['Rank', 'Student ID', 'Name', 'Status'] %}
+                                    {% if value != '0%' and value != '-' and value != '0.0%' and value != '0' %}
+                                        {% set has_activity = true %}
+                                    {% endif %}
                                 {% endif %}
                             {% endfor %}
 
                             {% if has_activity %}
                             <tr>
-                                <td class="ps-4">
-                                    {% if student.Rank == '1' %}
-                                        <span class="badge bg-warning text-dark shadow-sm"><i class="bi bi-trophy-fill"></i> 1st</span>
-                                    {% elif student.Rank == '2' %}
-                                        <span class="badge bg-light text-dark">2nd</span>
-                                    {% elif student.Rank == '3' %}
-                                        <span class="badge bg-info text-dark">3rd</span>
+                                {% for header in marks.headers %}
+                                    {% if header == 'Rank' %}
+                                        <td class="ps-4">
+                                            {% if student.Rank == '1' %}
+                                                <span class="badge bg-warning text-dark shadow-sm"><i class="bi bi-trophy-fill"></i> 1st</span>
+                                            {% elif student.Rank == '2' %}
+                                                <span class="badge bg-light text-dark">2nd</span>
+                                            {% elif student.Rank == '3' %}
+                                                <span class="badge bg-info text-dark">3rd</span>
+                                            {% else %}
+                                                <span class="text-secondary fw-bold ms-2">{{ student.Rank }}</span>
+                                            {% endif %}
+                                        </td>
+                                    {% elif header == 'Student ID' %}
+                                        <td><code>{{ student['Student ID'] }}</code></td>
+                                    {% elif header == 'Name' %}
+                                        <td class="fw-bold">{{ student.Name }}</td>
+                                    {% elif header == 'Total Avg %' %}
+                                        <td class="text-center">
+                                            {% set pct_val = student['Total Avg %']|replace('%', '')|float %}
+                                            <div class="d-flex align-items-center justify-content-center">
+                                                <div class="progress w-100" style="height: 12px; max-width: 100px;">
+                                                    <div class="progress-bar {% if pct_val >= 80 %}bg-success{% elif pct_val >= 70 %}bg-primary{% else %}bg-danger{% endif %}" 
+                                                         role="progressbar" style="width: {{ pct_val }}%;">
+                                                    </div>
+                                                </div>
+                                                <span class="ms-2 small fw-bold">{{ student['Total Avg %'] }}</span>
+                                            </div>
+                                        </td>
+                                    {% elif header == 'Status' %}
+                                        <td class="text-center pe-4">
+                                            {% if student.Status == 'PASS' %}
+                                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3">PASS</span>
+                                            {% else %}
+                                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3">FAIL</span>
+                                            {% endif %}
+                                        </td>
                                     {% else %}
-                                        <span class="text-secondary fw-bold ms-2">{{ student.Rank }}</span>
+                                        {# Dynamic Column (Excel Avg, SQL Avg, Quizzes Avg, etc.) #}
+                                        <td class="text-center">{{ student[header] }}</td>
                                     {% endif %}
-                                </td>
-                                <td><code>{{ student['Student ID'] }}</code></td>
-                                <td class="fw-bold">{{ student.Name }}</td>
-                                
-                                {# Dynamic data for Excel, SQL and Quiz averages #}
-                                <td class="text-center">{{ student['Excel Avg %'] }}</td>
-                                <td class="text-center">{{ student['SQL Avg %'] }}</td>
-                                <td class="text-center">{{ student['Quizzes Avg %'] }}</td>
-
-                                <td class="text-center">
-                                    {% set pct_val = student['Total Avg %']|replace('%', '')|float %}
-                                    <div class="d-flex align-items-center justify-content-center">
-                                        <div class="progress w-100" style="height: 12px; max-width: 100px;">
-                                            <div class="progress-bar {% if pct_val >= 80 %}bg-success{% elif pct_val >= 70 %}bg-primary{% else %}bg-danger{% endif %}" 
-                                                 role="progressbar" style="width: {{ pct_val }}%;">
-                                        </div>
-                                    </div>
-                                    <span class="ms-2 small fw-bold">{{ student['Total Avg %'] }}</span>
-                                </div>
-                                </td>
-                                <td class="text-center pe-4">
-                                    {% if student.Status == 'PASS' %}
-                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3">PASS</span>
-                                    {% else %}
-                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3">FAIL</span>
-                                    {% endif %}
-                                </td>
+                                {% endfor %}
                             </tr>
                             {% endif %}
                         {% endfor %}
