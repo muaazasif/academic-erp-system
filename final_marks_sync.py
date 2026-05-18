@@ -80,8 +80,15 @@ def export_final_marks():
         sql_assignments = SQLSkillsAssignment.query.all()
         quizzes = Quiz.query.all()
         
-        # Consolidated Headers
-        summary_headers = ['Rank', 'Student ID', 'Name', 'Excel Avg %', 'SQL Avg %', 'Quizzes Avg %', 'Total Avg %', 'Status']
+        # Dynamic Headers: Individual Assignments + Averages
+        summary_headers = ['Rank', 'Student ID', 'Name']
+        for ea in excel_assignments:
+            summary_headers.append(ea.title)
+        
+        for sa in sql_assignments:
+            summary_headers.append(sa.title)
+        
+        summary_headers += ['Excel Avg %', 'SQL Avg %', 'Quizzes Avg %', 'Total Avg %', 'Status']
         
         create_professional_sheet(service, sheet_id, 'Final Marks', summary_headers)
         
@@ -89,32 +96,36 @@ def export_final_marks():
         for student in students:
             row = [0, student.student_id, student.name]
             
-            # 1. Excel Average
+            # 1. Excel Individual Skills
             total_excel_pct = 0
             for ea in excel_assignments:
                 sub = ExcelSubmission.query.filter_by(student_id=student.id, assignment_id=ea.id).first()
                 pct = sub.percentage if sub else 0
+                row.append(f"{pct}%")
                 total_excel_pct += pct
             
             excel_avg = total_excel_pct / len(excel_assignments) if excel_assignments else 0
-            row.append(f"{round(excel_avg, 1)}%")
             
-            # 2. SQL Average
+            # 2. SQL Individual Skills
             total_sql_pct = 0
             for sa in sql_assignments:
                 sub = SQLSubmission.query.filter_by(student_id=student.id, assignment_id=sa.id).first()
                 pct = sub.percentage if sub else 0
+                row.append(f"{pct}%")
                 total_sql_pct += pct
             
             sql_avg = total_sql_pct / len(sql_assignments) if sql_assignments else 0
+
+            # 3. Add Category Averages
+            row.append(f"{round(excel_avg, 1)}%")
             row.append(f"{round(sql_avg, 1)}%")
             
-            # 3. Quiz Average
+            # 4. Quiz Average
             quiz_subs = QuizSubmission.query.filter_by(student_id=student.id).all()
             quiz_avg = sum([sub.percentage for sub in quiz_subs]) / len(quiz_subs) if quiz_subs else 0
             row.append(f"{round(quiz_avg, 1)}%")
             
-            # 4. Total Average (Excel, SQL, Quiz - Equal weight)
+            # 5. Total Average (Excel, SQL, Quiz - Equal weight)
             categories = []
             if excel_assignments: categories.append(excel_avg)
             if sql_assignments: categories.append(sql_avg)
@@ -123,7 +134,7 @@ def export_final_marks():
             total_avg = sum(categories) / len(categories) if categories else 0
             row.append(f"{round(total_avg, 1)}%")
             
-            # 5. Status (Passing threshold 70%)
+            # 6. Status (Passing threshold 70%)
             status = 'PASS' if total_avg >= 70 else 'FAIL'
             row.append(status)
             
