@@ -91,6 +91,24 @@ def export_final_marks():
         sql_assignments = SQLSkillsAssignment.query.all()
         quizzes = Quiz.query.all()
         
+        # 0. FETCH DATA FROM "SQL Assignments" SHEET (Merge Logic)
+        sql_sheet_marks = {} # {(student_id, assignment_title): percentage}
+        try:
+            sql_res = service.spreadsheets().values().get(spreadsheetId=sheet_id, range="'SQL Assignments'!A:E").execute()
+            sql_rows = sql_res.get('values', [])
+            if len(sql_rows) > 1:
+                for row in sql_rows[1:]:
+                    if len(row) >= 5:
+                        sid = str(row[0]).strip()
+                        title = str(row[2]).strip()
+                        pct_str = str(row[4]).replace('%', '').strip()
+                        try:
+                            pct = float(pct_str)
+                            sql_sheet_marks[(sid, title)] = pct
+                        except: pass
+        except Exception as e:
+            print(f"⚠️ Note: Could not read 'SQL Assignments' sheet for merging: {e}")
+
         # Dynamic Headers: Individual Assignments + Averages
         summary_headers = ['Rank', 'Student ID', 'Name']
         for ea in excel_assignments:
@@ -108,7 +126,7 @@ def export_final_marks():
         
         summary_data = []
         for student in students:
-            # Use student.student_id (the string ID) for filtering submissions
+            # Use student.student_id (the string ID) for filtering
             sid_str = student.student_id
             row = [0, sid_str, student.name]
             
@@ -122,11 +140,17 @@ def export_final_marks():
             
             excel_avg = total_excel_pct / len(excel_assignments) if excel_assignments else 0
             
-            # 2. SQL Individual Skills
+            # 2. SQL Individual Skills (Merge DB + Sheet)
             total_sql_pct = 0
             for sa in sql_assignments:
+                # Priority 1: Check Database
                 sub = SQLSubmission.query.filter_by(student_id=sid_str, assignment_id=sa.id).first()
                 pct = sub.percentage if sub else 0
+                
+                # Priority 2: Fallback to SQL Assignments Sheet if DB is 0
+                if pct == 0 and (sid_str, sa.title) in sql_sheet_marks:
+                    pct = sql_sheet_marks[(sid_str, sa.title)]
+                    
                 row.append(f"{pct}%")
                 total_sql_pct += pct
             
