@@ -4,26 +4,37 @@ from datetime import datetime
 from clean_sheets_sync import get_sheets_service
 
 def create_professional_sheet(service, sheet_id, sheet_name, headers):
-    """Create a sheet with professional formatting"""
+    """Create or clear a sheet with professional formatting"""
     try:
         spreadsheet = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
-        sheets = [s['properties']['title'] for s in spreadsheet.get('sheets', [])]
+        sheets = {s['properties']['title']: s['properties']['sheetId'] for s in spreadsheet.get('sheets', [])}
         
         if sheet_name in sheets:
-            # Delete existing to refresh
-            sheet_obj = next(s for s in spreadsheet.get('sheets', []) if s['properties']['title'] == sheet_name)
-            service.spreadsheets().batchUpdate(
+            # If it's the only sheet, we CANNOT delete it. Just clear it.
+            if len(sheets) == 1:
+                service.spreadsheets().values().clear(
+                    spreadsheetId=sheet_id,
+                    range=f"'{sheet_name}'!A:Z"
+                ).execute()
+                new_sheet_id = sheets[sheet_name]
+            else:
+                # Delete and recreate to reset everything
+                service.spreadsheets().batchUpdate(
+                    spreadsheetId=sheet_id,
+                    body={'requests': [{'deleteSheet': {'sheetId': sheets[sheet_name]}}]}
+                ).execute()
+                add_response = service.spreadsheets().batchUpdate(
+                    spreadsheetId=sheet_id,
+                    body={'requests': [{'addSheet': {'properties': {'title': sheet_name}}}]}
+                ).execute()
+                new_sheet_id = add_response['replies'][0]['addSheet']['properties']['sheetId']
+        else:
+            # Add new sheet
+            add_response = service.spreadsheets().batchUpdate(
                 spreadsheetId=sheet_id,
-                body={'requests': [{'deleteSheet': {'sheetId': sheet_obj['properties']['sheetId']}}]}
+                body={'requests': [{'addSheet': {'properties': {'title': sheet_name}}}]}
             ).execute()
-            
-        # Add new sheet
-        add_response = service.spreadsheets().batchUpdate(
-            spreadsheetId=sheet_id,
-            body={'requests': [{'addSheet': {'properties': {'title': sheet_name}}}]}
-        ).execute()
-        
-        new_sheet_id = add_response['replies'][0]['addSheet']['properties']['sheetId']
+            new_sheet_id = add_response['replies'][0]['addSheet']['properties']['sheetId']
         
         # Add headers
         service.spreadsheets().values().update(
@@ -63,7 +74,7 @@ def create_professional_sheet(service, sheet_id, sheet_name, headers):
         service.spreadsheets().batchUpdate(spreadsheetId=sheet_id, body={'requests': requests}).execute()
         return new_sheet_id
     except Exception as e:
-        print(f"Error creating sheet {sheet_name}: {e}")
+        print(f"Error preparing sheet {sheet_name}: {e}")
         return None
 
 def export_final_marks():
@@ -80,12 +91,7 @@ def export_final_marks():
         sql_assignments = SQLSkillsAssignment.query.all()
         quizzes = Quiz.query.all()
         
-        print(f"📊 Debug Export: Found {len(students)} students")
-        print(f"📊 Debug Export: Found {len(excel_assignments)} Excel assignments")
-        print(f"📊 Debug Export: Found {len(sql_assignments)} SQL assignments")
-        print(f"📊 Debug Export: Found {len(quizzes)} quizzes")
-        
-        # Consolidated Headers
+        # Dynamic Headers: Individual Assignments + Averages
         summary_headers = ['Rank', 'Student ID', 'Name']
         for ea in excel_assignments:
             summary_headers.append(ea.title)
@@ -94,10 +100,11 @@ def export_final_marks():
             summary_headers.append(sa.title)
         
         summary_headers += ['Excel Avg %', 'SQL Avg %', 'Quizzes Avg %', 'Total Avg %', 'Status']
-        print(f"📊 Debug Headers: {summary_headers}")
         
-        # RESTORED: This creates the sheet and sets the headers!
-        create_professional_sheet(service, sheet_id, 'Final Marks', summary_headers)
+        # Prepare the sheet (Create or Clear)
+        res = create_professional_sheet(service, sheet_id, 'Final Marks', summary_headers)
+        if res is None:
+            return False, "Failed to prepare Final Marks sheet"
         
         summary_data = []
         for student in students:
@@ -154,6 +161,19 @@ def export_final_marks():
             row.append(status)
             
             summary_data.append(row)
+            
+        # Sort by Total Avg
+        summary_data.sort(key=lambda x: float(x[-2].replace('%', '')), reverse=True)
+        for i, row in enumerate(summary_data, 1):
+            row[0] = i # Set rank
+            
+        if summary_data:
+            service.spreadsheets().values().update(
+                spreadsheetId=sheet_id, range="'Final Marks'!A2",
+                valueInputOption='USER_ENTERED', body={'values': summary_data}
+            ).execute()
+            
+    return True, "Export successful"
             
         # Sort by Total Avg
         summary_data.sort(key=lambda x: float(x[-2].replace('%', '')), reverse=True)
