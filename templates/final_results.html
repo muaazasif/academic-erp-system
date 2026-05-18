@@ -19,6 +19,9 @@
     {% elif not marks.data %}
     <div class="alert alert-info">
         <i class="bi bi-info-circle"></i> No results found yet. Rankings will appear once the administrator calculates final marks.
+        {% if session.admin_id %}
+        <br><a href="/admin/export-final-marks" class="btn btn-sm btn-primary mt-2">Generate Final Marks Now</a>
+        {% endif %}
     </div>
     {% else %}
     
@@ -40,17 +43,6 @@
                     </thead>
                     <tbody>
                         {% for student in marks.data %}
-                            {# Improved Logic: Show students who have ANY marks (>0) in any assignment column #}
-                            {% set has_activity = false %}
-                            {% for header, value in student.items() %}
-                                {% if header not in ['Rank', 'Student ID', 'Name', 'Status'] %}
-                                    {% if value != '0%' and value != '-' and value != '0.0%' and value != '0' %}
-                                        {% set has_activity = true %}
-                                    {% endif %}
-                                {% endif %}
-                            {% endfor %}
-
-                            {% if has_activity %}
                             <tr>
                                 {% for header in marks.headers %}
                                     {% if header == 'Rank' %}
@@ -71,7 +63,8 @@
                                         <td class="fw-bold">{{ student.Name }}</td>
                                     {% elif header == 'Total Avg %' %}
                                         <td class="text-center">
-                                            {% set pct_val = student['Total Avg %']|replace('%', '')|float %}
+                                            {% set raw_val = student['Total Avg %']|string|replace('%', '') %}
+                                            {% set pct_val = raw_val|float if raw_val|trim != '' and raw_val|trim != '-' else 0.0 %}
                                             <div class="d-flex align-items-center justify-content-center">
                                                 <div class="progress w-100" style="height: 12px; max-width: 100px;">
                                                     <div class="progress-bar {% if pct_val >= 80 %}bg-success{% elif pct_val >= 70 %}bg-primary{% else %}bg-danger{% endif %}" 
@@ -90,12 +83,11 @@
                                             {% endif %}
                                         </td>
                                     {% else %}
-                                        {# Dynamic Column (Excel Avg, SQL Avg, Quizzes Avg, etc.) #}
+                                        {# Dynamic Column #}
                                         <td class="text-center">{{ student[header] }}</td>
                                     {% endif %}
                                 {% endfor %}
                             </tr>
-                            {% endif %}
                         {% endfor %}
                     </tbody>
                 </table>
