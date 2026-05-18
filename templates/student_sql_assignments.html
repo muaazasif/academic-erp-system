@@ -7,9 +7,6 @@
     <div class="d-flex justify-content-between align-items-center">
         <h2>💾 SQL Skills Assignments</h2>
         <div>
-            <a href="{{ url_for('download_sql_sample') }}" class="btn btn-outline-primary btn-sm me-2">
-                📊 Download Practice Tables
-            </a>
             <a href="{{ url_for('student_dashboard') }}" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
         </div>
     </div>
@@ -41,6 +38,9 @@
                             ⏳ <strong>Pending</strong><br>
                             Deadline: {{ a.deadline.strftime('%Y-%m-%d') if a.deadline else 'No deadline' }}
                         </div>
+                        <a href="{{ url_for('download_sql_sample', assignment_id=a.id) }}" class="btn btn-outline-info w-100 mb-2">
+                            📊 Download Practice Tables
+                        </a>
                         <a href="/student/sql/take/{{ a.id }}" class="btn btn-primary w-100">
                             Start Assignment
                         </a>

@@ -15,7 +15,7 @@
                 <strong>📝 Instructions:</strong> Write your SQLite queries for each task below. 
                 The system uses a sample database with tables: <code>Students</code>, <code>Courses</code>, and <code>Enrollments</code>.
             </div>
-            <a href="{{ url_for('download_sql_sample') }}" class="btn btn-outline-info btn-sm bg-white">
+            <a href="{{ url_for('download_sql_sample', assignment_id=assignment.id) }}" class="btn btn-outline-info btn-sm bg-white">
                 📊 Download Tables (Excel)
             </a>
         </div>

@@ -271,6 +271,7 @@ class SQLSkillsAssignment(db.Model):
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     questions_json = db.Column(db.Text)  # JSON containing list of questions and expected queries
+    sample_sql = db.Column(db.Text)      # SQL to initialize the sample database
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     deadline = db.Column(db.DateTime)
     max_marks = db.Column(db.Integer, default=10)
@@ -2542,12 +2543,12 @@ def take_sql_assignment(assignment_id):
             return redirect(url_for('student_sql_assignments'))
 
         student_queries = []
-        for i in range(1, 11):
+        for i in range(1, len(questions) + 1):
             query = request.form.get(f'query_{i}', '').strip()
             student_queries.append(query)
         
         # Auto-grade
-        result = grade_sql_submission(student_queries)
+        result = grade_sql_submission(student_queries, questions, assignment.sample_sql)
         
         # Create submission (update is no longer allowed based on the logic above)
         submission = SQLSubmission(
@@ -3053,20 +3054,21 @@ def admin_export_final_marks():
 
 from sql_grader import grade_sql_submission, get_sql_assignment_questions, get_sample_data_as_excel
 
-@app.route('/student/sql/download-sample')
-def download_sql_sample():
-    """Download sample SQL tables as Excel"""
+@app.route('/student/sql/download-sample/<int:assignment_id>')
+def download_sql_sample(assignment_id):
+    """Download sample SQL tables as Excel for a specific assignment"""
     if 'student_id' not in session and 'admin_id' not in session:
         return redirect(url_for('login'))
-        
-    excel_file = get_sample_data_as_excel()
+
+    assignment = SQLSkillsAssignment.query.get_or_404(assignment_id)
+    excel_file = get_sample_data_as_excel(assignment.sample_sql)
+
     return send_file(
         excel_file,
         as_attachment=True,
-        download_name='sql_sample_tables.xlsx',
+        download_name=f'sql_sample_{assignment.title.replace(" ", "_")}.xlsx',
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-
 def init_app_data():
     """Initialize database and default data"""
     with app.app_context():

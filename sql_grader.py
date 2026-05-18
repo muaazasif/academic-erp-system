@@ -1,6 +1,7 @@
 import sqlite3
 import pandas as pd
 import json
+import re
 from io import BytesIO
 
 def get_sample_data_sql():
@@ -104,51 +105,58 @@ def get_sql_assignment_questions():
         }
     ]
 
-def get_sample_data_as_excel():
+def get_sample_data_as_excel(sample_sql=None):
     """Returns an Excel file as BytesIO containing all sample tables"""
+    if not sample_sql:
+        sample_sql = get_sample_data_sql()
+        
     conn = sqlite3.connect(':memory:')
     cursor = conn.cursor()
     
     try:
         # Initialize schema and data
-        cursor.executescript(get_sample_data_sql())
+        cursor.executescript(sample_sql)
         conn.commit()
         
-        # Read all tables
-        students_df = pd.read_sql_query("SELECT * FROM Students", conn)
-        courses_df = pd.read_sql_query("SELECT * FROM Courses", conn)
-        enrollments_df = pd.read_sql_query("SELECT * FROM Enrollments", conn)
+        # Get list of all tables in the database
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = [row[0] for row in cursor.fetchall() if row[0] != 'sqlite_sequence']
         
         # Create Excel in memory
         output = BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            students_df.to_excel(writer, index=False, sheet_name='Students')
-            courses_df.to_excel(writer, index=False, sheet_name='Courses')
-            enrollments_df.to_excel(writer, index=False, sheet_name='Enrollments')
+            for table_name in tables:
+                df = pd.read_sql_query(f"SELECT * FROM {table_name}", conn)
+                df.to_excel(writer, index=False, sheet_name=table_name)
         
         output.seek(0)
         return output
     finally:
         conn.close()
 
-def grade_sql_submission(student_queries):
+def grade_sql_submission(student_queries, questions, sample_sql=None):
     """
     Grades a student's SQL submission.
     student_queries: list of strings (queries for each task)
+    questions: list of dicts with 'id', 'task', 'expected_query'
+    sample_sql: SQL to initialize the database
     """
-    questions = get_sql_assignment_questions()
+    if not sample_sql:
+        sample_sql = get_sample_data_sql()
+        
     total_score = 0
+    max_score = len(questions)
     details = []
     
-    # Create in-memory database
-    conn = sqlite3.connect(':memory:')
-    cursor = conn.cursor()
+    # Student's database (persists across tasks in case of VIEW creation)
+    conn_std = sqlite3.connect(':memory:')
+    conn_std.executescript(sample_sql)
+    
+    # Reference database (for baseline results)
+    conn_ref = sqlite3.connect(':memory:')
+    conn_ref.executescript(sample_sql)
     
     try:
-        # Initialize schema and data
-        cursor.executescript(get_sample_data_sql())
-        conn.commit()
-        
         for i, q in enumerate(questions):
             task_id = q['id']
             expected_sql = q['expected_query']
@@ -167,35 +175,64 @@ def grade_sql_submission(student_queries):
                 continue
             
             try:
-                # Execute expected query to get baseline
-                expected_df = pd.read_sql_query(expected_sql, conn)
+                # 1. Handle non-SELECT queries (CREATE VIEW, etc.)
+                is_create_view = bool(re.search(r"CREATE\s+VIEW", student_sql, re.IGNORECASE))
                 
-                # Execute student query
-                # Use a sub-transaction or just execute and fetch
-                student_df = pd.read_sql_query(student_sql, conn)
+                if is_create_view:
+                    # Execute student's CREATE VIEW
+                    conn_std.execute(student_sql)
+                    conn_std.commit()
+                    
+                    # Extract view name
+                    view_match = re.search(r"CREATE\s+VIEW\s+(\w+)", student_sql, re.IGNORECASE)
+                    if view_match:
+                        view_name = view_match.group(1)
+                        student_df = pd.read_sql_query(f"SELECT * FROM {view_name}", conn_std)
+                    else:
+                        student_df = pd.DataFrame() # Fallback
+                else:
+                    # Regular SELECT query
+                    student_df = pd.read_sql_query(student_sql, conn_std)
                 
-                # Compare DataFrames
-                # We ignore column names if they are slightly different but results match?
-                # Usually SQL auto-grading requires exact matches including column names.
-                # To be fair, let's normalize: sort both by all columns and reset index
+                # 2. Get expected result
+                # If expected_sql is a CREATE VIEW, we execute it on ref DB first
+                if bool(re.search(r"CREATE\s+VIEW", expected_sql, re.IGNORECASE)):
+                    conn_ref.execute(expected_sql)
+                    conn_ref.commit()
+                    view_match_ref = re.search(r"CREATE\s+VIEW\s+(\w+)", expected_sql, re.IGNORECASE)
+                    if view_match_ref:
+                        view_name_ref = view_match_ref.group(1)
+                        expected_df = pd.read_sql_query(f"SELECT * FROM {view_name_ref}", conn_ref)
+                    else:
+                        expected_df = pd.DataFrame()
+                else:
+                    expected_df = pd.read_sql_query(expected_sql, conn_ref)
                 
+                # 3. Compare
                 if expected_df.equals(student_df):
                     task_result["correct"] = True
                     total_score += 1
                 else:
-                    # Check if sorting is the issue (if not specified in task)
-                    if "ORDER BY" not in expected_sql.upper():
-                        # Sort both for comparison
-                        exp_sorted = expected_df.sort_values(by=list(expected_df.columns)).reset_index(drop=True)
-                        std_sorted = student_df.sort_values(by=list(student_df.columns)).reset_index(drop=True) if not student_df.empty else student_df
-                        
-                        if exp_sorted.equals(std_sorted):
-                            task_result["correct"] = True
-                            total_score += 1
+                    # Normalize and compare
+                    if not expected_df.empty and not student_df.empty:
+                        # Check column count
+                        if len(expected_df.columns) == len(student_df.columns):
+                            # Sort for comparison if no ORDER BY
+                            if "ORDER BY" not in expected_sql.upper():
+                                # Try sorting by all columns
+                                exp_sorted = expected_df.sort_values(by=list(expected_df.columns)).reset_index(drop=True)
+                                std_sorted = student_df.sort_values(by=list(student_df.columns)).reset_index(drop=True)
+                                if exp_sorted.equals(std_sorted):
+                                    task_result["correct"] = True
+                                    total_score += 1
+                                else:
+                                    task_result["error"] = "Results do not match expected output."
+                            else:
+                                task_result["error"] = "Results do not match (Ordering matters)."
                         else:
-                            task_result["error"] = "Results do not match expected output."
+                            task_result["error"] = f"Column mismatch. Expected {len(expected_df.columns)}, got {len(student_df.columns)}."
                     else:
-                        task_result["error"] = "Results do not match (Ordering matters for this task)."
+                        task_result["error"] = "Results do not match expected output."
             
             except Exception as e:
                 task_result["error"] = f"SQL Error: {str(e)}"
@@ -203,11 +240,12 @@ def grade_sql_submission(student_queries):
             details.append(task_result)
             
     finally:
-        conn.close()
+        conn_std.close()
+        conn_ref.close()
         
     return {
         "score": total_score,
-        "max": 10,
-        "percentage": (total_score / 10) * 100,
+        "max": max_score,
+        "percentage": (total_score / max_score) * 100 if max_score > 0 else 0,
         "details": details
     }
