@@ -94,12 +94,14 @@ def export_final_marks():
         
         summary_data = []
         for student in students:
-            row = [0, student.student_id, student.name]
+            # Use student.student_id (the string ID) for filtering submissions
+            sid_str = student.student_id
+            row = [0, sid_str, student.name]
             
             # 1. Excel Individual Skills
             total_excel_pct = 0
             for ea in excel_assignments:
-                sub = ExcelSubmission.query.filter_by(student_id=student.id, assignment_id=ea.id).first()
+                sub = ExcelSubmission.query.filter_by(student_id=sid_str, assignment_id=ea.id).first()
                 pct = sub.percentage if sub else 0
                 row.append(f"{pct}%")
                 total_excel_pct += pct
@@ -109,7 +111,7 @@ def export_final_marks():
             # 2. SQL Individual Skills
             total_sql_pct = 0
             for sa in sql_assignments:
-                sub = SQLSubmission.query.filter_by(student_id=student.id, assignment_id=sa.id).first()
+                sub = SQLSubmission.query.filter_by(student_id=sid_str, assignment_id=sa.id).first()
                 pct = sub.percentage if sub else 0
                 row.append(f"{pct}%")
                 total_sql_pct += pct
@@ -121,8 +123,14 @@ def export_final_marks():
             row.append(f"{round(sql_avg, 1)}%")
             
             # 4. Quiz Average
-            quiz_subs = QuizSubmission.query.filter_by(student_id=student.id).all()
-            quiz_avg = sum([sub.percentage for sub in quiz_subs]) / len(quiz_subs) if quiz_subs else 0
+            quiz_subs = QuizSubmission.query.filter_by(student_id=sid_str).all()
+            total_quiz_pct = 0
+            for sub in quiz_subs:
+                total_q = len(sub.quiz.questions)
+                if total_q > 0:
+                    total_quiz_pct += (sub.score / total_q) * 100
+                
+            quiz_avg = total_quiz_pct / len(quiz_subs) if quiz_subs else 0
             row.append(f"{round(quiz_avg, 1)}%")
             
             # 5. Total Average (Excel, SQL, Quiz - Equal weight)
