@@ -3202,6 +3202,25 @@ def init_app_data():
                 skill3.is_active = True
                 db.session.commit()
                 print("✅ Excel Skill 3 activated!")
+                
+        # Create Excel Skill 4 if not exists
+        skill4 = ExcelSkillsAssignment.query.filter_by(title="Excel Skill 4: Advanced LOOKUP & Aggregation").first()
+        if not skill4:
+            new_skill4 = ExcelSkillsAssignment(
+                title="Excel Skill 4: Advanced LOOKUP & Aggregation",
+                description="Master Data Relationships: 1. LOOKUP Function (Vector/Array) (2.5 marks). 2. Advanced SUMIFS (2.5 marks). 3. COUNTIFS & Relationships (2.5 marks). 4. Integrated Challenge (2.5 marks). Total 10 marks. (Note: specifically NOT VLOOKUP/XLOOKUP)",
+                created_at=datetime.now(),
+                deadline=datetime.now() + timedelta(days=14),
+                is_active=True
+            )
+            db.session.add(new_skill4)
+            db.session.commit()
+            print("✅ Excel Skill 4 created!")
+        else:
+            if not skill4.is_active:
+                skill4.is_active = True
+                db.session.commit()
+                print("✅ Excel Skill 4 activated!")
 
 # Run initialization ONLY if running directly (not via gunicorn)
 if __name__ == '__main__':

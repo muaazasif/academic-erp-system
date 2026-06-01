@@ -57,6 +57,10 @@ def create_initial_data():
             {
                 "title": "Excel Skill 3: Data Cleaning & Power Query",
                 "description": "Master Data Preparation: 1. Cleaning Raw Data (Spaces, Case, Duplicates). 2. Text-to-Columns & Flash Fill. 3. Power Query Basics (Transforming & Loading). Total 10 marks. AI will check for clean data and proper transformations."
+            },
+            {
+                "title": "Excel Skill 4: Advanced LOOKUP & Aggregation",
+                "description": "Master Data Relationships: 1. LOOKUP Function (Vector/Array) (2.5 marks). 2. Advanced SUMIFS (2.5 marks). 3. COUNTIFS & Relationships (2.5 marks). 4. Integrated Challenge (2.5 marks). Total 10 marks. (Note: specifically NOT VLOOKUP/XLOOKUP)"
             }
         ]
 
