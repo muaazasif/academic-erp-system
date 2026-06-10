@@ -16,6 +16,9 @@ import requests
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from io import BytesIO
+import random
+import re
+from midterm_bank import create_randomized_midterm, grade_randomized_midterm, get_task_bank
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -1634,8 +1637,6 @@ def assign_midterm(midterm_id):
         selected_students = request.form.getlist('students')
         assign_to_all = request.form.get('assign_to_all')
 
-        import random
-
         if assign_to_all == 'on':
             # Assign to all students
             for student in students:
@@ -1813,8 +1814,6 @@ def student_midterms():
     return render_template('student_midterms.html', assigned_midterms=assigned_midterms)
 
 
-from midterm_bank import create_randomized_midterm, grade_randomized_midterm, get_task_bank
-
 @app.route('/student/midterms/<int:midterm_id>/download')
 def download_midterm_workbook(midterm_id):
     if 'student_id' not in session:
@@ -1834,6 +1833,10 @@ def download_midterm_workbook(midterm_id):
 
     # DYNAMIC RANDOMIZED MIDTERM LOGIC
     if not midterm.file_url or "Randomized" in midterm.title or midterm.total_sheets >= 100:
+        if not assignment.assigned_sheets:
+            flash('Your randomized tasks have not been generated. Please contact your instructor.', 'error')
+            return redirect(url_for('student_midterms'))
+            
         try:
             # Parse assigned task IDs
             task_ids = [int(tid.strip()) for tid in assignment.assigned_sheets.split(',') if tid.strip()]
@@ -1854,6 +1857,8 @@ def download_midterm_workbook(midterm_id):
             )
         except Exception as e:
             print(f"Error generating dynamic midterm: {e}")
+            import traceback
+            traceback.print_exc()
             flash(f"Failed to generate dynamic workbook: {str(e)}", "error")
             return redirect(url_for('student_midterms'))
 
