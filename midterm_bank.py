@@ -214,7 +214,9 @@ def create_randomized_midterm(task_ids):
     
     # Clear existing content carefully
     for row in ws.iter_rows(min_row=3, max_row=50, min_col=1, max_col=10):
-        for cell in row: cell.value = None
+        for cell in row:
+            if hasattr(cell, 'value') and not isinstance(cell, openpyxl.cell.cell.MergedCell):
+                cell.value = None
 
     # Remove all other sheets
     for sheetname in wb.sheetnames[:]:

@@ -1814,19 +1814,6 @@ def student_midterms():
     return render_template('student_midterms.html', assigned_midterms=assigned_midterms)
 
 
-@app.route('/debug/diag')
-def debug_diag():
-    if 'admin_id' not in session: return "Unauthorized", 401
-    import os
-    diag = {
-        'cwd': os.getcwd(),
-        'template_exists': os.path.exists('excel_template.xlsm'),
-        'uploads_writable': os.access('static/uploads', os.W_OK),
-        'submissions_writable': os.access('static/submissions', os.W_OK),
-        'midterm_bank_exists': os.path.exists('midterm_bank.py'),
-    }
-    return diag
-
 @app.route('/student/midterms/<int:midterm_id>/download')
 def download_midterm_workbook(midterm_id):
     if 'student_id' not in session:
