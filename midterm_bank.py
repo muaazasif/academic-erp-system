@@ -17,13 +17,11 @@ def style_header(ws, row, cols, color="1F4E79"):
         cell.alignment = Alignment(horizontal='center', wrap_text=True)
 
 def get_task_bank():
-    """Returns 100 100% UNIQUE complex tasks with distinct logic for EVERY ID"""
+    """Returns 100 tasks with UNIQUE LAYOUTS and logic"""
     bank = {}
     
-    # Pool of 100 Unique Complex Problem Statements
-    # We will populate these specifically to avoid any duplication
     problems = {
-        # 1-20: Excel Advanced Logical & Array
+        # ... (Same 100 unique problems as before)
         1: "Analyze regional performance: If Sales > 50000 and Profit > 20%, status is 'ELITE'. If Sales > 30000, 'PRIME'. Else 'standard'.",
         2: "Extract Domain: Use MID and FIND to isolate the domain name from emails like 'user@sub.company.org'.",
         3: "Working Days: Calculate the exact completion date 120 working days after today, excluding holidays listed in G4:G10.",
@@ -44,8 +42,6 @@ def get_task_bank():
         18: "Frequency: Calculate the distribution of test scores into buckets of 10 (0-10, 11-20...).",
         19: "Text Joining: Combine Name, City, and Zip into a single string 'NAME [CITY] - ZIP' for 100 users.",
         20: "Transposing: Take a 5x5 matrix and rotate it 90 degrees using formulas only.",
-
-        # 21-40: Excel Pro Modeling (INDEX/MATCH, Dynamic Arrays)
         21: "Pro Lookup: Use INDEX/MATCH/MATCH for a 2-way matrix lookup (Product vs Month).",
         22: "Dynamic Filter: Filter a list of transactions to show only those > $10,000 for 'Refund' category.",
         23: "Sorting: Sort a dynamic range by Category (ASC) and then by Date (DESC) using formulas.",
@@ -66,8 +62,6 @@ def get_task_bank():
         38: "Text to Columns: Split a CSV-formatted string into 5 separate cells using formulas only.",
         39: "Duplicate Finder: Identify IDs that appear more than 3 times in a list.",
         40: "Z-Score: Calculate the Z-Score for a set of student marks to identify outliers.",
-
-        # 41-60: SQL Database Engineering
         41: "Joins: INNER JOIN Students, Courses, and Instructors to list 'Student Name - Course - Instructor'.",
         42: "Aggregation: Find the Top 3 Departments by total revenue in the last 6 months.",
         43: "Subqueries: Select all employees whose salary is higher than the average of their department.",
@@ -88,8 +82,6 @@ def get_task_bank():
         58: "Math: Calculate the standard deviation of 'Wait Time' for customer support tickets.",
         59: "Union: Merge 'Past_Students' and 'Current_Students' while removing duplicates.",
         60: "Cast: Convert a 'Text' timestamp into a valid 'Date' and calculate the months since account creation.",
-
-        # 61-80: Power Query (ETL)
         61: "Pivoting: Convert a 12-month column layout into a flat 'Attribute/Value' format.",
         62: "Merging: Join a local Excel table with a web-based JSON API source.",
         63: "Cleaning: Remove all non-printable characters and extra spaces from a 5000-row column.",
@@ -110,8 +102,6 @@ def get_task_bank():
         78: "Distinct: Keep only the first occurrence of each 'Customer ID' while sorting by 'Date'.",
         79: "Filtering: Filter rows where the 'Comments' column contains any word from a forbidden list.",
         80: "Schema: Force a specific schema on a dynamic folder import to prevent 'Column Not Found' errors.",
-
-        # 81-100: VBA Expert (Macros)
         81: "Loops: Loop through 100 sheets and protect them with a random password.",
         82: "UserForms: Create a pop-up form that validates 'Email' and 'Phone' before adding to a sheet.",
         83: "Events: Write a Workbook_Open macro that logs the Username and Time to a hidden sheet.",
@@ -134,50 +124,108 @@ def get_task_bank():
         100: "Master Macro: Create a button that runs Data Cleaning -> Formatting -> Emailing in sequence."
     }
 
-    # Assign problems to IDs
-    for tid, instruction in problems.items():
+    for tid, instr in problems.items():
+        if tid <= 20: gen = make_excel_logic_gen(tid, instr)
+        elif tid <= 40: gen = make_excel_advanced_gen(tid, instr)
+        elif tid <= 60: gen = make_sql_gen(tid, instr)
+        elif tid <= 80: gen = make_power_query_gen(tid, instr)
+        else: gen = make_vba_gen(tid, instr)
+        
         bank[tid] = {
             'id': tid,
-            'topic': get_topic_by_id(tid),
-            'title': f"Exam Task {tid}: {get_topic_by_id(tid)}",
-            'generate': make_generator(tid, instruction),
-            'grade': lambda wb: 1.0 # Grades manually or based on specific checks
+            'topic': get_topic_name(tid),
+            'title': f"{get_topic_name(tid).replace('_',' ')} {tid}",
+            'generate': gen,
+            'grade': lambda wb: 1.0
         }
-            
     return bank
 
-def get_topic_by_id(i):
-    if i <= 20: return "Excel_Logical"
-    if i <= 40: return "Excel_Advanced"
-    if i <= 60: return "SQL_Query"
-    if i <= 80: return "Power_Query"
-    return "VBA_Automation"
+def get_topic_name(i):
+    if i <= 20: return "EXCEL_LOGIC"
+    if i <= 40: return "EXCEL_ADVANCED"
+    if i <= 60: return "SQL_QUERIES"
+    if i <= 80: return "POWER_QUERY"
+    return "VBA_EXPERT"
 
-def make_generator(tid, instruction):
-    """Factory to create a unique sheet generator for every ID"""
+# ---------------------------------------------------------
+# UNIQUE LAYOUT GENERATORS
+# ---------------------------------------------------------
+
+def make_excel_logic_gen(tid, instruction):
     def generate(ws):
-        # 1. Title is strictly Task_{ID}
-        ws.title = f"Task_{tid}"
-        # 2. Header
-        ws['A1'] = f"🏆 MIDTERM CHALLENGE: Task {tid}"
+        ws.title = f"Excel_Logic_{tid}"
+        ws['A1'] = f"🏆 TASK {tid}: LOGICAL REASONING"
         ws['A1'].font = Font(size=16, bold=True, color="1F4E79")
-        # 3. Instruction
-        ws['A3'] = "INSTRUCTION:"
-        ws['A3'].font = Font(bold=True)
-        ws['B3'] = instruction
-        ws['B3'].alignment = Alignment(wrap_text=True)
-        # 4. Data Area
-        ws['A5'] = "DATASET / WORK AREA:"
-        ws['A5'].font = Font(bold=True)
-        # Generate some unique random data for every task
-        for r in range(6, 15):
-            ws.cell(row=r, column=1, value=f"Ref_{tid}_{r}")
-            ws.cell(row=r, column=2, value=random.randint(1000, 9999))
-            ws.cell(row=r, column=3).fill = PatternFill(start_color="FFFF00", fill_type="solid")
-        
-        ws.column_dimensions['A'].width = 20
+        ws['A3'] = "INSTRUCTION:"; ws['B3'] = instruction; ws['B3'].font = Font(bold=True)
+        # Unique table for logical tasks
+        headers = ['Entity', 'Attribute_X', 'Attribute_Y', 'Your Formula Output']
+        style_header(ws, 5, 4, color="1F4E79")
+        for r in range(6, 12):
+            ws.cell(row=r, column=1, value=f"ID_{tid}_{r}")
+            ws.cell(row=r, column=2, value=random.randint(10, 100))
+            ws.cell(row=r, column=3, value=random.choice(['True','False','Yes','No']))
+            ws.cell(row=r, column=4).fill = PatternFill(start_color="FFFF00", fill_type="solid")
+    return generate
+
+def make_excel_advanced_gen(tid, instruction):
+    def generate(ws):
+        ws.title = f"Excel_Adv_{tid}"
+        ws['A1'] = f"🏆 TASK {tid}: PRO DATA MODELING"
+        ws['A1'].font = Font(size=16, bold=True, color="C00000")
+        ws['A3'] = "CHALLENGE:"; ws['B3'] = instruction; ws['B3'].font = Font(bold=True)
+        # Matrix Layout for Advanced tasks
+        ws['F5'] = "REFERENCE MATRIX"; style_header(ws, 5, 3, color="548235")
+        for r in range(6, 9):
+            for c in range(6, 9): ws.cell(row=r, column=c, value=random.randint(100, 500))
+        ws['A5'] = "WORK AREA"; style_header(ws, 5, 2, color="C00000")
+        ws['A6'] = "Input Parameter"; ws['B6'].fill = PatternFill(start_color="FFFF00", fill_type="solid")
+        ws['A7'] = "Calculated Result"; ws['B7'].fill = PatternFill(start_color="FFFF00", fill_type="solid")
+    return generate
+
+def make_sql_gen(tid, instruction):
+    def generate(ws):
+        ws.title = f"SQL_Query_{tid}"
+        ws['A1'] = f"🏆 TASK {tid}: SQL ENGINEERING"
+        ws['A1'].font = Font(size=16, bold=True, color="2E75B6")
+        ws['A3'] = "SCHEMA DESCRIPTION:"
+        ws['B3'] = "Table: Transactions (id, user_id, amount, date, status)"
+        ws['A5'] = "SQL REQUIREMENT:"
+        ws['B5'] = instruction; ws['B5'].font = Font(bold=True)
+        ws['A7'] = "WRITE SQL CODE HERE:"; ws.merge_cells('B7:G10')
+        ws['B7'].fill = PatternFill(start_color="FFFF00", fill_type="solid")
+        ws['B7'].alignment = Alignment(vertical='top', wrap_text=True)
         ws.column_dimensions['B'].width = 80
-        ws.column_dimensions['C'].width = 20
+    return generate
+
+def make_power_query_gen(tid, instruction):
+    def generate(ws):
+        ws.title = f"PQ_ETL_{tid}"
+        ws['A1'] = f"🏆 TASK {tid}: POWER QUERY / ETL"
+        ws['A1'].font = Font(size=16, bold=True, color="7030A0")
+        ws['A3'] = "ETL TASK:"; ws['B3'] = instruction; ws['B3'].font = Font(bold=True)
+        # Messy Data Layout for PQ
+        ws['A5'] = "RAW DIRTY DATA (MESSY)"; style_header(ws, 5, 4, color="7030A0")
+        for r in range(6, 12):
+            ws.cell(row=r, column=1, value=f"  {random.randint(100,200)}  ")
+            ws.cell(row=r, column=2, value=f"USER_{tid}_#_{r}")
+            ws.cell(row=r, column=3, value=f"error_{random.randint(1,5)}")
+            ws.cell(row=r, column=4, value="2024/01/01")
+        ws['F5'] = "EXPECTED CLEAN OUTPUT"; style_header(ws, 5, 3, color="BF8F00")
+        for r in range(6, 12):
+            for c in range(6, 9): ws.cell(row=r, column=c).fill = PatternFill(start_color="FFFF00", fill_type="solid")
+    return generate
+
+def make_vba_gen(tid, instruction):
+    def generate(ws):
+        ws.title = f"VBA_Automation_{tid}"
+        ws['A1'] = f"🏆 TASK {tid}: VBA AUTOMATION"
+        ws['A1'].font = Font(size=16, bold=True, color="375623")
+        ws['A3'] = "AUTOMATION SCRIPT:"; ws['B3'] = instruction; ws['B3'].font = Font(bold=True)
+        ws['A5'] = "DEVELOPER CODE BOX:"; ws.merge_cells('A6:H15')
+        ws['A6'].fill = PatternFill(start_color="FFFF00", fill_type="solid")
+        ws['A6'].alignment = Alignment(vertical='top', wrap_text=True)
+        ws['A6'] = "Sub Procedure_" + str(tid) + "()\n\n' Write your code here\n\nEnd Sub"
+        ws.column_dimensions['A'].width = 100
     return generate
 
 # ============================================
@@ -185,45 +233,41 @@ def make_generator(tid, instruction):
 # ============================================
 
 def create_randomized_midterm(task_ids):
-    """Creates a workbook with 10 strictly unique tasks"""
     from excel_assignment import create_excel_exercise_workbook
-    wb = create_excel_exercise_workbook("Midterm_Final")
+    wb = create_excel_exercise_workbook("Midterm_Ultra_Hard")
     
-    # 1. Clean the Instructions sheet safely
     if 'Instructions' not in wb.sheetnames:
         ws = wb.create_sheet("Instructions", 0)
     else:
         ws = wb['Instructions']
     
+    # Clean Instructions safely
     for r in range(1, 100):
         for c in range(1, 15):
             try:
                 cell = ws.cell(row=r, column=c)
-                if not isinstance(cell, openpyxl.cell.cell.MergedCell):
-                    cell.value = None
+                if not isinstance(cell, openpyxl.cell.cell.MergedCell): cell.value = None
             except: pass
 
-    # 2. Remove all template sheets
+    # Clear old sheets
     for sheetname in wb.sheetnames[:]:
         if sheetname != 'Instructions':
             try: wb.remove(wb[sheetname])
             except: pass
             
-    # 3. Add the 10 Randomized Tasks
     bank = get_task_bank()
     for tid in task_ids:
         if tid in bank:
-            new_ws = wb.create_sheet(title=f"Temp_{tid}")
+            new_ws = wb.create_sheet(title=f"Initial_{tid}")
             bank[tid]['generate'](new_ws)
             
-    # 4. Final instructions update
-    ws['A1'] = "📊 RANDOMIZED MIDTERM EXAM - 100% UNIQUE"
+    # Final info
+    ws['A1'] = "📊 RANDOMIZED MIDTERM EXAM - 100% UNIQUE & HARD"
     ws['A1'].font = Font(size=20, bold=True, color="C00000")
-    ws['A3'] = "🚀 YOUR UNIQUE EXAM IS READY"
-    ws['A5'] = "1. You have been assigned 10 unique, hard challenges."
-    ws['A6'] = "2. NO OTHER STUDENT has this exact combination of questions."
-    ws['A7'] = "3. Complete your work in the YELLOW cells or the provided work areas."
-    ws['A9'] = f"Tasks assigned: {', '.join(map(str, task_ids))}"
+    ws['A3'] = "🚀 EXPERT MODE ENABLED"
+    ws['A5'] = "1. You have 10 unique challenges across 5 disciplines."
+    ws['A6'] = "2. Each sheet uses a different technical layout (SQL, VBA, Logic, ETL)."
+    ws['A8'] = f"Tasks: {', '.join(map(str, task_ids))}"
     
     ws.column_dimensions['A'].width = 80
     wb.active = ws
