@@ -28,54 +28,10 @@ def get_task_bank():
         if i <= 80: return "POWER_QUERY"
         return "VBA_EXPERT"
 
-    # Task 1 (Real)
-    bank[1] = {
-        'id': 1,
-        'topic': 'EXCEL_BASIC',
-        'title': 'Excel Basic 1: Sums',
-        'generate': generate_task_1,
-        'grade': grade_task_1
-    }
-    
-    # Task 21 (Real)
-    bank[21] = {
-        'id': 21,
-        'topic': 'EXCEL_ADVANCED',
-        'title': 'Excel Advanced 21: Grades',
-        'generate': generate_task_21,
-        'grade': grade_task_21
-    }
-    
-    # Task 41 (Real)
-    bank[41] = {
-        'id': 41,
-        'topic': 'SQL_QUERIES',
-        'title': 'SQL Query 41: Filter',
-        'generate': generate_task_41,
-        'grade': grade_task_41
-    }
-    
-    # Task 61 (Real)
-    bank[61] = {
-        'id': 61,
-        'topic': 'POWER_QUERY',
-        'title': 'Power Query 61: Cleaning',
-        'generate': generate_task_61,
-        'grade': grade_task_61
-    }
-    
-    # Task 81 (Real)
-    bank[81] = {
-        'id': 81,
-        'topic': 'VBA_EXPERT',
-        'title': 'VBA Expert 81: Macros',
-        'generate': generate_task_81,
-        'grade': grade_task_81
-    }
-
-    # Generate placeholders for the rest
+    # Generate placeholders for all 100 tasks first
     def make_placeholder_generator(tid):
         def generator(ws):
+            # Final title set here
             ws.title = f"Task_{tid}"
             ws['A1'] = f"📝 Task {tid}: Advanced Data Analysis"
             ws['A1'].font = Font(size=14, bold=True)
@@ -99,14 +55,34 @@ def get_task_bank():
         return grader
 
     for i in range(1, 101):
-        if i not in bank:
-            bank[i] = {
-                'id': i,
-                'topic': get_topic(i),
-                'title': f"Task {i}: {get_topic(i)}",
-                'generate': make_placeholder_generator(i),
-                'grade': make_placeholder_grader(i)
-            }
+        bank[i] = {
+            'id': i,
+            'topic': get_topic(i),
+            'title': f"Task {i}: {get_topic(i)}",
+            'generate': make_placeholder_generator(i),
+            'grade': make_placeholder_grader(i)
+        }
+
+    # Override with Real Logic for specific tasks
+    bank[1]['title'] = 'Excel Basic 1: Sums'
+    bank[1]['generate'] = generate_task_1
+    bank[1]['grade'] = grade_task_1
+    
+    bank[21]['title'] = 'Excel Advanced 21: Grades'
+    bank[21]['generate'] = generate_task_21
+    bank[21]['grade'] = grade_task_21
+    
+    bank[41]['title'] = 'SQL Query 41: Filter'
+    bank[41]['generate'] = generate_task_41
+    bank[41]['grade'] = grade_task_41
+    
+    bank[61]['title'] = 'Power Query 61: Cleaning'
+    bank[61]['generate'] = generate_task_61
+    bank[61]['grade'] = grade_task_61
+    
+    bank[81]['title'] = 'VBA Expert 81: Macros'
+    bank[81]['generate'] = generate_task_81
+    bank[81]['grade'] = grade_task_81
             
     return bank
 
@@ -203,43 +179,46 @@ def grade_task_81(wb):
 def create_randomized_midterm(task_ids):
     """Creates a workbook with 10 specific tasks"""
     from excel_assignment import create_excel_exercise_workbook
-    # Use a generic title to avoid triggering other logic
-    wb = create_excel_exercise_workbook("Midterm_Randomized")
+    wb = create_excel_exercise_workbook("Midterm_Final")
     
-    # ENSURE INSTRUCTIONS SHEET EXISTS
     if 'Instructions' not in wb.sheetnames:
         ws = wb.create_sheet("Instructions", 0)
     else:
         ws = wb['Instructions']
     
-    # Clear existing content carefully
-    for row in ws.iter_rows(min_row=3, max_row=50, min_col=1, max_col=10):
-        for cell in row:
-            if hasattr(cell, 'value') and not isinstance(cell, openpyxl.cell.cell.MergedCell):
-                cell.value = None
+    # 1. Clean the Instructions sheet safely without hitting Merged Cells
+    # Instead of iter_rows, just clear specific likely ranges that are NOT merged
+    for r in range(3, 50):
+        for c in range(1, 10):
+            try:
+                cell = ws.cell(row=r, column=c)
+                # Only clear if it's a regular cell
+                if not isinstance(cell, openpyxl.cell.cell.MergedCell):
+                    cell.value = None
+            except: pass
 
-    # Remove all other sheets
+    # 2. Remove all other sheets
     for sheetname in wb.sheetnames[:]:
         if sheetname != 'Instructions':
-            wb.remove(wb[sheetname])
+            try:
+                wb.remove(wb[sheetname])
+            except: pass
             
+    # 3. Add Randomized Sheets
     bank = get_task_bank()
     for tid in task_ids:
         if tid in bank:
-            # Create a blank sheet with a safe temporary name
-            temp_name = f"T{tid}_{random.randint(1000,9999)}"
-            new_ws = wb.create_sheet(title=temp_name)
-            # Call generator which will set the final title
+            # Generate sheet with safe temp title
+            new_ws = wb.create_sheet(title=f"TaskID_{tid}")
             bank[tid]['generate'](new_ws)
             
-    # Update Instructions
+    # 4. Final instructions update
     ws['A1'] = "📊 RANDOMIZED MIDTERM EXAM"
     ws['A1'].font = Font(size=18, bold=True)
     ws['A3'] = "🚀 YOUR EXAM IS READY"
     ws['A5'] = "1. You have been assigned 10 unique tasks."
     ws['A6'] = "2. Each sheet contains one specific challenge."
-    ws['A7'] = "3. Complete all tasks in the YELLOW cells."
-    ws['A9'] = f"Tasks assigned: {', '.join(map(str, task_ids))}"
+    ws['A8'] = f"Tasks: {', '.join(map(str, task_ids))}"
     
     wb.active = ws
     return wb
@@ -248,17 +227,17 @@ def grade_randomized_midterm(file_path, task_ids):
     """Grades a submission based on assigned tasks"""
     try:
         wb = openpyxl.load_workbook(file_path, data_only=True)
-    except:
-        return 0, "Error opening file"
+    except: return 0, "Error opening file"
         
     bank = get_task_bank()
-    total_score = 0
-    details = []
+    total_score = 0; details = []
     
     for tid in task_ids:
         if tid in bank:
-            score = bank[tid]['grade'](wb)
-            total_score += score
-            details.append({'task': bank[tid]['title'], 'score': score})
+            try:
+                score = bank[tid]['grade'](wb)
+                total_score += score
+                details.append({'task': bank[tid]['title'], 'score': score})
+            except: details.append({'task': bank[tid]['title'], 'score': 0})
             
     return total_score, details
