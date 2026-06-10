@@ -73,7 +73,7 @@ def get_task_bank():
         'grade': grade_task_81
     }
 
-    # Generate placeholders for the rest using a FUNCTION FACTORY to avoid closure/exec traps
+    # Generate placeholders for the rest
     def make_placeholder_generator(tid):
         def generator(ws):
             ws.title = f"Task_{tid}"
@@ -203,32 +203,43 @@ def grade_task_81(wb):
 def create_randomized_midterm(task_ids):
     """Creates a workbook with 10 specific tasks"""
     from excel_assignment import create_excel_exercise_workbook
-    wb = create_excel_exercise_workbook("Dynamic Midterm")
+    # Use a generic title to avoid triggering other logic
+    wb = create_excel_exercise_workbook("Midterm_Randomized")
     
-    # Clear all sheets except Instructions
-    for sheet in wb.sheetnames[:]:
-        if sheet != 'Instructions':
-            wb.remove(wb[sheet])
+    # ENSURE INSTRUCTIONS SHEET EXISTS
+    if 'Instructions' not in wb.sheetnames:
+        ws = wb.create_sheet("Instructions", 0)
+    else:
+        ws = wb['Instructions']
+    
+    # Clear existing content carefully
+    for row in ws.iter_rows(min_row=3, max_row=50, min_col=1, max_col=10):
+        for cell in row: cell.value = None
+
+    # Remove all other sheets
+    for sheetname in wb.sheetnames[:]:
+        if sheetname != 'Instructions':
+            wb.remove(wb[sheetname])
             
     bank = get_task_bank()
     for tid in task_ids:
         if tid in bank:
-            # Create a blank sheet first
-            ws = wb.create_sheet(title=f"Temp_{tid}")
-            # Call generator which will set the title and content
-            bank[tid]['generate'](ws)
+            # Create a blank sheet with a safe temporary name
+            temp_name = f"T{tid}_{random.randint(1000,9999)}"
+            new_ws = wb.create_sheet(title=temp_name)
+            # Call generator which will set the final title
+            bank[tid]['generate'](new_ws)
             
-    if 'Instructions' in wb.sheetnames:
-        ws = wb['Instructions']
-        # Clear existing instructions content to ensure only relevant info is shown
-        for row in ws['A3:F50']:
-            for cell in row: cell.value = None
-        ws['A3'] = "🚀 YOUR RANDOMIZED MIDTERM IS READY"
-        ws['A5'] = "1. You have been assigned 10 unique tasks."
-        ws['A6'] = "2. Each sheet contains one specific challenge."
-        ws['A7'] = "3. Complete all tasks in the YELLOW cells."
-        ws['A9'] = f"Tasks assigned: {', '.join(map(str, task_ids))}"
-        
+    # Update Instructions
+    ws['A1'] = "📊 RANDOMIZED MIDTERM EXAM"
+    ws['A1'].font = Font(size=18, bold=True)
+    ws['A3'] = "🚀 YOUR EXAM IS READY"
+    ws['A5'] = "1. You have been assigned 10 unique tasks."
+    ws['A6'] = "2. Each sheet contains one specific challenge."
+    ws['A7'] = "3. Complete all tasks in the YELLOW cells."
+    ws['A9'] = f"Tasks assigned: {', '.join(map(str, task_ids))}"
+    
+    wb.active = ws
     return wb
 
 def grade_randomized_midterm(file_path, task_ids):
