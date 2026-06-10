@@ -1813,6 +1813,8 @@ def student_midterms():
     return render_template('student_midterms.html', assigned_midterms=assigned_midterms)
 
 
+from midterm_bank import create_randomized_midterm, grade_randomized_midterm, get_task_bank
+
 @app.route('/student/midterms/<int:midterm_id>/download')
 def download_midterm_workbook(midterm_id):
     if 'student_id' not in session:
@@ -1828,15 +1830,34 @@ def download_midterm_workbook(midterm_id):
         flash('This mid-term is not assigned to you.', 'error')
         return redirect(url_for('student_midterms'))
 
-    # Here you would generate a custom workbook with only the assigned sheets
-    # For now, we'll just return the original file
-    import os
-    from flask import send_file
-
-    # Get the original file path from the mid-term
     midterm = MidTerm.query.get_or_404(midterm_id)
 
-    # Extract the filename from the stored URL
+    # DYNAMIC RANDOMIZED MIDTERM LOGIC
+    if not midterm.file_url or "Randomized" in midterm.title or midterm.total_sheets >= 100:
+        try:
+            # Parse assigned task IDs
+            task_ids = [int(tid.strip()) for tid in assignment.assigned_sheets.split(',') if tid.strip()]
+            
+            # Create the dynamic workbook
+            wb = create_randomized_midterm(task_ids)
+            
+            # Save to BytesIO for download
+            output = BytesIO()
+            wb.save(output)
+            output.seek(0)
+            
+            return send_file(
+                output,
+                as_attachment=True,
+                download_name=f"midterm_{midterm_id}_{student_id}.xlsm",
+                mimetype='application/vnd.ms-excel.sheet.macroEnabled.12'
+            )
+        except Exception as e:
+            print(f"Error generating dynamic midterm: {e}")
+            flash(f"Failed to generate dynamic workbook: {str(e)}", "error")
+            return redirect(url_for('student_midterms'))
+
+    # ORIGINAL STATIC FILE LOGIC
     if midterm.file_url:
         file_path = os.path.join(app.root_path, 'static', 'uploads', os.path.basename(midterm.file_url))
         if os.path.exists(file_path):
@@ -1890,9 +1911,35 @@ def submit_midterm(midterm_id):
             assignment.submission_file_path = f"/static/submissions/{unique_filename}"
             assignment.status = 'submitted'
             assignment.submitted_at = datetime.now()
+            
+            # AUTO-GRADING FOR DYNAMIC MIDTERM
+            if not midterm.file_url or "Randomized" in midterm.title or midterm.total_sheets >= 100:
+                try:
+                    task_ids = [int(tid.strip()) for tid in assignment.assigned_sheets.split(',') if tid.strip()]
+                    score, details = grade_randomized_midterm(file_path, task_ids)
+                    
+                    assignment.grade = float(score)
+                    assignment.status = 'graded'
+                    
+                    # Sync to Google Sheets
+                    student = Student.query.filter_by(student_id=student_id).first()
+                    if student:
+                        add_midterm_grade_to_sheet(
+                            student_id=student.student_id,
+                            name=student.name,
+                            midterm_title=midterm.title,
+                            grade=assignment.grade,
+                            graded_at=datetime.now()
+                        )
+                    
+                    flash(f'Mid-term submitted and AI graded! Score: {assignment.grade}', 'success')
+                except Exception as e:
+                    print(f"Auto-grading error: {e}")
+                    flash('Mid-term submitted successfully! (Auto-grading failed, admin will grade manually)', 'warning')
+            else:
+                flash('Mid-term submitted successfully!', 'success')
+                
             db.session.commit()
-
-            flash('Mid-term submitted successfully!', 'success')
             return redirect(url_for('student_midterms'))
 
     return render_template('submit_midterm.html', midterm=midterm, assignment=assignment)

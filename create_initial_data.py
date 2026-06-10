@@ -1,6 +1,6 @@
 import os
 import json
-from app import app, db, Admin, Student, ExcelSkillsAssignment, SQLSkillsAssignment
+from app import app, db, Admin, Student, ExcelSkillsAssignment, SQLSkillsAssignment, MidTerm
 from werkzeug.security import generate_password_hash
 from datetime import datetime, timedelta
 from sql_grader import get_sql_assignment_questions
@@ -140,6 +140,22 @@ def create_initial_data():
                     sql_assignment.is_active = True
                 print(f"✅ {sql_data['title']} exists/activated.")
 
+        db.session.commit()
+
+        # 6. Create Randomized Midterm Exam
+        midterm = MidTerm.query.filter_by(title="Randomized Midterm Exam").first()
+        if not midterm:
+            new_midterm = MidTerm(
+                title="Randomized Midterm Exam",
+                description="Comprehensive Exam covering Excel (Basic/Advanced), SQL, Power Query, and VBA. Each student receives 10 unique tasks from a pool of 100. AI Auto-graded.",
+                total_sheets=100,
+                sheets_per_student=10,
+                created_by="admin",
+                due_date=datetime.now() + timedelta(days=30)
+            )
+            db.session.add(new_midterm)
+            print("✅ Randomized Midterm Exam created!")
+        
         db.session.commit()
 
 if __name__ == '__main__':
