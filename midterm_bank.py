@@ -20,7 +20,6 @@ def get_task_bank():
     """Returns the full list of 100 tasks"""
     tasks = {}
     for i in range(1, 101):
-        # We define ranges of tasks by topic
         if i <= 20: topic = "EXCEL_BASIC"
         elif i <= 40: topic = "EXCEL_ADVANCED"
         elif i <= 60: topic = "SQL_QUERIES"
@@ -44,16 +43,17 @@ def generate_task_1(ws):
     ws.title = "EXCEL_BASIC_1"
     ws['A1'] = "📝 Task 1: Basic SUM & AVERAGE"
     ws['A1'].font = Font(size=14, bold=True)
-    headers = ['Item', 'Quantity', 'Price']
+    headers = ['Item', 'Quantity', 'Price', 'Total']
     for col, h in enumerate(headers, 1): ws.cell(row=3, column=col, value=h)
-    style_header(ws, 3, 3)
+    style_header(ws, 3, 4)
     data = [['Apples', 10, 50], ['Bananas', 5, 30], ['Cherries', 20, 100]]
     for r, row in enumerate(data, 4):
         for c, val in enumerate(row, 1): ws.cell(row=r, column=c, value=val)
+        ws.cell(row=r, column=4).fill = PatternFill(start_color="FFFF00", fill_type="solid")
+    
     ws['A8'] = "Q1. Calculate Total Cost (Quantity * Price) for all items in Column D"
     ws['A9'] = "Q2. In cell D11, find the GRAND TOTAL."
     ws['C11'] = "Grand Total:"
-    ws['D4:D6'].fill = PatternFill(start_color="FFFF00", fill_type="solid")
     ws['D11'].fill = PatternFill(start_color="FFFF00", fill_type="solid")
 
 def grade_task_1(wb):
@@ -74,7 +74,7 @@ def generate_task_21(ws):
     data = [[101, 'Ali', 95], [102, 'Sara', 75], [103, 'Zaman', 82]]
     for r, row in enumerate(data, 7):
         for c, val in enumerate(row, 1): ws.cell(row=r, column=c, value=val)
-    for r in range(7, 10): ws.cell(row=r, column=4).fill = PatternFill(start_color="FFFF00", fill_type="solid")
+        ws.cell(row=r, column=4).fill = PatternFill(start_color="FFFF00", fill_type="solid")
 
 def grade_task_21(wb):
     try:
@@ -104,8 +104,9 @@ def generate_task_61(ws):
     ws['A1'] = "📝 Task 61: Power Query Cleaning"
     ws['A3'] = "Instructions: The data below has extra spaces. Provide the CLEANED version in Column B."
     data = ["  Ali  ", "SARA ", " zaman  "]
-    for r, val in enumerate(data, 5): ws.cell(row=r, column=1, value=val)
-    for r in range(5, 8): ws.cell(row=r, column=2).fill = PatternFill(start_color="FFFF00", fill_type="solid")
+    for r, val in enumerate(data, 5): 
+        ws.cell(row=r, column=1, value=val)
+        ws.cell(row=r, column=2).fill = PatternFill(start_color="FFFF00", fill_type="solid")
 
 def grade_task_61(wb):
     try:
@@ -122,9 +123,6 @@ def generate_task_81(ws):
     ws['B7'] = "Macro name must be exact."
 
 def grade_task_81(wb):
-    # This requires check of vba project - openpyxl doesn't do it well, 
-    # but we can check if student wrote the code in a cell or just assume?
-    # For midterm bank, we'll check for a 'Confirmation' flag set by VBA if possible.
     return 1.0 # Placeholder for VBA success
 
 # ... Placeholders for the rest ...
@@ -155,22 +153,19 @@ def grade_task_{i}(wb):
 def create_randomized_midterm(task_ids):
     """Creates a workbook with 10 specific tasks"""
     from excel_assignment import create_excel_exercise_workbook
-    # Use the existing template logic (xlsm)
     wb = create_excel_exercise_workbook("Midterm Exam")
     
-    # Remove default sheets if any beyond Instructions
     for sheet in wb.sheetnames:
         if sheet != 'Instructions':
             wb.remove(wb[sheet])
             
     bank = get_task_bank()
-    
     for tid in task_ids:
         if tid in bank:
-            ws = wb.create_sheet(bank[tid]['title'])
+            safe_title = re.sub(r'[:\\/?*\[\]]', '', bank[tid]['title'])[:31]
+            ws = wb.create_sheet(safe_title)
             bank[tid]['generate'](ws)
             
-    # Add a final instruction to the first sheet
     if 'Instructions' in wb.sheetnames:
         ws = wb['Instructions']
         ws['A20'] = "🏆 MIDTERM EXAM READY"
@@ -181,7 +176,6 @@ def create_randomized_midterm(task_ids):
 def grade_randomized_midterm(file_path, task_ids):
     """Grades a submission based on assigned tasks"""
     try:
-        # Load with values to check results
         wb = openpyxl.load_workbook(file_path, data_only=True)
     except:
         return 0, "Error opening file"
