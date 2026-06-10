@@ -526,13 +526,14 @@ def grade_vlookup(wb):
     score = 0; details = []
     try:
         ws = wb['VLOOKUP']
-        if ws['D19'].value and 'finance' in str(ws['D19'].value).lower(): score += 0.5; details.append({'q': 'Q1', 'correct': True})
+        # Yellow cells are in Column C (3), Rows 19, 20, 21, 22
+        if ws['C19'].value and 'finance' in str(ws['C19'].value).lower(): score += 0.5; details.append({'q': 'Q1', 'correct': True})
         else: details.append({'q': 'Q1', 'correct': False})
-        if ws['D20'].value and str(ws['D20'].value).strip() in ['42000', '42000.0']: score += 0.5; details.append({'q': 'Q2', 'correct': True})
+        if ws['C20'].value and str(ws['C20'].value).strip() in ['42000', '42000.0']: score += 0.5; details.append({'q': 'Q2', 'correct': True})
         else: details.append({'q': 'Q2', 'correct': False})
-        if ws['D21'].value and 'islamabad' in str(ws['D21'].value).lower(): score += 0.5; details.append({'q': 'Q3', 'correct': True})
+        if ws['C21'].value and 'islamabad' in str(ws['C21'].value).lower(): score += 0.5; details.append({'q': 'Q3', 'correct': True})
         else: details.append({'q': 'Q3', 'correct': False})
-        if ws['D22'].value and 'maryam' in str(ws['D22'].value).lower(): score += 0.5; details.append({'q': 'Q4', 'correct': True})
+        if ws['C22'].value and 'maryam' in str(ws['C22'].value).lower(): score += 0.5; details.append({'q': 'Q4', 'correct': True})
         else: details.append({'q': 'Q4', 'correct': False})
     except: pass
     return score, details
@@ -541,17 +542,18 @@ def grade_sumif_countif(wb):
     score = 0; details = []
     try:
         ws = wb['SUMIF & COUNTIF']
-        if ws['D20'].value and str(ws['D20'].value).strip() in ['157000', '157000.0']: score += 0.33; details.append({'q': 'Q5', 'correct': True})
+        # Yellow cells are in Column C (3), Rows 20, 21, 22, 23, 24, 25
+        if ws['C20'].value and str(ws['C20'].value).strip() in ['157000', '157000.0']: score += 0.33; details.append({'q': 'Q5', 'correct': True})
         else: details.append({'q': 'Q5', 'correct': False})
-        if ws['D21'].value and str(ws['D21'].value).strip() in ['4', '4.0']: score += 0.33; details.append({'q': 'Q6', 'correct': True})
+        if ws['C21'].value and str(ws['C21'].value).strip() in ['4', '4.0']: score += 0.33; details.append({'q': 'Q6', 'correct': True})
         else: details.append({'q': 'Q6', 'correct': False})
-        if ws['D22'].value and str(ws['D22'].value).strip() in ['15', '15.0']: score += 0.33; details.append({'q': 'Q7', 'correct': True})
+        if ws['C22'].value and str(ws['C22'].value).strip() in ['15', '15.0']: score += 0.33; details.append({'q': 'Q7', 'correct': True})
         else: details.append({'q': 'Q7', 'correct': False})
-        if ws['D23'].value and str(ws['D23'].value).strip() in ['7', '7.0']: score += 0.33; details.append({'q': 'Q8', 'correct': True})
+        if ws['C23'].value and str(ws['C23'].value).strip() in ['7', '7.0']: score += 0.33; details.append({'q': 'Q8', 'correct': True})
         else: details.append({'q': 'Q8', 'correct': False})
-        if ws['D24'].value and str(ws['D24'].value).strip() in ['82000', '82000.0']: score += 0.33; details.append({'q': 'Q9', 'correct': True})
+        if ws['C24'].value and str(ws['C24'].value).strip() in ['82000', '82000.0']: score += 0.33; details.append({'q': 'Q9', 'correct': True})
         else: details.append({'q': 'Q9', 'correct': False})
-        if ws['D25'].value and str(ws['D25'].value).strip() in ['2', '2.0']: score += 0.33; details.append({'q': 'Q10', 'correct': True})
+        if ws['C25'].value and str(ws['C25'].value).strip() in ['2', '2.0']: score += 0.33; details.append({'q': 'Q10', 'correct': True})
         else: details.append({'q': 'Q10', 'correct': False})
     except: pass
     return min(score, 2), details
@@ -560,17 +562,18 @@ def grade_text_functions(wb):
     score = 0; details = []
     try:
         ws = wb['LEFT RIGHT MID']
-        if ws['D15'].value and str(ws['D15'].value).strip().lower() == 'ahm': score += 0.33; details.append({'q': 'Q11', 'correct': True})
+        # Yellow cells are in Column C (3), Rows 15, 16, 17, 18, 19, 20
+        if ws['C15'].value and str(ws['C15'].value).strip().lower() == 'ahm': score += 0.33; details.append({'q': 'Q11', 'correct': True})
         else: details.append({'q': 'Q11', 'correct': False})
-        if ws['D16'].value and '1234567' in str(ws['D16'].value): score += 0.33; details.append({'q': 'Q12', 'correct': True})
+        if ws['C16'].value and '1234567' in str(ws['C16'].value): score += 0.33; details.append({'q': 'Q12', 'correct': True})
         else: details.append({'q': 'Q12', 'correct': False})
-        if ws['D17'].value and 'ahmed' in str(ws['D17'].value).lower(): score += 0.33; details.append({'q': 'Q13', 'correct': True})
+        if ws['C17'].value and 'ahmed' in str(ws['C17'].value).lower(): score += 0.33; details.append({'q': 'Q13', 'correct': True})
         else: details.append({'q': 'Q13', 'correct': False})
-        if ws['D18'].value and '2024' in str(ws['D18'].value): score += 0.33; details.append({'q': 'Q14', 'correct': True})
+        if ws['C18'].value and '2024' in str(ws['C18'].value): score += 0.33; details.append({'q': 'Q14', 'correct': True})
         else: details.append({'q': 'Q14', 'correct': False})
-        if ws['D19'].value and 'hotmail' in str(ws['D19'].value).lower(): score += 0.33; details.append({'q': 'Q15', 'correct': True})
+        if ws['C19'].value and 'hotmail' in str(ws['C19'].value).lower(): score += 0.33; details.append({'q': 'Q15', 'correct': True})
         else: details.append({'q': 'Q15', 'correct': False})
-        if ws['D20'].value and 'fatima' in str(ws['D20'].value).lower(): score += 0.33; details.append({'q': 'Q16', 'correct': True})
+        if ws['C20'].value and 'fatima' in str(ws['C20'].value).lower(): score += 0.33; details.append({'q': 'Q16', 'correct': True})
         else: details.append({'q': 'Q16', 'correct': False})
     except: pass
     return min(score, 2), details
@@ -578,7 +581,9 @@ def grade_text_functions(wb):
 def grade_if_nested(wb):
     score = 0; details = []
     try:
-        ws = wb['IF & NESTED IF']; students = [{'row': 4, 'g': 'A+', 's': 'Pass'}, {'row': 5, 'g': 'A', 's': 'Pass'}, {'row': 6, 'g': 'B', 's': 'Pass'}, {'row': 7, 'g': 'C', 's': 'Pass'}, {'row': 8, 'g': 'D', 's': 'Pass'}, {'row': 9, 'g': 'F', 's': 'Fail'}, {'row': 10, 'g': 'F', 's': 'Fail'}, {'row': 11, 'g': 'A', 's': 'Pass'}, {'row': 12, 'g': 'B', 's': 'Pass'}, {'row': 13, 'g': 'A+', 's': 'Pass'}]
+        ws = wb['IF & NESTED IF']
+        # Yellow cells are in Column D (4) and E (5), Rows 4 to 13
+        students = [{'row': 4, 'g': 'A+', 's': 'Pass'}, {'row': 5, 'g': 'A', 's': 'Pass'}, {'row': 6, 'g': 'B', 's': 'Pass'}, {'row': 7, 'g': 'C', 's': 'Pass'}, {'row': 8, 'g': 'D', 's': 'Pass'}, {'row': 9, 'g': 'F', 's': 'Fail'}, {'row': 10, 'g': 'F', 's': 'Fail'}, {'row': 11, 'g': 'A', 's': 'Pass'}, {'row': 12, 'g': 'B', 's': 'Pass'}, {'row': 13, 'g': 'A+', 's': 'Pass'}]
         for std in students:
             g = str(ws.cell(row=std['row'], column=4).value or "").strip().upper()
             s = str(ws.cell(row=std['row'], column=5).value or "").strip().lower()
@@ -590,12 +595,14 @@ def grade_complex(wb):
     score = 0; details = []
     try:
         ws = wb['COMPLEX CHALLENGE']
-        if ws['D20'].value and 'lap' in str(ws['D20'].value).lower(): score += 0.2
-        if ws['D21'].value and str(ws['D21'].value).strip() in ['5', '5.0']: score += 0.2
-        if ws['D22'].value and str(ws['D22'].value).strip() in ['25', '25.0']: score += 0.2
-        if ws['D23'].value and str(ws['D23'].value).strip() in ['4500', '4500.0']: score += 0.2
-        if ws['D24'].value and 'wireless' in str(ws['D24'].value).lower(): score += 0.2
+        # Yellow cells are in Column C (3), Rows 20 to 29
+        if ws['C20'].value and 'lap' in str(ws['C20'].value).lower(): score += 0.2
+        if ws['C21'].value and str(ws['C21'].value).strip() in ['5', '5.0']: score += 0.2
+        if ws['C22'].value and str(ws['C22'].value).strip() in ['25', '25.0']: score += 0.2
+        if ws['C23'].value and str(ws['C23'].value).strip() in ['4500', '4500.0']: score += 0.2
+        if ws['C24'].value and 'wireless' in str(ws['C24'].value).lower(): score += 0.2
+        # Check remaining cells for some value (lenient)
         for i in range(5):
-            if ws.cell(row=25+i, column=4).value: score += 0.2
+            if ws.cell(row=25+i, column=3).value: score += 0.2
     except: pass
     return min(score, 2), details

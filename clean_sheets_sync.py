@@ -100,7 +100,7 @@ def ensure_sheet_exists(service, sheet_id, sheet_name):
         return False
 
 def sync_to_sheets(sheet_name, data_row):
-    """Generic sync function - adds a row to any sheet"""
+    """Generic sync function - updates row if exists, otherwise appends"""
     try:
         service, sheet_id = get_sheets_service()
         if not service:
@@ -110,18 +110,71 @@ def sync_to_sheets(sheet_name, data_row):
         ensure_sheet_exists(service, sheet_id, sheet_name)
         
         # Add sync timestamp
-        data_row.append(str(datetime.now()))
+        now_str = str(datetime.now())
+        data_row.append(now_str)
         
-        # Append row
-        service.spreadsheets().values().append(
-            spreadsheetId=sheet_id,
-            range=f'{sheet_name}!A2',
-            valueInputOption='USER_ENTERED',
-            body={'values': [data_row]}
-        ).execute()
-        
-        print(f"✅ Synced to {sheet_name}: {data_row[0]}")
-        return True
+        # Determine unique keys for this sheet
+        # (Column indices that must match to consider it the same entry)
+        unique_key_indices = [0, 1] # Default: first two columns
+        if sheet_name == 'Students':
+            unique_key_indices = [0]
+        elif sheet_name in ['Quiz Results', 'Assignments', 'Midterm Grades', 'SQL Assignments', 'Excel Assignments']:
+            unique_key_indices = [0, 2] # Student ID and Title
+        elif sheet_name == 'Attendance':
+            unique_key_indices = [0, 1] # Date and Student ID
+            
+        try:
+            # Get existing data to check for duplicates
+            result = service.spreadsheets().values().get(
+                spreadsheetId=sheet_id,
+                range=f"'{sheet_name}'!A:Z"
+            ).execute()
+            rows = result.get('values', [])
+            
+            row_index = -1
+            if rows:
+                for i, row in enumerate(rows):
+                    if len(row) > max(unique_key_indices):
+                        match = True
+                        for idx in unique_key_indices:
+                            if str(row[idx]).strip() != str(data_row[idx]).strip():
+                                match = False
+                                break
+                        if match:
+                            row_index = i + 1
+                            break
+            
+            if row_index > 0:
+                # Update existing row
+                service.spreadsheets().values().update(
+                    spreadsheetId=sheet_id,
+                    range=f"'{sheet_name}'!A{row_index}",
+                    valueInputOption='USER_ENTERED',
+                    body={'values': [data_row]}
+                ).execute()
+                print(f"✅ Updated {sheet_name}: {data_row[0]}")
+            else:
+                # Append new row
+                service.spreadsheets().values().append(
+                    spreadsheetId=sheet_id,
+                    range=f"'{sheet_name}'!A2",
+                    valueInputOption='USER_ENTERED',
+                    body={'values': [data_row]}
+                ).execute()
+                print(f"✅ Appended to {sheet_name}: {data_row[0]}")
+                
+            return True
+        except Exception as e:
+            print(f"⚠️ Error checking/updating row in {sheet_name}: {e}")
+            # Fallback to append if anything goes wrong
+            service.spreadsheets().values().append(
+                spreadsheetId=sheet_id,
+                range=f"'{sheet_name}'!A2",
+                valueInputOption='USER_ENTERED',
+                body={'values': [data_row]}
+            ).execute()
+            return True
+
     except Exception as e:
         print(f"❌ Sync to {sheet_name} FAILED: {e}")
         import traceback
