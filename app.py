@@ -1638,11 +1638,14 @@ def assign_midterm(midterm_id):
         assign_to_all = request.form.get('assign_to_all')
 
         if assign_to_all == 'on':
-            # Assign to all students
-            for student in students:
-                # Generate random sheet numbers for this student
-                available_sheets = list(range(1, midterm.total_sheets + 1))
-                assigned_sheets = random.sample(available_sheets, min(midterm.sheets_per_student, len(available_sheets)))
+            # Assign to all students sequentially
+            for i, student in enumerate(students):
+                # Sequential blocks of 10 tasks (1-10, 11-20, ... 91-100, then loop back)
+                start_task = (i * midterm.sheets_per_student) % 100 + 1
+                assigned_sheets = []
+                for j in range(midterm.sheets_per_student):
+                    task_id = (start_task + j - 1) % 100 + 1
+                    assigned_sheets.append(task_id)
 
                 existing_assignment = MidTermAssignment.query.filter_by(
                     mid_term_id=midterm_id,
@@ -1657,11 +1660,14 @@ def assign_midterm(midterm_id):
                     )
                     db.session.add(assignment)
         else:
-            # Assign to selected students only
-            for student_id in selected_students:
-                # Generate random sheet numbers for this student
-                available_sheets = list(range(1, midterm.total_sheets + 1))
-                assigned_sheets = random.sample(available_sheets, min(midterm.sheets_per_student, len(available_sheets)))
+            # Assign to selected students sequentially based on total existing assignments
+            current_assignment_count = MidTermAssignment.query.filter_by(mid_term_id=midterm_id).count()
+            for i, student_id in enumerate(selected_students):
+                start_task = ((current_assignment_count + i) * midterm.sheets_per_student) % 100 + 1
+                assigned_sheets = []
+                for j in range(midterm.sheets_per_student):
+                    task_id = (start_task + j - 1) % 100 + 1
+                    assigned_sheets.append(task_id)
 
                 existing_assignment = MidTermAssignment.query.filter_by(
                     mid_term_id=midterm_id,
