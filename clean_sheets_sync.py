@@ -101,9 +101,54 @@ def ensure_sheet_exists(service, sheet_id, sheet_name):
 
 def sync_to_sheets(sheet_name, data_row):
     """Generic sync function - updates row if exists, otherwise appends"""
+    # Import here to avoid circular dependencies
+    try:
+        from sync_utils import store_failed_sync
+    except ImportError:
+        store_failed_sync = None
+
     try:
         service, sheet_id = get_sheets_service()
         if not service:
+            if store_failed_sync:
+                # Map sheet names to data types for sync_utils
+                type_map = {
+                    'Attendance': 'attendance',
+                    'Quiz Results': 'quiz',
+                    'Assignments': 'assignment',
+                    'Midterm Grades': 'midterm_grade',
+                    'Students': 'student'
+                }
+                data_type = type_map.get(sheet_name, 'unknown')
+                
+                # Reconstruct data dict from row for storage
+                data_dict = {}
+                if data_type == 'attendance':
+                    data_dict = {
+                        'date': data_row[0], 'student_id': data_row[1], 'name': data_row[2],
+                        'check_in': data_row[3], 'check_out': data_row[4], 'status': data_row[5],
+                        'check_in_location': data_row[6], 'check_out_location': data_row[10]
+                    }
+                elif data_type == 'assignment':
+                    data_dict = {
+                        'student_id': data_row[0], 'name': data_row[1], 'assignment_title': data_row[2],
+                        'submission_url': data_row[3], 'grade': data_row[4], 'submitted_at': data_row[5]
+                    }
+                elif data_type == 'quiz':
+                    data_dict = {
+                        'student_id': data_row[0], 'name': data_row[1], 'quiz_title': data_row[2],
+                        'score': data_row[3].split('/')[0] if '/' in data_row[3] else 0,
+                        'total_questions': data_row[3].split('/')[1] if '/' in data_row[3] else 10,
+                        'submitted_at': data_row[5]
+                    }
+                elif data_type == 'midterm_grade':
+                    data_dict = {
+                        'student_id': data_row[0], 'name': data_row[1], 'midterm_title': data_row[2],
+                        'grade': data_row[3], 'graded_at': data_row[4]
+                    }
+                
+                if data_dict:
+                    store_failed_sync(data_type, data_dict)
             return False
         
         # Ensure sheet exists with headers
@@ -177,6 +222,18 @@ def sync_to_sheets(sheet_name, data_row):
 
     except Exception as e:
         print(f"❌ Sync to {sheet_name} FAILED: {e}")
+        # Try to store even here if it's a connection issue
+        try:
+            from sync_utils import store_failed_sync
+            # Map sheet names to data types for sync_utils (simplified logic for exception handler)
+            type_map = {'Attendance': 'attendance', 'Quiz Results': 'quiz', 'Assignments': 'assignment', 'Midterm Grades': 'midterm_grade'}
+            data_type = type_map.get(sheet_name)
+            if data_type:
+                # Basic dict reconstruction
+                data_dict = {'student_id': data_row[0], 'name': data_row[1]} # Minimal data
+                store_failed_sync(data_type, data_dict)
+        except:
+            pass
         import traceback
         traceback.print_exc()
         return False

@@ -5,7 +5,7 @@ import random
 import re
 
 # ============================================
-# MASTER TASK BANK (100 TASKS) - EXPERT MODE
+# MASTER TASK BANK (100 TASKS) - EASY/MEDIUM MODE
 # ============================================
 
 def get_unique_style(tid):
@@ -52,7 +52,7 @@ def get_task_bank():
         15: "Ranking: Rank products based on Sales; if tied, use Profit as tie-breaker.",
         16: "Data Shifting: Use IF and LEN to identify non-empty values and return their character count.",
         17: "Advanced Lookup: Use INDEX and MATCH to find the exact position of a specific key in the reference table.",
-        18: "Frequency: Categorize test scores into buckets: 0-40 (Fail), 41-70 (Pass), 71-100 (Expert).",
+        18: "Frequency: Categorize test scores into buckets: 0-40 (Fail), 41-70 (Pass), 71-100 (Medium).",
         19: "Text Joining: Combine Name, City, and ID into a single string: 'ID - NAME [CITY]'.",
         20: "Transposing Logic: Take the input range and return its total character count using formulas.",
         21: "Pro Lookup: INDEX/MATCH/MATCH for 2-way matrix lookup (Product vs Month) from Reference Matrix.",
@@ -176,9 +176,11 @@ def make_basic_grader(tid):
                     if val is not None and str(val).strip() != "":
                         filled_count += 1
             elif tid <= 40: # EXCEL_ADVANCED
+                # Adjust r_start for Advanced tasks which use 3 + row_offset
+                r_start_adv = 3 + style['row_offset']
                 total_expected = 2
-                if ws.cell(row=r_start+5, column=c_start+1).value: filled_count += 1
-                if ws.cell(row=r_start+6, column=c_start+1).value: filled_count += 1
+                if ws.cell(row=r_start_adv+5, column=c_start+1).value: filled_count += 1
+                if ws.cell(row=r_start_adv+6, column=c_start+1).value: filled_count += 1
             elif tid <= 60: # SQL_QUERIES
                 # SQL box is yellow
                 total_expected = 1
@@ -193,7 +195,7 @@ def make_basic_grader(tid):
                 for r in range(1, rows):
                     if ws.cell(row=r_start+5+r, column=c_start+cols+1).value:
                         filled_count += 1
-            else: # VBA_EXPERT
+            else: # VBA_MEDIUM
                 # VBA box is yellow
                 total_expected = 1
                 val = ws.cell(row=r_start+5, column=c_start).value
@@ -208,11 +210,11 @@ def make_basic_grader(tid):
     return grade
 
 def get_topic_name(i):
-    if i <= 20: return "EXCEL_LOGIC"
-    if i <= 40: return "EXCEL_ADVANCED"
-    if i <= 60: return "SQL_QUERIES"
-    if i <= 80: return "POWER_QUERY"
-    return "VBA_EXPERT"
+    if i <= 20: return "EXCEL_EASY"
+    if i <= 40: return "EXCEL_MEDIUM"
+    if i <= 60: return "SQL_MEDIUM"
+    if i <= 80: return "PQ_MEDIUM"
+    return "VBA_MEDIUM"
 
 # ---------------------------------------------------------
 # UNIQUE LAYOUT GENERATORS (HIGH VARIETY)
@@ -224,7 +226,7 @@ def make_excel_logic_gen(tid, instruction):
         r_start = 2 + style['row_offset']
         c_start = 1 + style['col_offset']
         ws.title = f"Logic_{tid}"
-        ws.cell(row=r_start, column=c_start, value=f"🏆 TASK {tid}: EXPERT LOGIC").font = Font(size=14, bold=True, color=style['color'])
+        ws.cell(row=r_start, column=c_start, value=f"🏆 TASK {tid}: EASY LOGIC").font = Font(size=14, bold=True, color=style['color'])
         ws.cell(row=r_start+2, column=c_start, value="GOAL:").font = Font(bold=True)
         ws.cell(row=r_start+2, column=c_start+1, value=instruction).font = Font(bold=True)
         
@@ -421,7 +423,7 @@ def make_vba_gen(tid, instruction):
 
 def create_randomized_midterm(task_ids):
     from excel_assignment import create_excel_exercise_workbook
-    wb = create_excel_exercise_workbook("Midterm_Final_Expert")
+    wb = create_excel_exercise_workbook("Midterm_Final_Medium")
     
     if 'Instructions' not in wb.sheetnames:
         ws = wb.create_sheet("Instructions", 0)
@@ -450,7 +452,7 @@ def create_randomized_midterm(task_ids):
             new_ws = wb.create_sheet(title=f"Task_{tid}")
             bank[tid]['generate'](new_ws)
             
-    ws['A1'] = "📊 RANDOMIZED MIDTERM EXAM - 100% UNIQUE & EXPERT"
+    ws['A1'] = "📊 RANDOMIZED MIDTERM EXAM - 100% UNIQUE & EASY"
     ws['A1'].font = Font(size=22, bold=True, color="C00000")
     ws['A3'] = "🚀 EXAMINATION INTEGRITY CHECK:"
     ws['A4'] = "• Your exam contains 10 unique sheets specifically chosen for you."
@@ -469,19 +471,40 @@ def grade_randomized_midterm(file_path, task_ids):
     for tid in task_ids:
         if tid in bank:
             try:
-                # Find the sheet for this task
-                sheet_name = f"Task_{tid}"
-                # Also check for old pattern if needed
-                if sheet_name not in wb.sheetnames:
+                # Find the sheet for this task with robust matching
+                sheet_name = None
+                potential_names = [
+                    f"Task_{tid}", 
+                    f"Logic_{tid}", f"Adv_{tid}", f"SQL_{tid}", f"ETL_{tid}", f"VBA_{tid}",
+                    f"Task {tid}", f"Logic{tid}", f"Adv{tid}", f"SQL{tid}", f"ETL{tid}", f"VBA{tid}"
+                ]
+                
+                # Check exact matches first
+                for name in potential_names:
+                    if name in wb.sheetnames:
+                        sheet_name = name
+                        break
+                
+                # Fallback to partial matches
+                if not sheet_name:
                     for s in wb.sheetnames:
-                        if f"Exam_S{tid}_" in s:
+                        # Extract numbers from sheet name to compare
+                        digits = "".join(filter(str.isdigit, s))
+                        if digits == str(tid):
                             sheet_name = s
                             break
-                
-                score = bank[tid]['grade'](wb, sheet_name)
-                total_score += score
-                details.append({'task': bank[tid]['title'], 'score': score})
+                        if f"_{tid}" in s or f" {tid}" in s or s.endswith(str(tid)):
+                            sheet_name = s
+                            break
+
+                if sheet_name:
+                    score = bank[tid]['grade'](wb, sheet_name)
+                    total_score += score
+                    details.append({'task': bank[tid]['title'], 'score': score})
+                else:
+                    print(f"⚠️ Could not find sheet for Task {tid}")
+                    details.append({'task': bank[tid]['title'], 'score': 0})
             except Exception as e:
                 print(f"Error grading Task {tid}: {e}")
                 details.append({'task': bank[tid]['title'], 'score': 0})
-    return total_score, details
+    return round(total_score, 2), details

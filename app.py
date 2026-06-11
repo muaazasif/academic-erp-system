@@ -26,7 +26,7 @@ from email.mime.multipart import MIMEMultipart
 # Load environment variables with absolute path
 from pathlib import Path
 env_path = Path(__file__).parent / '.env'
-load_dotenv(dotenv_path=env_path)
+load_dotenv(dotenv_path=env_path, override=True)
 
 # Timezone helper function
 def get_current_time():
