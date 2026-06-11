@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file, after_this_request
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
@@ -1844,13 +1844,24 @@ def download_midterm_workbook(midterm_id):
             # Create the dynamic workbook
             wb = create_randomized_midterm(task_ids)
             
-            # Save to BytesIO for download
-            output = BytesIO()
-            wb.save(output)
-            output.seek(0)
+            # Save to a temporary file for robust download
+            import tempfile
+            temp_dir = tempfile.gettempdir()
+            temp_path = os.path.join(temp_dir, f"midterm_{midterm_id}_{student_id}.xlsm")
             
+            wb.save(temp_path)
+            
+            @after_this_request
+            def cleanup(response):
+                try:
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+                except Exception as e:
+                    print(f"Error cleaning up temp file: {e}")
+                return response
+
             return send_file(
-                output,
+                temp_path,
                 as_attachment=True,
                 download_name=f"midterm_{midterm_id}_{student_id}.xlsm",
                 mimetype='application/vnd.ms-excel.sheet.macroEnabled.12'
