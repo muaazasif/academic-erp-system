@@ -258,6 +258,9 @@ def make_excel_logic_gen(tid, instruction):
             data_type = 'count'
             
         style_header(ws, r_start+4, c_start, 3, color=style['color'])
+        for j, h in enumerate(headers):
+            ws.cell(row=r_start+4, column=c_start+j, value=h)
+            
         for i in range(1, 8):
             if data_type == 'email':
                 names = ['muaaz', 'sara', 'ali', 'fatima', 'zain', 'hina', 'taha']
@@ -309,6 +312,10 @@ def make_excel_advanced_gen(tid, instruction):
         
         ws.cell(row=r_start+3, column=c_start+4, value=matrix_title).font = Font(bold=True)
         style_header(ws, r_start+4, c_start+4, 3, color=style['color'])
+        ws.cell(row=r_start+4, column=c_start+4, value="Reference ID")
+        ws.cell(row=r_start+4, column=c_start+5, value="Value")
+        ws.cell(row=r_start+4, column=c_start+6, value="Category")
+        
         for r in range(1, 10):
             ws.cell(row=r_start+4+r, column=c_start+4, value=f"Ref_{tid}_{r}")
             ws.cell(row=r_start+4+r, column=c_start+5, value=random.randint(1,1000))
@@ -382,6 +389,10 @@ def make_power_query_gen(tid, instruction):
         cols = 4
         ws.cell(row=r_start+4, column=c_start, value="MESSY SOURCE DATA").font = Font(bold=True)
         style_header(ws, r_start+5, c_start, cols, color=style['color'])
+        ws.cell(row=r_start+5, column=c_start, value="Raw_ID")
+        ws.cell(row=r_start+5, column=c_start+1, value="Value")
+        ws.cell(row=r_start+5, column=c_start+2, value="Flag")
+        ws.cell(row=r_start+5, column=c_start+3, value="Timestamp")
         
         for r in range(1, rows):
             ws.cell(row=r_start+5+r, column=c_start, value=f"  RAW_{random.randint(100,999)}  ")
