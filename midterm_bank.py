@@ -227,12 +227,66 @@ def make_excel_logic_gen(tid, instruction):
         ws.cell(row=r_start+2, column=c_start, value="GOAL:").font = Font(bold=True)
         ws.cell(row=r_start+2, column=c_start+1, value=instruction).font = Font(bold=True)
         
-        headers = ['Input_X', 'Input_Y', 'Logic_Test_Result']
+        # Comprehensive context-aware data generation
+        instr_lower = instruction.lower()
+        headers = ['Input_A', 'Input_B', 'Your_Result']
+        data_type = 'number'
+        
+        if 'email' in instr_lower or 'domain' in instr_lower:
+            headers = ['Email_Address', 'Category', 'Extracted_Domain']
+            data_type = 'email'
+        elif 'date' in instr_lower or 'days' in instr_lower or 'age' in instr_lower:
+            headers = ['Base_Date', 'Interval/Birth', 'Result_Calculation']
+            data_type = 'date'
+        elif 'sales' in instr_lower or 'profit' in instr_lower or 'price' in instr_lower or 'margin' in instr_lower:
+            headers = ['Gross_Revenue', 'Cost_of_Goods', 'Logic_Output']
+            data_type = 'currency'
+        elif 'grade' in instr_lower or 'marks' in instr_lower or 'score' in instr_lower:
+            headers = ['Student_ID', 'Total_Marks', 'Final_Grade']
+            data_type = 'grades'
+        elif 'clean' in instr_lower or 'trim' in instr_lower or 'proper' in instr_lower:
+            headers = ['Raw_Dirty_Text', 'Status', 'Cleaned_Text']
+            data_type = 'text_clean'
+        elif 'loan' in instr_lower or 'interest' in instr_lower or 'amortization' in instr_lower:
+            headers = ['Loan_Amount', 'Interest_Rate', 'Payment_Detail']
+            data_type = 'finance'
+        elif 'unique' in instr_lower or 'count' in instr_lower:
+            headers = ['Data_Entry', 'Department', 'Formula_Check']
+            data_type = 'count'
+            
         style_header(ws, r_start+4, c_start, 3, color=style['color'])
         for i in range(1, 8):
-            ws.cell(row=r_start+4+i, column=c_start, value=random.randint(10, 500))
-            ws.cell(row=r_start+4+i, column=c_start+1, value=random.choice(['True','False','Pending']))
+            if data_type == 'email':
+                names = ['muaaz', 'sara', 'ali', 'fatima', 'zain', 'hina', 'taha']
+                domains = ['gmail.com', 'yahoo.pk', 'outlook.org', 'company.com']
+                ws.cell(row=r_start+4+i, column=c_start, value=f"{names[i-1]}@{domains[random.randint(0,3)]}")
+                ws.cell(row=r_start+4+i, column=c_start+1, value=random.choice(['Work', 'Personal']))
+            elif data_type == 'date':
+                ws.cell(row=r_start+4+i, column=c_start, value=f"2024-{random.randint(1,12):02d}-{random.randint(10,28)}")
+                ws.cell(row=r_start+4+i, column=c_start+1, value=random.randint(1, 365))
+            elif data_type == 'currency':
+                ws.cell(row=r_start+4+i, column=c_start, value=random.randint(5000, 500000))
+                ws.cell(row=r_start+4+i, column=c_start+1, value=random.randint(1000, 4000))
+            elif data_type == 'grades':
+                ws.cell(row=r_start+4+i, column=c_start, value=f"S-{100+i}")
+                ws.cell(row=r_start+4+i, column=c_start+1, value=random.randint(20, 100))
+            elif data_type == 'text_clean':
+                dirty = [ "  muAAZ ASIF  ", "kArachI_pk ", "  -EXCEL- ", "  99_ID_##", "   sara-khan ", " p-r-o ", "  test  " ]
+                ws.cell(row=r_start+4+i, column=c_start, value=dirty[i-1])
+                ws.cell(row=r_start+4+i, column=c_start+1, value="Dirty")
+            elif data_type == 'finance':
+                ws.cell(row=r_start+4+i, column=c_start, value=random.randint(100000, 10000000))
+                ws.cell(row=r_start+4+i, column=c_start+1, value=f"{random.uniform(5, 15):.2f}%")
+            else:
+                ws.cell(row=r_start+4+i, column=c_start, value=f"Item_{tid}_{i}")
+                ws.cell(row=r_start+4+i, column=c_start+1, value=random.randint(100, 999))
+            
+            # Target yellow cell
             ws.cell(row=r_start+4+i, column=c_start+2).fill = PatternFill(start_color="FFFF00", fill_type="solid")
+            
+        ws.column_dimensions[get_column_letter(c_start)].width = 30
+        ws.column_dimensions[get_column_letter(c_start+1)].width = 20
+        ws.column_dimensions[get_column_letter(c_start+2)].width = 25
     return generate
 
 def make_excel_advanced_gen(tid, instruction):
@@ -245,17 +299,41 @@ def make_excel_advanced_gen(tid, instruction):
         ws.cell(row=r_start+1, column=c_start, value=instruction)
         
         # Matrix Layout
-        ws.cell(row=r_start+3, column=c_start+4, value="REFERENCE MATRIX").font = Font(bold=True)
-        style_header(ws, r_start+4, c_start+4, 3, color=style['color'])
-        for r in range(1, 5):
-            for c in range(1, 4):
-                ws.cell(row=r_start+4+r, column=c_start+3+c, value=random.randint(1,1000))
+        matrix_title = "DATA REPOSITORY"
+        instr_lower = instruction.lower()
+        if 'lookup' in instr_lower or 'match' in instr_lower: matrix_title = "LOOKUP REFERENCE"
+        elif 'scenario' in instr_lower or 'goal' in instr_lower: matrix_title = "PROJECTION TABLE"
         
-        ws.cell(row=r_start+4, column=c_start, value="INPUT AREA").font = Font(bold=True)
-        ws.cell(row=r_start+5, column=c_start, value="Parameter")
-        ws.cell(row=r_start+5, column=c_start+1).fill = PatternFill(start_color="FFFF00", fill_type="solid")
-        ws.cell(row=r_start+6, column=c_start, value="Solution")
+        ws.cell(row=r_start+3, column=c_start+4, value=matrix_title).font = Font(bold=True)
+        style_header(ws, r_start+4, c_start+4, 3, color=style['color'])
+        for r in range(1, 10):
+            ws.cell(row=r_start+4+r, column=c_start+4, value=f"Ref_{tid}_{r}")
+            ws.cell(row=r_start+4+r, column=c_start+5, value=random.randint(1,1000))
+            ws.cell(row=r_start+4+r, column=c_start+6, value=random.choice(['A','B','C']))
+        
+        ws.cell(row=r_start+4, column=c_start, value="EXECUTION AREA").font = Font(bold=True)
+        
+        p_label = "Input Parameter"
+        s_label = "Final Output"
+        
+        if 'sales' in instr_lower or 'profit' in instr_lower:
+            p_label = "Revenue Target"
+            s_label = "Calculated Margin"
+        elif 'loan' in instr_lower or 'interest' in instr_lower:
+            p_label = "Principal Amount"
+            s_label = "Amortized Value"
+        elif 'lookup' in instr_lower:
+            p_label = "Search Key"
+            s_label = "Returned Value"
+            
+        ws.cell(row=r_start+5, column=c_start, value=p_label)
+        ws.cell(row=r_start+5, column=c_start+1, value=f"Key_{random.randint(1,9)}")
+        ws.cell(row=r_start+6, column=c_start, value=s_label)
         ws.cell(row=r_start+6, column=c_start+1).fill = PatternFill(start_color="FFFF00", fill_type="solid")
+        
+        ws.column_dimensions[get_column_letter(c_start)].width = 25
+        ws.column_dimensions[get_column_letter(c_start+1)].width = 25
+        ws.column_dimensions[get_column_letter(c_start+4)].width = 25
     return generate
 
 def make_sql_gen(tid, instruction):
@@ -265,15 +343,26 @@ def make_sql_gen(tid, instruction):
         c_start = 1 + style['col_offset']
         ws.title = f"SQL_{tid}"
         ws.cell(row=r_start, column=c_start, value=f"🏆 TASK {tid}: SQL ENGINEERING").font = Font(size=16, bold=True, color=style['color'])
-        ws.cell(row=r_start+2, column=c_start, value="QUERY REQ:").font = Font(bold=True)
-        ws.cell(row=r_start+2, column=c_start+1, value=instruction)
-        ws.cell(row=r_start+4, column=c_start, value="[ CONSOLE BOX ]").font = Font(bold=True)
-        # Unique Console Box size for every SQL task
-        box_height = 5 + (tid % 5)
-        for r in range(r_start+5, r_start+5+box_height):
-            for c in range(c_start, c_start+8):
+        ws.cell(row=r_start+2, column=c_start, value="DATABASE SCHEMA:").font = Font(bold=True)
+        
+        schema = "Employees (id, name, dept_id, salary, hire_date)"
+        if 'course' in instruction.lower() or 'student' in instruction.lower():
+            schema = "Students (id, name, city, joining_date), Courses (id, title, fee)"
+        elif 'order' in instruction.lower() or 'customer' in instruction.lower():
+            schema = "Orders (id, cust_id, amount, date), Customers (id, name, country)"
+            
+        ws.cell(row=r_start+2, column=c_start+1, value=schema)
+        ws.cell(row=r_start+3, column=c_start, value="REQUIREMENT:").font = Font(bold=True)
+        ws.cell(row=r_start+3, column=c_start+1, value=instruction)
+        
+        ws.cell(row=r_start+5, column=c_start, value="[ SQL QUERY CONSOLE ]").font = Font(bold=True)
+        box_height = 8
+        for r in range(r_start+6, r_start+6+box_height):
+            for c in range(c_start, c_start+10):
                 ws.cell(row=r, column=c).fill = PatternFill(start_color="FFFF00", fill_type="solid")
-        ws.cell(row=r_start+5, column=c_start, value="-- Write SQL Here --")
+        ws.cell(row=r_start+6, column=c_start, value="-- Write SQL Here --")
+        
+        ws.column_dimensions[get_column_letter(c_start)].width = 20
     return generate
 
 def make_power_query_gen(tid, instruction):
@@ -286,18 +375,23 @@ def make_power_query_gen(tid, instruction):
         ws.cell(row=r_start+2, column=c_start, value="TRANSFORM REQ:").font = Font(bold=True)
         ws.cell(row=r_start+2, column=c_start+1, value=instruction)
         
-        # Varying table size for every PQ task
-        rows = 5 + (tid % 8)
-        cols = 3 + (tid % 3)
-        ws.cell(row=r_start+4, column=c_start, value="DIRTY SOURCE").font = Font(bold=True)
+        rows = 10
+        cols = 4
+        ws.cell(row=r_start+4, column=c_start, value="MESSY SOURCE DATA").font = Font(bold=True)
         style_header(ws, r_start+5, c_start, cols, color=style['color'])
+        
         for r in range(1, rows):
-            for c in range(1, cols + 1):
-                ws.cell(row=r_start+5+r, column=c_start+c-1, value=f"Data_{tid}_{r}_{c}")
+            ws.cell(row=r_start+5+r, column=c_start, value=f"  RAW_{random.randint(100,999)}  ")
+            ws.cell(row=r_start+5+r, column=c_start+1, value=f"data_val_{r}")
+            ws.cell(row=r_start+5+r, column=c_start+2, value=random.choice(['ERR','OK','NULL','-']))
+            ws.cell(row=r_start+5+r, column=c_start+3, value="2024/01/01")
         
         ws.cell(row=r_start+5, column=c_start+cols+1, value="CLEAN DESTINATION").font = Font(bold=True)
         for r in range(1, rows):
             ws.cell(row=r_start+5+r, column=c_start+cols+1).fill = PatternFill(start_color="FFFF00", fill_type="solid")
+            
+        ws.column_dimensions[get_column_letter(c_start)].width = 20
+        ws.column_dimensions[get_column_letter(c_start+cols+1)].width = 25
     return generate
 
 def make_vba_gen(tid, instruction):
@@ -309,12 +403,15 @@ def make_vba_gen(tid, instruction):
         ws.cell(row=r_start, column=c_start, value=f"🏆 TASK {tid}: MACRO DEVELOPMENT").font = Font(size=14, bold=True, color=style['color'])
         ws.cell(row=r_start+2, column=c_start, value="SCRIPTING GOAL:").font = Font(bold=True)
         ws.cell(row=r_start+2, column=c_start+1, value=instruction)
-        ws.cell(row=r_start+4, column=c_start, value="[ IDE EDITOR WINDOW ]").font = Font(bold=True)
-        # VBA Box
-        for r in range(r_start+5, r_start+18):
-            for c in range(c_start, c_start+10):
+        
+        ws.cell(row=r_start+4, column=c_start, value="[ VBA IDE EDITOR ]").font = Font(bold=True)
+        for r in range(r_start+5, r_start+20):
+            for c in range(c_start, c_start+12):
                 ws.cell(row=r, column=c).fill = PatternFill(start_color="FFFF00", fill_type="solid")
-        ws.cell(row=r_start+5, column=c_start, value="' Sub Task_" + str(tid))
+        ws.cell(row=r_start+5, column=c_start, value="Sub Task_Macro_" + str(tid) + "()")
+        ws.cell(row=r_start+19, column=c_start, value="End Sub")
+        
+        ws.column_dimensions[get_column_letter(c_start)].width = 20
     return generate
 
 # ============================================
