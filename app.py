@@ -3292,7 +3292,30 @@ def init_app_data():
                 print("✅ Excel Skill 4 activated!")
 
 # Run initialization ONLY if running directly (not via gunicorn)
-if __name__ == '__main__':
+@app.route('/reviews')
+def reviews():
+    """Fetch and display reviews from Supabase"""
+    try:
+        import psycopg2
+        import os
+        
+        # Ensure DATABASE_URL is available
+        db_url = os.environ.get('DATABASE_URL')
+        if not db_url:
+            return "Database configuration missing", 500
+            
+        conn = psycopg2.connect(db_url)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name, message, rating, school FROM reviews ORDER BY timestamp DESC")
+        reviews_list = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        return render_template('reviews.html', reviews=reviews_list)
+    except Exception as e:
+        print(f"Error fetching reviews: {e}")
+        return f"Error loading reviews: {e}", 500
+
     # Initialize data
     init_app_data()
     

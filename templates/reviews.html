@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Student Reviews{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Student Reviews</h2>
+    <div class="row">
+        {% for name, message, rating, school in reviews %}
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">{{ name }}</h5>
+                    <h6 class="card-subtitle mb-2 text-muted">{{ school }}</h6>
+                    <p class="card-text">{{ message }}</p>
+                    <div class="rating">
+                        {% for i in range(rating | int) %}
+                            <i class="fas fa-star text-warning"></i>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
