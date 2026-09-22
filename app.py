@@ -552,6 +552,28 @@ def admin_dashboard():
                           sql_submission_count=sql_submission_count)
 
 
+@app.route('/admin/sync-users')
+def admin_sync_users():
+    """Manually trigger user synchronization from Google Sheets"""
+    if 'admin_id' not in session:
+        flash('Please login as admin to sync users')
+        return redirect(url_for('login'))
+
+    try:
+        # Import the sync function
+        from sync_google_form_users import sync_users_from_sheet
+
+        # Use a separate thread to avoid blocking the request
+        import threading
+        thread = threading.Thread(target=sync_users_from_sheet)
+        thread.start()
+
+        flash('🚀 User synchronization started in the background. It may take a minute.')
+    except Exception as e:
+        flash(f'❌ Failed to start sync: {str(e)}')
+
+    return redirect(url_for('admin_dashboard'))
+
 @app.route('/admin/import_attendance_now')
 def import_attendance_now():
     """Manually trigger attendance synchronization from Google Sheets"""
