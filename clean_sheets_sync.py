@@ -379,3 +379,27 @@ def sync_midterm(student_id, name, midterm_title, grade, graded_at):
         str(graded_at),
         str(datetime.now())
     ])
+
+def sync_excel_assignment(student_id, name, assignment_title, score, feedback, submitted_at, max_marks=5):
+    """Sync Excel assignment result to Google Sheets with detailed formatted feedback"""
+    # If feedback is a list of dicts (for new Skill 5), format it nicely
+    if isinstance(feedback, list):
+        formatted_feedback = "\n".join([f"{item['q'] or item['task']}: {'Correct' if item['correct'] else 'Incorrect (' + item.get('error', '') + ')'}" for item in feedback])
+    else:
+        # Fallback for old style string feedback
+        formatted_feedback = feedback
+    
+    percentage = f"{(score/max_marks*100):.1f}%" if max_marks > 0 else "0%"
+    # Status: CLEAN (Assuming this is the status identifier the user wants)
+    status = "CLEAN" 
+        
+    return sync_to_sheets('Excel Assignments', [
+        student_id,
+        name,
+        assignment_title,
+        f"{score}/{max_marks}",
+        percentage,
+        status,
+        str(submitted_at),
+        formatted_feedback
+    ])

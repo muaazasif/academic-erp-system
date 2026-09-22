@@ -1,4 +1,4 @@
-from app import app, db, Student, Admin
+from app import app, db, Student, Admin, Attendance
 import pandas as pd
 
 with app.app_context():
@@ -11,6 +11,11 @@ with app.app_context():
     students = Student.query.order_by(Student.created_at.desc()).limit(20).all()
     for s in students:
         print(f"ID: {s.student_id}, Name: {s.name}, Created At: {s.created_at}")
+
+    print("\n--- Attendance Records (Last 20) ---")
+    attendances = Attendance.query.order_by(Attendance.created_at.desc()).limit(20).all()
+    for att in attendances:
+        print(f"Student ID: {att.student_id}, Date: {att.date}, Status: {att.status}")
     
     # Check for duplicates
     from sqlalchemy import func

@@ -27,7 +27,7 @@ def setup_google_sheets():
         print(f"Existing sheets: {list(existing_sheets.keys())}")
         
         # Required sheets
-        required_sheets = ['Quizzes', 'DetailedQuizAnswers', 'Attendance', 'Assignments']
+        required_sheets = ['Quizzes', 'DetailedQuizAnswers', 'Attendance', 'Assignments', 'Excel Assignments']
         
         # Find the highest sheet ID to use as a basis for new sheets
         max_sheet_id = max(sheet['properties']['sheetId'] for sheet in spreadsheet['sheets'])
@@ -82,6 +82,8 @@ def setup_google_sheets():
                     headers = ['Date', 'Student ID', 'Name', 'Check In', 'Check Out', 'Status', 'Synced At']
                 elif sheet_name == 'Assignments':
                     headers = ['Student ID', 'Name', 'Assignment Title', 'Submission URL', 'Submitted At', 'Grade', 'Synced At']
+                elif sheet_name == 'Excel Assignments':
+                    headers = ['Student ID', 'Name', 'Assignment Title', 'Score', 'Feedback', 'Submitted At', 'Synced At']
                 
                 # Add headers to the sheet
                 body = {

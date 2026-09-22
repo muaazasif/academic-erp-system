@@ -17,7 +17,7 @@
     {% if existing %}
     <div class="alert alert-success">
         <strong>✅ Already Submitted!</strong><br>
-        Score: <strong>{{ existing.score }}/10</strong> ({{ existing.percentage }}%)<br>
+        Score: <strong>{{ existing.score }}/{{ existing.assignment.max_marks }}</strong> ({{ existing.percentage }}%)<br>
         Submitted: {{ existing.submitted_at.strftime('%Y-%m-%d %H:%M') }}
     </div>
 
@@ -30,33 +30,30 @@
         <div class="card-body">
             {% set details = existing.grade_details|from_json %}
             
-            {% for category, data in details.items() %}
-                <div class="mb-4">
-                    <h6 class="border-bottom pb-2">{{ category }} (Score: {{ data.score }}/{{ data.max }})</h6>
-                    <ul class="list-group list-group-flush">
-                        {% for item in data.details %}
+            {% if details %}
+                {% for category, data in details.items() %}
+                    <div class="mb-4">
+                        <h6 class="border-bottom pb-2">{{ category }} (Score: {{ data.score }}/{{ data.max }})</h6>
+                        <ul class="list-group list-group-flush">
+                            {% for item in data.details %}
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <div>
-                                    <strong>{{ item.q or item.task }}:</strong>
+                                    <strong>{{ item.q }}: {{ item.task }}</strong>
                                     {% if item.correct %}
-                                        <span class="text-success">Perfect! ✅</span>
+                                        <span class="text-success fw-bold">Correct ✅</span>
                                     {% else %}
-                                        <span class="text-danger">Mistake Found ❌</span>
-                                        {% if item.error %}
-                                            <p class="mb-0 text-muted small"><i class="bi bi-info-circle"></i> {{ item.error }}</p>
-                                        {% endif %}
+                                        <span class="text-danger fw-bold">Incorrect ❌</span>
+                                        <br><small class="text-muted">{{ item.error }}</small>
                                     {% endif %}
                                 </div>
-                                {% if item.correct %}
-                                    <span class="badge bg-success rounded-pill">Correct</span>
-                                {% else %}
-                                    <span class="badge bg-danger rounded-pill">Incorrect</span>
-                                {% endif %}
                             </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>No detailed feedback available yet.</p>
+            {% endif %}
             
             <div class="alert alert-info">
                 <i class="bi bi-lightbulb"></i> <strong>Tip:</strong> Re-download the template and try again to improve your score!

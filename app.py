@@ -48,7 +48,15 @@ app = Flask(__name__)
 # Register custom Jinja2 filters
 @app.template_filter('from_json')
 def from_json_filter(s):
-    return json.loads(s)
+    if not s:
+        return {}
+    if isinstance(s, (dict, list)):
+        return s
+    try:
+        return json.loads(s)
+    except (json.JSONDecodeError, TypeError):
+        # If it's a string that isn't JSON, wrap it as a simple detail
+        return {"Assignment Results": {"score": 0, "max": 10, "details": [{"task": str(s), "correct": False}]}}
 
 # Load SECRET_KEY from environment variable (Railway/production)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'fallback-dev-secret-key-change-in-production')
@@ -544,28 +552,21 @@ def admin_dashboard():
                           sql_submission_count=sql_submission_count)
 
 
-@app.route('/admin/sync-users')
-def admin_sync_users():
-    """Manually trigger user synchronization from Google Sheets"""
+@app.route('/admin/import_attendance_now')
+def import_attendance_now():
+    """Manually trigger attendance synchronization from Google Sheets"""
     if 'admin_id' not in session:
-        flash('Please login as admin to sync users')
+        flash('Please login as admin to sync attendance')
         return redirect(url_for('login'))
-    
-    try:
-        # Import the sync function
-        from sync_google_form_users import sync_users_from_sheet
-        
-        # Use a separate thread to avoid blocking the request
-        import threading
-        thread = threading.Thread(target=sync_users_from_sheet)
-        thread.start()
-        
-        flash('🚀 User synchronization started in the background. It may take a minute.')
-    except Exception as e:
-        flash(f'❌ Failed to start sync: {str(e)}')
-        
-    return redirect(url_for('admin_dashboard'))
 
+    try:
+        from import_attendance_from_sheets import import_attendance_from_sheet
+        import_attendance_from_sheet()
+        flash('✅ Attendance imported successfully!')
+    except Exception as e:
+        flash(f'❌ Failed to import attendance: {str(e)}')
+
+    return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/export-to-sheets')
 def export_to_sheets():
@@ -813,6 +814,17 @@ def student_dashboard():
     return render_template('student_dashboard.html',
                           student=student,
                           attendance=attendance)
+
+@app.route('/student/attendance')
+def student_attendance():
+    if 'student_id' not in session:
+        return redirect(url_for('login'))
+
+    student_id = session['student_id']
+    # Fetch all attendance records for the logged-in student, ordered by date descending
+    attendances = Attendance.query.filter_by(student_id=student_id).order_by(Attendance.date.desc()).all()
+
+    return render_template('student_attendance.html', attendances=attendances)
 
 
 @app.route('/student/attendance_action', methods=['POST'])
@@ -2372,6 +2384,21 @@ def admin_excel_assignments():
     return render_template('admin_excel_assignments.html', assignments=assignments)
 
 
+@app.route('/admin/excel-assignments/<int:assignment_id>/toggle')
+def toggle_excel_assignment(assignment_id):
+    """Toggle the active status of an Excel assignment"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+        
+    assignment = ExcelSkillsAssignment.query.get_or_404(assignment_id)
+    assignment.is_active = not assignment.is_active
+    db.session.commit()
+    
+    status = "activated" if assignment.is_active else "deactivated"
+    flash(f"✅ Assignment '{assignment.title}' has been {status}.")
+    return redirect(url_for('admin_excel_assignments'))
+
+
 @app.route('/admin/excel-assignments/create', methods=['GET', 'POST'])
 def create_excel_assignment():
     """Create a new Excel Skills Assignment"""
@@ -2505,44 +2532,45 @@ def submit_excel_assignment(assignment_id):
         
         # Save file temporarily
         import tempfile
-        # Check original extension
+        import os
+        from excel_grader import grade_excel_assignment
+        from clean_sheets_sync import sync_excel_assignment
+        
         ext = '.xlsm' if file.filename.endswith('.xlsm') else '.xlsx'
         with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
             file.save(tmp.name)
             
+            # Paths
+            submission_path = tmp.name
+            # Default to a generic template if specific solution not defined
+            solution_filename = getattr(assignment, 'solution_filename', 'Excel_Skill_5_Template.xlsx')
+            solution_path = os.path.join(app.root_path, 'static', 'solutions', solution_filename)
+            
             # Auto-grade
-            result = grade_excel_submission(tmp.name, assignment_title=assignment.title)
+            score, feedback = grade_excel_assignment(submission_path, solution_path, assignment.title)
             
-            if 'macros_disabled' in result and result['macros_disabled']:
-                flash('❌ MARKS: 0 - Macros were NOT enabled. You MUST enable macros to complete the assignment!')
-                # We still record it as 0
-            
-            if result.get('cheating_detected'):
-                flash('🚨 MARKS: 0 - CHEATING DETECTED! Other windows or files were opened.')
-            
-            if 'error' in result:
-                flash(f'❌ Error grading file: {result["error"]}')
-                return redirect(request.url)
-            
+            # Prepare structured feedback for JSON serialization
+            feedback_data = {
+                "Assignment Results": {
+                    "score": score,
+                    "max": assignment.max_marks,
+                    "details": feedback
+                }
+            }
+            grade_details_json = json.dumps(feedback_data)
+
             # Create or update submission
             if existing:
-                existing.score = result['score']
-                existing.percentage = result['percentage']
-                existing.grade_details = json.dumps(result['details'])
-                existing.status = 'graded'
+                existing.score = score
+                existing.grade_details = grade_details_json
                 existing.submitted_at = datetime.now()
-                existing.is_cheating = result.get('cheating_detected', False)
-                existing.macros_disabled = result.get('macros_disabled', False)
             else:
                 submission = ExcelSubmission(
                     assignment_id=assignment_id,
                     student_id=student_id,
-                    score=result['score'],
-                    percentage=result['percentage'],
-                    grade_details=json.dumps(result['details']),
-                    status='graded',
-                    is_cheating=result.get('cheating_detected', False),
-                    macros_disabled=result.get('macros_disabled', False)
+                    score=score,
+                    grade_details=grade_details_json,
+                    submitted_at=datetime.now()
                 )
                 db.session.add(submission)
             
@@ -2552,19 +2580,24 @@ def submit_excel_assignment(assignment_id):
             student = Student.query.filter_by(student_id=student_id).first()
             if student:
                 try:
-                    sync_excel_grade(
+                    sync_excel_assignment(
                         student_id=student.student_id,
                         name=student.name,
                         assignment_title=assignment.title,
-                        score=result['score'],
-                        percentage=result['percentage'],
+                        score=score,
+                        feedback=feedback,
                         submitted_at=datetime.now(),
-                        is_cheating=result.get('cheating_detected', False)
+                        max_marks=assignment.max_marks
                     )
                 except Exception as e:
                     print(f"⚠️ Google Sheets sync failed: {e}")
             
-            flash(f'✅ Submitted! Score: {result["score"]}/10 ({result["percentage"]}%)')
+            flash(f'✅ Submitted! Score: {score}/5. Feedback: {feedback}')
+            # Clean up temp file
+            try:
+                os.remove(tmp.name)
+            except Exception as e:
+                print(f"⚠️ Could not delete temp file {tmp.name}: {e}")
             return redirect(url_for('student_excel_assignments'))
 
     return render_template('submit_excel.html', assignment=assignment, existing=existing)

@@ -54,6 +54,9 @@ def create_excel_exercise_workbook(assignment_title=""):
         create_advanced_sumifs_exercises(wb)
         create_countifs_relationships_exercises(wb)
         create_integrated_lookup_challenge(wb)
+    elif "Excel Skill 5" in assignment_title:
+        create_instructions_skill5(wb) # Use new specialized instructions
+        create_vlookup_sumif_countif_if_exercises(wb)
     else:
         create_instructions(wb)
         create_vlookup_exercises(wb)
@@ -62,35 +65,29 @@ def create_excel_exercise_workbook(assignment_title=""):
         create_if_nested_exercises(wb)
         create_complex_challenge(wb)
     
-    if os.path.exists(template_path):
-        for sheetname in wb.sheetnames:
-            if sheetname != 'Instructions':
-                wb[sheetname].sheet_state = 'veryHidden'
-    
+    # Correct sheet visibility: hide 'Instructions', show exercise sheets
     if 'Instructions' in wb.sheetnames:
-        wb.active = wb['Instructions']
+        wb['Instructions'].sheet_state = 'veryHidden'
+    
+    # Set the first visible sheet as active
+    for sheetname in wb.sheetnames:
+        if sheetname != 'Instructions':
+            wb.active = wb[sheetname]
+            break
+    
     return wb
 
-# CREATION HELPERS
-
-def create_instructions_skill4(wb):
+def create_instructions_skill5(wb):
     ws = wb.create_sheet("Instructions", 0)
-    ws['A1'] = "📊 EXCEL SKILLS: ADVANCED LOOKUP & AGGREGATION"
-    ws['A1'].font = Font(size=18, bold=True, color="FFFFFF")
-    ws['A1'].fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
-    ws.merge_cells('A1:F1'); ws.row_dimensions[1].height = 40
-    ws['A3'] = "🚀 STEPS TO START:"
-    ws['A4'] = "1. Enable Macros to see all task sheets."
-    ws['A5'] = "2. Task 1: Use LOOKUP (Vector/Array) - specifically NOT VLOOKUP."
-    ws['A6'] = "3. Task 2: Advanced SUMIFS with multiple criteria."
-    ws['A7'] = "4. Task 3: COUNTIFS and establishing Data Relationships."
-    ws['A8'] = "5. Task 4: Integrated Challenge combining all skills."
-    ws['A10'] = "📋 ASSIGNMENT MODULES (Total 10 Marks):"
-    ws['A11'] = "1. LOOKUP Function (2.5 marks)"
-    ws['A12'] = "2. Advanced SUMIFS (2.5 marks)"
-    ws['A13'] = "3. COUNTIFS & Relationships (2.5 marks)"
-    ws['A14'] = "4. Integrated Challenge (2.5 marks)"
-    ws.column_dimensions['A'].width = 55
+    ws['A1'] = "📊 EXCEL SKILLS: VLOOKUP, SUMIF, COUNTIF & IF"; ws['A1'].font = Font(size=18, bold=True, color="FFFFFF"); ws['A1'].fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid"); ws.merge_cells('A1:F1'); ws.row_dimensions[1].height = 40
+    ws['A2'] = "⚠️ IMPORTANT: YOU MUST ENABLE MACROS TO START"; ws['A2'].font = Font(size=14, bold=True, color="FF0000"); ws.merge_cells('A2:F2')
+    ws['A3'] = "📋 OVERVIEW: Total Marks: 5. Perform all tasks in Yellow cells."; ws['A3'].font = Font(bold=True)
+    ws['A5'] = "📝 FORMULA SOLUTIONS (Use these for reference):"; ws['A5'].font = Font(bold=True)
+    ws['A6'] = "Q1 (VLOOKUP): =VLOOKUP(\"E050\", A4:E103, 5, 0)"
+    ws['A7'] = "Q2 (SUMIF): =SUMIF(C4:C103, \"IT\", E4:E103)"
+    ws['A8'] = "Q3 (COUNTIF): =COUNTIF(C4:C103, \"Karachi\")"
+    ws['A9'] = "Q4 (IF): =IF(E108 > 45000, \"High\", \"Low\")"
+    ws.column_dimensions['A'].width = 60
 
 def create_lookup_function_exercises(wb):
     ws = wb.create_sheet("LOOKUP FUNCTION")
@@ -320,21 +317,37 @@ def create_if_nested_exercises(wb):
     for i, text in enumerate(grading, 4): ws.cell(row=3+i, column=7, value=text)
     ws.column_dimensions['B'].width = 20
 
-def create_complex_challenge(wb):
-    ws = wb.create_sheet("COMPLEX CHALLENGE")
-    ws.merge_cells('A1:F1'); ws['A1'] = "🏆 CHALLENGE - Complete Product Analysis"; ws['A1'].font = Font(size=14, bold=True, color="C00000")
-    headers = ['Product Code', 'Product Name', 'Category', 'Price', 'Stock', 'Status']
+def create_vlookup_sumif_countif_if_exercises(wb):
+    ws = wb.create_sheet("EXCEL SKILL 5")
+    ws.merge_cells('A1:F1'); ws['A1'] = "📊 Student Data (100 Students)"; ws['A1'].font = Font(size=14, bold=True, color="1F4E79")
+    headers = ['Emp ID', 'Name', 'Department', 'City', 'Salary']
     for col, h in enumerate(headers, 1): ws.cell(row=3, column=col, value=h)
-    style_header(ws, 3, 6)
-    data = [['PRD-LAP-001', 'Laptop Pro 15', 'Electronics', 85000, 12, ''], ['PRD-MOU-002', 'Wireless Mouse', 'Accessories', 1500, 50, ''], ['PRD-KEY-003', 'Mech Keyboard', 'Accessories', 4500, 25, ''], ['PRD-MON-004', 'Monitor 27 inch', 'Electronics', 35000, 8, ''], ['PRD-USB-005', 'USB Hub 7-in-1', 'Accessories', 2500, 40, ''], ['PRD-HDD-006', 'External HDD 1TB', 'Storage', 8000, 15, ''], ['PRD-SSD-007', 'SSD 500GB', 'Storage', 6500, 20, ''], ['PRD-WEB-008', 'Webcam HD', 'Accessories', 3500, 30, ''], ['PRD-TAB-009', 'Tablet 10 inch', 'Electronics', 45000, 5, ''], ['PRD-SPK-010', 'Bluetooth Speaker', 'Accessories', 5500, 35, '']]
+    style_header(ws, 3, 5)
+    
+    # Generate 100 students
+    data = []
+    departments = ['IT', 'HR', 'Finance', 'Sales', 'Marketing']
+    cities = ['Karachi', 'Lahore', 'Islamabad', 'Peshawar', 'Quetta']
+    import random
+    for i in range(1, 101):
+        data.append([f'E{i:03d}', f'Student {i}', random.choice(departments), random.choice(cities), random.randint(30000, 60000)])
+        
     for i, row in enumerate(data):
         for j, val in enumerate(row): ws.cell(row=4+i, column=1+j, value=val)
-    q_row = 17; ws.merge_cells(f'A{q_row}:F{q_row}'); ws.cell(row=q_row, column=1, value="📝 CHALLENGE - Combine all functions!").font = Font(size=12, bold=True, color="C00000")
-    questions = [['Q21', 'Extract category code from A4'], ['Q22', 'Count products in "Accessories"'], ['Q23', 'Total stock of Electronics'], ['Q24', 'Find price of PRD-KEY-003'], ['Q25', 'Extract first word from B5'], ['Q26', 'Status: IF stock > 20 then "In Stock" else "Low"'], ['Q27', 'Total value of all Accessories'], ['Q28', 'Extract number from A5'], ['Q29', 'Count products with price > 10000'], ['Q30', 'Extract domain from admin@company.com']]
+    
+    # Exercises
+    q_row = 106
+    ws.merge_cells(f'A{q_row}:F{q_row}'); ws.cell(row=q_row, column=1, value="📝 EXERCISES (Use formulas in Yellow cells)").font = Font(size=12, bold=True, color="C00000")
+    questions = [
+        ['Q1', 'Find Salary of Employee E050 (VLOOKUP)', 'B108'],
+        ['Q2', 'Total Salary of IT Department (SUMIF)', 'B109'],
+        ['Q3', 'Count of students from Karachi (COUNTIF)', 'B110'],
+        ['Q4', 'If Salary > 45000 then "High" else "Low" (IF)', 'B111']
+    ]
     for i, q in enumerate(questions):
-        r = q_row + 3 + i; ws.cell(row=r, column=1, value=q[0]); ws.cell(row=r, column=2, value=q[1])
+        r = q_row + 2 + i; ws.cell(row=r, column=1, value=q[0]); ws.cell(row=r, column=2, value=q[1])
         ws.cell(row=r, column=3).fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
-    ws.column_dimensions['B'].width = 55
+    ws.column_dimensions['B'].width = 50
 
 # AUTO-GRADER
 
@@ -371,6 +384,10 @@ def grade_excel_submission(file_path, assignment_title=""):
         details['Advanced SUMIFS'] = {'score': s_score, 'max': 2.5, 'details': s_detail}
         details['COUNTIFS & Relationships'] = {'score': r_score, 'max': 2.5, 'details': r_detail}
         details['Integrated Challenge'] = {'score': i_score, 'max': 2.5, 'details': i_detail}
+    elif "Excel Skill 5" in assignment_title:
+        v_score, v_detail = grade_vlookup_sumif_countif_if(wb)
+        total_score = v_score
+        details['VLOOKUP/SUMIF/COUNTIF/IF'] = {'score': v_score, 'max': 5, 'details': v_detail}
     else:
         wb_vals = openpyxl.load_workbook(file_path, data_only=True)
         v_score, v_detail = grade_vlookup(wb_vals); s_score, s_detail = grade_sumif_countif(wb_vals); t_score, t_detail = grade_text_functions(wb_vals); if_score, if_detail = grade_if_nested(wb_vals); c_score, c_detail = grade_complex(wb_vals)
@@ -591,18 +608,24 @@ def grade_if_nested(wb):
     except: pass
     return min(score, 2), details
 
-def grade_complex(wb):
+def grade_vlookup_sumif_countif_if(wb):
     score = 0; details = []
     try:
-        ws = wb['COMPLEX CHALLENGE']
-        # Yellow cells are in Column C (3), Rows 20 to 29
-        if ws['C20'].value and 'lap' in str(ws['C20'].value).lower(): score += 0.2
-        if ws['C21'].value and str(ws['C21'].value).strip() in ['5', '5.0']: score += 0.2
-        if ws['C22'].value and str(ws['C22'].value).strip() in ['25', '25.0']: score += 0.2
-        if ws['C23'].value and str(ws['C23'].value).strip() in ['4500', '4500.0']: score += 0.2
-        if ws['C24'].value and 'wireless' in str(ws['C24'].value).lower(): score += 0.2
-        # Check remaining cells for some value (lenient)
-        for i in range(5):
-            if ws.cell(row=25+i, column=3).value: score += 0.2
+        ws = wb['EXCEL SKILL 5']
+        # Q1: VLOOKUP
+        if ws['B108'].value and 'VLOOKUP' in str(ws['B108'].value).upper(): score += 1.25; details.append({'q': 'Q1', 'correct': True})
+        else: details.append({'q': 'Q1', 'correct': False})
+        
+        # Q2: SUMIF
+        if ws['B109'].value and 'SUMIF' in str(ws['B109'].value).upper(): score += 1.25; details.append({'q': 'Q2', 'correct': True})
+        else: details.append({'q': 'Q2', 'correct': False})
+        
+        # Q3: COUNTIF
+        if ws['B110'].value and 'COUNTIF' in str(ws['B110'].value).upper(): score += 1.25; details.append({'q': 'Q3', 'correct': True})
+        else: details.append({'q': 'Q3', 'correct': False})
+        
+        # Q4: IF
+        if ws['B111'].value and 'IF' in str(ws['B111'].value).upper(): score += 1.25; details.append({'q': 'Q4', 'correct': True})
+        else: details.append({'q': 'Q4', 'correct': False})
     except: pass
-    return min(score, 2), details
+    return min(score, 5), details

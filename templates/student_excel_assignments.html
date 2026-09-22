@@ -3,44 +3,107 @@
 {% block title %}Excel Assignments - Student{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2>📊 Excel Skills Assignments</h2>
-    
-    {% if assignments %}
-    <div class="row mt-3">
-        {% for a in assignments %}
-        <div class="col-md-4 mb-3">
-            <div class="card">
-                <div class="card-header">
-                    <strong>{{ a.title }}</strong>
-                </div>
-                <div class="card-body">
-                    {% if a.description %}
-                    <p class="text-muted small">{{ a.description[:100] }}...</p>
-                    {% endif %}
-                    
-                    {% if submissions[a.id] %}
-                        {% set sub = submissions[a.id] %}
-                        <div class="alert alert-success py-2">
-                            ✅ Submitted<br>
-                            <strong>Score: {{ sub.score }}/10</strong> ({{ sub.percentage }}%)
-                        </div>
-                    {% else %}
-                        <div class="alert alert-warning py-2">
-                            ⏳ Not submitted yet
-                        </div>
-                    {% endif %}
-                    
-                    <a href="/student/excel/submit/{{ a.id }}" class="btn btn-primary btn-sm w-100">
-                        {% if submissions[a.id] %}View Details{% else %}Download & Submit{% endif %}
-                    </a>
-                </div>
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 d-md-block sidebar">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_dashboard' %}active{% endif %}" href="{{ url_for('student_dashboard') }}">
+                            <i class="fas fa-home"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_attendance' %}active{% endif %}" href="{{ url_for('student_attendance') }}">
+                            <i class="fas fa-chart-bar"></i> My Attendance
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_quizzes' %}active{% endif %}" href="{{ url_for('student_quizzes') }}">
+                            <i class="fas fa-question-circle"></i> My Quizzes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_midterms' %}active{% endif %}" href="{{ url_for('student_midterms') }}">
+                            <i class="fas fa-file-alt"></i> My Mid-Terms
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_assignments' %}active{% endif %}" href="{{ url_for('student_assignments') }}">
+                            <i class="fas fa-tasks"></i> My Assignments
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_course_outlines' %}active{% endif %}" href="{{ url_for('student_course_outlines') }}">
+                            <i class="fas fa-book-open"></i> Course Outlines
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'excel' in request.path %}active{% endif %}" href="/student/excel-assignments">
+                            <i class="fas fa-file-excel"></i> Excel Skills
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'sql' in request.path %}active{% endif %}" href="/student/sql-assignments">
+                            <i class="fas fa-database"></i> SQL Skills
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'final_results' %}active{% endif %}" href="/final-results">
+                            <i class="fas fa-trophy"></i> Final Results
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </li>
+                </ul>
             </div>
-        </div>
-        {% endfor %}
+        </nav>
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 mt-4">
+            <h2>📊 Excel Skills Assignments</h2>
+            
+            {% if assignments %}
+            <div class="row mt-3">
+                {% for a in assignments %}
+                <div class="col-md-4 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <strong>{{ a.title }}</strong>
+                        </div>
+                        <div class="card-body">
+                            {% if a.description %}
+                            <p class="text-muted small">{{ a.description[:100] }}...</p>
+                            {% endif %}
+                            
+                            {% if submissions[a.id] %}
+                                {% set sub = submissions[a.id] %}
+                                <div class="alert alert-success py-2">
+                                    ✅ Submitted<br>
+                                    <strong>Score: {{ sub.score }}/10</strong> ({{ sub.percentage }}%)
+                                </div>
+                            {% else %}
+                                <div class="alert alert-warning py-2">
+                                    ⏳ Not submitted yet
+                                </div>
+                            {% endif %}
+                            
+                            <a href="/student/excel/submit/{{ a.id }}" class="btn btn-primary btn-sm w-100">
+                                {% if submissions[a.id] %}View Details{% else %}Download & Submit{% endif %}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-info mt-3">No Excel assignments available yet.</div>
+            {% endif %}
+        </main>
     </div>
-    {% else %}
-    <div class="alert alert-info mt-3">No Excel assignments available yet.</div>
-    {% endif %}
 </div>
 {% endblock %}

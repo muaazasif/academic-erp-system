@@ -3,55 +3,112 @@
 {% block title %}SQL Assignments - Student{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center">
-        <h2>💾 SQL Skills Assignments</h2>
-        <div>
-            <a href="{{ url_for('student_dashboard') }}" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
-        </div>
-    </div>
-    
-    {% if assignments %}
-    <div class="row mt-3">
-        {% for a in assignments %}
-        <div class="col-md-6 mb-3">
-            <div class="card h-100">
-                <div class="card-header bg-dark text-white">
-                    <strong>{{ a.title }}</strong>
-                </div>
-                <div class="card-body">
-                    {% if a.description %}
-                    <p class="text-muted small">{{ a.description }}</p>
-                    {% endif %}
-                    
-                    {% if a.submission %}
-                        <div class="alert alert-success py-2">
-                            ✅ <strong>Completed!</strong><br>
-                            Score: <strong>{{ a.submission.score }}/10</strong> ({{ a.submission.percentage }}%)<br>
-                            <small>Submitted: {{ a.submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</small>
-                        </div>
-                        <a href="/student/sql/take/{{ a.id }}" class="btn btn-outline-success w-100">
-                            View Your Submission
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 d-md-block sidebar">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_dashboard' %}active{% endif %}" href="{{ url_for('student_dashboard') }}">
+                            <i class="fas fa-home"></i> Dashboard
                         </a>
-                    {% else %}
-                        <div class="alert alert-warning py-2">
-                            ⏳ <strong>Pending</strong><br>
-                            Deadline: {{ a.deadline.strftime('%Y-%m-%d') if a.deadline else 'No deadline' }}
-                        </div>
-                        <a href="{{ url_for('download_sql_sample', assignment_id=a.id) }}" class="btn btn-outline-info w-100 mb-2">
-                            📊 Download Practice Tables
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_attendance' %}active{% endif %}" href="{{ url_for('student_attendance') }}">
+                            <i class="fas fa-chart-bar"></i> My Attendance
                         </a>
-                        <a href="/student/sql/take/{{ a.id }}" class="btn btn-primary w-100">
-                            Start Assignment
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_quizzes' %}active{% endif %}" href="{{ url_for('student_quizzes') }}">
+                            <i class="fas fa-question-circle"></i> My Quizzes
                         </a>
-                    {% endif %}
-                </div>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_midterms' %}active{% endif %}" href="{{ url_for('student_midterms') }}">
+                            <i class="fas fa-file-alt"></i> My Mid-Terms
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_assignments' %}active{% endif %}" href="{{ url_for('student_assignments') }}">
+                            <i class="fas fa-tasks"></i> My Assignments
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_course_outlines' %}active{% endif %}" href="{{ url_for('student_course_outlines') }}">
+                            <i class="fas fa-book-open"></i> Course Outlines
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'excel' in request.path %}active{% endif %}" href="/student/excel-assignments">
+                            <i class="fas fa-file-excel"></i> Excel Skills
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'sql' in request.path %}active{% endif %}" href="/student/sql-assignments">
+                            <i class="fas fa-database"></i> SQL Skills
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'final_results' %}active{% endif %}" href="/final-results">
+                            <i class="fas fa-trophy"></i> Final Results
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </li>
+                </ul>
             </div>
-        </div>
-        {% endfor %}
+        </nav>
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 mt-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>💾 SQL Skills Assignments</h2>
+            </div>
+            
+            {% if assignments %}
+            <div class="row mt-3">
+                {% for a in assignments %}
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <strong>{{ a.title }}</strong>
+                        </div>
+                        <div class="card-body">
+                            {% if a.description %}
+                            <p class="text-muted small">{{ a.description }}</p>
+                            {% endif %}
+                            
+                            {% if a.submission %}
+                                <div class="alert alert-success py-2">
+                                    ✅ <strong>Completed!</strong><br>
+                                    Score: <strong>{{ a.submission.score }}/10</strong> ({{ a.submission.percentage }}%)<br>
+                                    <small>Submitted: {{ a.submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                </div>
+                                <a href="/student/sql/take/{{ a.id }}" class="btn btn-outline-success w-100">
+                                    View Your Submission
+                                </a>
+                            {% else %}
+                                <div class="alert alert-warning py-2">
+                                    ⏳ <strong>Pending</strong><br>
+                                    Deadline: {{ a.deadline.strftime('%Y-%m-%d') if a.deadline else 'No deadline' }}
+                                </div>
+                                <a href="/student/sql/take/{{ a.id }}" class="btn btn-primary w-100">
+                                    Start Assignment
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-info mt-3">No SQL assignments available yet.</div>
+            {% endif %}
+        </main>
     </div>
-    {% else %}
-    <div class="alert alert-info mt-3">No SQL assignments available yet.</div>
-    {% endif %}
 </div>
 {% endblock %}

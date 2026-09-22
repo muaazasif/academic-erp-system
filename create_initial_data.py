@@ -48,19 +48,23 @@ def create_initial_data():
         skills = [
             {
                 "title": "Excel Skill 1: Formulas & Basics",
-                "description": "Master the basics: 1. VLOOKUP (2 marks). 2. SUMIF & COUNTIF (2 marks). 3. Text Functions (LEFT, RIGHT, MID) (2 marks). 4. Nested IF (2 marks). 5. Complex Challenge (2 marks). Total 10 marks. AI will grade and provide instant feedback."
+                "description": "Master Excel Formulas: VLOOKUP, SUMIF, COUNTIF, IF. Students must implement these correctly to solve the business case study provided. Total 5 marks. AI will grade based on formula accuracy and output."
             },
             {
                 "title": "Excel Skill 2: Data Validation & Named Manager",
-                "description": "Master Workbook management: 1. Create Named Ranges (Name Manager). 2. Basic Dropdowns. 3. Advanced Dependent Dropdowns. 4. Data Validation (Numbers, Dates, Text). Total 10 marks. AI will provide instant feedback on mistakes."
+                "description": "Master Workbook management: 1. Create Named Ranges (Name Manager). 2. Basic Dropdowns. 3. Advanced Dependent Dropdowns. 4. Data Validation (Numbers, Dates, Text). Total 5 marks. AI will provide instant feedback on mistakes."
             },
             {
                 "title": "Excel Skill 3: Data Cleaning & Power Query",
-                "description": "Master Data Preparation: 1. Cleaning Raw Data (Spaces, Case, Duplicates). 2. Text-to-Columns & Flash Fill. 3. Power Query Basics (Transforming & Loading). Total 10 marks. AI will check for clean data and proper transformations."
+                "description": "Master Data Preparation: 1. Cleaning Raw Data (Spaces, Case, Duplicates). 2. Text-to-Columns & Flash Fill. 3. Power Query Basics (Transforming & Loading). Total 5 marks. AI will check for clean data and proper transformations."
             },
             {
                 "title": "Excel Skill 4: Advanced LOOKUP & Aggregation",
-                "description": "Master Data Relationships: 1. LOOKUP Function (Vector/Array) (2.5 marks). 2. Advanced SUMIFS (2.5 marks). 3. COUNTIFS & Relationships (2.5 marks). 4. Integrated Challenge (2.5 marks). Total 10 marks. (Note: specifically NOT VLOOKUP/XLOOKUP)"
+                "description": "Master Data Relationships: 1. LOOKUP Function (Vector/Array). 2. Advanced SUMIFS. 3. COUNTIFS & Relationships. 4. Integrated Challenge. Total 5 marks. (Note: specifically NOT VLOOKUP/XLOOKUP)"
+            },
+            {
+                "title": "Excel Skill 5: VLOOKUP, SUMIF, COUNTIF & IF Formula",
+                "description": "Complex Assignment: 1. VLOOKUP (Range/Exact), 2. SUMIF, 3. COUNTIF, 4. IF Formula. Total 5 marks. AI checks formula logic and data accuracy. Feedback provided on mistakes."
             }
         ]
 

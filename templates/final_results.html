@@ -3,115 +3,160 @@
 {% block title %}Final Results & Rankings{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>🏆 Student Leaderboard & Performance</h2>
-        <div class="text-muted small">Live sync with Google Sheets</div>
-    </div>
-
-    {% if marks is none %}
-    <div class="alert alert-warning">
-        <i class="bi bi-exclamation-triangle"></i> Google Sheets is not configured or the 'Final Marks' sheet is missing. 
-        {% if session.admin_id %}
-        <br><a href="/admin/export-final-marks" class="btn btn-sm btn-primary mt-2">Generate Final Marks Now</a>
-        {% endif %}
-    </div>
-    {% elif not marks.data %}
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i> No results found yet. Rankings will appear once the administrator calculates final marks.
-        {% if session.admin_id %}
-        <br><a href="/admin/export-final-marks" class="btn btn-sm btn-primary mt-2">Generate Final Marks Now</a>
-        {% endif %}
-    </div>
-    {% else %}
-    
-    <div class="card shadow-sm border-0 overflow-hidden">
-        <div class="card-header bg-dark text-white p-3">
-            <h5 class="mb-0"><i class="bi bi-award"></i> Academic Performance Ranking</h5>
-        </div>
-        <div class="card-body p-0 bg-darker">
-            <div class="table-responsive">
-                <table class="table table-hover table-dark mb-0 align-middle">
-                    <thead>
-                        <tr class="bg-secondary bg-opacity-10 text-uppercase small letter-spacing-1">
-                            {% for header in marks.headers %}
-                                <th class="{% if loop.first %}ps-4{% endif %} {% if loop.last %}pe-4{% endif %} {% if header not in ['Rank', 'Name', 'Student ID'] %}text-center{% endif %}">
-                                    {{ header }}
-                                </th>
-                            {% endfor %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for student in marks.data %}
-                            <tr>
-                                {% for header in marks.headers %}
-                                    {% if header == 'Rank' %}
-                                        <td class="ps-4">
-                                            {% if student.Rank == '1' %}
-                                                <span class="badge bg-warning text-dark shadow-sm"><i class="bi bi-trophy-fill"></i> 1st</span>
-                                            {% elif student.Rank == '2' %}
-                                                <span class="badge bg-light text-dark">2nd</span>
-                                            {% elif student.Rank == '3' %}
-                                                <span class="badge bg-info text-dark">3rd</span>
-                                            {% else %}
-                                                <span class="text-secondary fw-bold ms-2">{{ student.Rank }}</span>
-                                            {% endif %}
-                                        </td>
-                                    {% elif header == 'Student ID' %}
-                                        <td><code>{{ student['Student ID'] }}</code></td>
-                                    {% elif header == 'Name' %}
-                                        <td class="fw-bold">{{ student.Name }}</td>
-                                    {% elif header == 'Total Avg %' %}
-                                        <td class="text-center">
-                                            {% set raw_val = student['Total Avg %']|string|replace('%', '') %}
-                                            {% set pct_val = raw_val|float if raw_val|trim != '' and raw_val|trim != '-' else 0.0 %}
-                                            <div class="d-flex align-items-center justify-content-center">
-                                                <div class="progress w-100" style="height: 12px; max-width: 100px;">
-                                                    <div class="progress-bar {% if pct_val >= 80 %}bg-success{% elif pct_val >= 70 %}bg-primary{% else %}bg-danger{% endif %}" 
-                                                         role="progressbar" style="width: {{ pct_val }}%;">
-                                                    </div>
-                                                </div>
-                                                <span class="ms-2 small fw-bold">{{ student['Total Avg %'] }}</span>
-                                            </div>
-                                        </td>
-                                    {% elif header == 'Status' %}
-                                        <td class="text-center pe-4">
-                                            {% if student.Status == 'PASS' %}
-                                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3">PASS</span>
-                                            {% else %}
-                                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3">FAIL</span>
-                                            {% endif %}
-                                        </td>
-                                    {% else %}
-                                        {# Dynamic Column (Excel Skills, SQL Skills, Averages, etc.) #}
-                                        <td class="text-center">{{ student[header] }}</td>
-                                    {% endif %}
-                                {% endfor %}
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 d-md-block sidebar">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_dashboard' %}active{% endif %}" href="{{ url_for('student_dashboard') }}">
+                            <i class="fas fa-home"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_attendance' %}active{% endif %}" href="{{ url_for('student_attendance') }}">
+                            <i class="fas fa-chart-bar"></i> My Attendance
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_quizzes' %}active{% endif %}" href="{{ url_for('student_quizzes') }}">
+                            <i class="fas fa-question-circle"></i> My Quizzes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_midterms' %}active{% endif %}" href="{{ url_for('student_midterms') }}">
+                            <i class="fas fa-file-alt"></i> My Mid-Terms
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_assignments' %}active{% endif %}" href="{{ url_for('student_assignments') }}">
+                            <i class="fas fa-tasks"></i> My Assignments
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_course_outlines' %}active{% endif %}" href="{{ url_for('student_course_outlines') }}">
+                            <i class="fas fa-book-open"></i> Course Outlines
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'excel' in request.path %}active{% endif %}" href="/student/excel-assignments">
+                            <i class="fas fa-file-excel"></i> Excel Skills
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'sql' in request.path %}active{% endif %}" href="/student/sql-assignments">
+                            <i class="fas fa-database"></i> SQL Skills
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'final_results' %}active{% endif %}" href="/final-results">
+                            <i class="fas fa-trophy"></i> Final Results
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </li>
+                </ul>
             </div>
-        </div>
+        </nav>
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 mt-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>🏆 Student Leaderboard & Performance</h2>
+            </div>
+
+            {% if marks is none %}
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i> Google Sheets is not configured or the 'Final Marks' sheet is missing. 
+            </div>
+            {% elif not marks.data %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No results found yet.
+            </div>
+            {% else %}
+            
+            <div class="card shadow-sm border-0 overflow-hidden">
+                <div class="card-header bg-dark text-white p-3">
+                    <h5 class="mb-0"><i class="bi bi-award"></i> Academic Performance Ranking</h5>
+                </div>
+                <div class="card-body p-0 bg-darker">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-dark mb-0 align-middle">
+                            <thead>
+                                <tr class="bg-secondary bg-opacity-10 text-uppercase small letter-spacing-1">
+                                    {% for header in marks.headers %}
+                                        <th class="{% if loop.first %}ps-4{% endif %} {% if loop.last %}pe-4{% endif %} {% if header not in ['Rank', 'Name', 'Student ID'] %}text-center{% endif %}">
+                                            {{ header }}
+                                        </th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in marks.data %}
+                                    <tr>
+                                        {% for header in marks.headers %}
+                                            {% if header == 'Rank' %}
+                                                <td class="ps-4">
+                                                    {% if student.Rank == '1' %}
+                                                        <span class="badge bg-warning text-dark shadow-sm"><i class="bi bi-trophy-fill"></i> 1st</span>
+                                                    {% elif student.Rank == '2' %}
+                                                        <span class="badge bg-light text-dark">2nd</span>
+                                                    {% elif student.Rank == '3' %}
+                                                        <span class="badge bg-info text-dark">3rd</span>
+                                                    {% else %}
+                                                        <span class="text-secondary fw-bold ms-2">{{ student.Rank }}</span>
+                                                    {% endif %}
+                                                </td>
+                                            {% elif header == 'Student ID' %}
+                                                <td><code>{{ student['Student ID'] }}</code></td>
+                                            {% elif header == 'Name' %}
+                                                <td class="fw-bold">{{ student.Name }}</td>
+                                            {% elif header == 'Total Avg %' %}
+                                                <td class="text-center">
+                                                    {% set raw_val = student['Total Avg %']|string|replace('%', '') %}
+                                                    {% set pct_val = raw_val|float if raw_val|trim != '' and raw_val|trim != '-' else 0.0 %}
+                                                    <div class="d-flex align-items-center justify-content-center">
+                                                        <div class="progress w-100" style="height: 12px; max-width: 100px;">
+                                                            <div class="progress-bar {% if pct_val >= 80 %}bg-success{% elif pct_val >= 70 %}bg-primary{% else %}bg-danger{% endif %}" 
+                                                                 role="progressbar" style="width: {{ pct_val }}%;">
+                                                            </div>
+                                                        </div>
+                                                        <span class="ms-2 small fw-bold">{{ student['Total Avg %'] }}</span>
+                                                    </div>
+                                                </td>
+                                            {% elif header == 'Status' %}
+                                                <td class="text-center pe-4">
+                                                    {% if student.Status == 'PASS' %}
+                                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3">PASS</span>
+                                                    {% else %}
+                                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3">FAIL</span>
+                                                    {% endif %}
+                                                </td>
+                                            {% else %}
+                                                <td class="text-center">{{ student[header] }}</td>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 p-3 bg-dark bg-opacity-50 rounded border border-secondary border-opacity-25">
+                <p class="mb-2 text-secondary small">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <strong>Calculation Method:</strong> Total Average is computed as the mean of all Excel Skills, SQL Assignments, and Quiz scores. 
+                </p>
+            </div>
+            {% endif %}
+        </main>
     </div>
-    
-    <div class="mt-4 p-3 bg-dark bg-opacity-50 rounded border border-secondary border-opacity-25">
-        <p class="mb-2 text-secondary small">
-            <i class="bi bi-info-circle me-1"></i>
-            <strong>Calculation Method:</strong> Total Average is computed as the mean of all Excel Skills, SQL Assignments, and Quiz scores. 
-            Students with at least <strong>70%</strong> overall are currently marked as <strong>PASS</strong>.
-        </p>
-        <hr class="border-secondary border-opacity-25">
-        <div class="d-flex justify-content-between align-items-center">
-            <span class="text-muted small">
-                <i class="bi bi-person-check"></i> Prepared By <strong>MuaazAsif</strong> | Enterprise Resource Planning System
-            </span>
-            <span class="text-muted small">
-                © {{ now.year if now else '2026' }} All Rights Reserved
-            </span>
-        </div>
-    </div>
-    {% endif %}
 </div>
 
 <style>

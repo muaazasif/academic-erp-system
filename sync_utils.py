@@ -224,8 +224,9 @@ def cleanup_old_failed_syncs(days_to_keep=30):
 
 def background_sync_worker():
     """
-    Background worker to periodically retry failed syncs and sync new users
+    Background worker to periodically retry failed syncs and sync new users and attendance
     """
+    from import_attendance_from_sheets import import_attendance_from_sheet
     while True:
         try:
             # Run the existing retry failed syncs logic
@@ -239,6 +240,11 @@ def background_sync_worker():
             from sync_google_form_users import sync_users_from_sheet
             with app.app_context(): # Ensure Flask app context is available
                 sync_users_from_sheet()
+            
+            # Periodically import attendance from Google Sheet
+            print("Background sync worker: Importing attendance records from Google Sheet...")
+            with app.app_context():
+                import_attendance_from_sheet()
             
             # Clean up old failed syncs occasionally
             if int(time.time()) % 3600 < 60:  # Every hour check for cleanup
