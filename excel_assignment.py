@@ -186,11 +186,11 @@ def create_dropdown_advanced_exercises(wb):
     ws['A1'] = "📝 Task: Dependent Dropdowns"; ws['A1'].font = Font(size=14, bold=True, color="1F4E79")
     ws['A3'] = "1. Create Named Ranges for 'Electronics' (Laptop, Mobile) and 'Furniture' (Chair, Table)"
     ws['A4'] = "2. In cell C10, create a dropdown for Category (Electronics, Furniture)"
-    ws['A5'] = "3. In cell D10, create a DEPENDENT dropdown that shows items based on C10"
+    ws['A5'] = "3. In cell C11, create a DEPENDENT dropdown that shows items based on C10"
     ws['G3'] = "Electronics"; ws['G4'] = "Laptop"; ws['G5'] = "Mobile"
     ws['H3'] = "Furniture"; ws['H4'] = "Chair"; ws['H5'] = "Table"
     ws['B10'] = "Category:"; ws['C10'].fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
-    ws['B11'] = "Item:"; ws['D10'].fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    ws['B11'] = "Item:"; ws['C11'].fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
 def create_workbook_structure_exercise(wb):
     ws = wb.create_sheet("DATA VALIDATION SKILL 2")
@@ -317,6 +317,22 @@ def create_if_nested_exercises(wb):
     for i, text in enumerate(grading, 4): ws.cell(row=3+i, column=7, value=text)
     ws.column_dimensions['B'].width = 20
 
+def create_complex_challenge(wb):
+    ws = wb.create_sheet("COMPLEX CHALLENGE")
+    ws.merge_cells('A1:F1'); ws['A1'] = "🏆 CHALLENGE - Complete Product Analysis"; ws['A1'].font = Font(size=14, bold=True, color="C00000")
+    headers = ['Product Code', 'Product Name', 'Category', 'Price', 'Stock', 'Status']
+    for col, h in enumerate(headers, 1): ws.cell(row=3, column=col, value=h)
+    style_header(ws, 3, 6)
+    data = [['PRD-LAP-001', 'Laptop Pro 15', 'Electronics', 85000, 12, ''], ['PRD-MOU-002', 'Wireless Mouse', 'Accessories', 1500, 50, ''], ['PRD-KEY-003', 'Mech Keyboard', 'Accessories', 4500, 25, ''], ['PRD-MON-004', 'Monitor 27 inch', 'Electronics', 35000, 8, ''], ['PRD-USB-005', 'USB Hub 7-in-1', 'Accessories', 2500, 40, ''], ['PRD-HDD-006', 'External HDD 1TB', 'Storage', 8000, 15, ''], ['PRD-SSD-007', 'SSD 500GB', 'Storage', 6500, 20, ''], ['PRD-WEB-008', 'Webcam HD', 'Accessories', 3500, 30, ''], ['PRD-TAB-009', 'Tablet 10 inch', 'Electronics', 45000, 5, ''], ['PRD-SPK-010', 'Bluetooth Speaker', 'Accessories', 5500, 35, '']]
+    for i, row in enumerate(data):
+        for j, val in enumerate(row): ws.cell(row=4+i, column=1+j, value=val)
+    q_row = 17; ws.merge_cells(f'A{q_row}:F{q_row}'); ws.cell(row=q_row, column=1, value="📝 CHALLENGE - Combine all functions!").font = Font(size=12, bold=True, color="C00000")
+    questions = [['Q21', 'Extract category code from A4'], ['Q22', 'Count products in "Accessories"'], ['Q23', 'Total stock of Electronics'], ['Q24', 'Find price of PRD-KEY-003'], ['Q25', 'Extract first word from B5'], ['Q26', 'Status: IF stock > 20 then "In Stock" else "Low"'], ['Q27', 'Total value of all Accessories'], ['Q28', 'Extract number from A5'], ['Q29', 'Count products with price > 10000'], ['Q30', 'Extract domain from admin@company.com']]
+    for i, q in enumerate(questions):
+        r = q_row + 3 + i; ws.cell(row=r, column=1, value=q[0]); ws.cell(row=r, column=2, value=q[1])
+        ws.cell(row=r, column=3).fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    ws.column_dimensions['B'].width = 55
+
 def create_vlookup_sumif_countif_if_exercises(wb):
     ws = wb.create_sheet("EXCEL SKILL 5")
     ws.merge_cells('A1:F1'); ws['A1'] = "📊 Student Data (100 Students)"; ws['A1'].font = Font(size=14, bold=True, color="1F4E79")
@@ -360,7 +376,6 @@ def grade_excel_submission(file_path, assignment_title=""):
         ws = wb['Instructions']; macro_flag = ws.cell(row=99, column=26).value; cheat_flag = ws.cell(row=100, column=26).value
         if not macro_flag or str(macro_flag).upper() != 'MACROS_OK': macros_disabled = True
         if cheat_flag and 'CHEAT' in str(cheat_flag).upper(): cheating_detected = True
-    if macros_disabled: return {'score': 0, 'max': 10, 'percentage': 0, 'cheating_detected': False, 'macros_disabled': True, 'details': {'error': 'Macros not enabled'}}
     if cheating_detected: return {'score': 0, 'max': 10, 'percentage': 0, 'cheating_detected': True, 'details': {'error': 'CHEATING DETECTED'}}
     total_score = 0; details = {}
     if "Data Validation" in assignment_title and "Manager" in assignment_title:
@@ -389,15 +404,245 @@ def grade_excel_submission(file_path, assignment_title=""):
         total_score = v_score
         details['VLOOKUP/SUMIF/COUNTIF/IF'] = {'score': v_score, 'max': 5, 'details': v_detail}
     else:
-        wb_vals = openpyxl.load_workbook(file_path, data_only=True)
-        v_score, v_detail = grade_vlookup(wb_vals); s_score, s_detail = grade_sumif_countif(wb_vals); t_score, t_detail = grade_text_functions(wb_vals); if_score, if_detail = grade_if_nested(wb_vals); c_score, c_detail = grade_complex(wb_vals)
-        total_score = v_score + s_score + t_score + if_score + c_score
-        details['VLOOKUP'] = {'score': v_score, 'max': 2, 'details': v_detail}
-        details['SUMIF/COUNTIF'] = {'score': s_score, 'max': 2, 'details': s_detail}
-        details['Text Functions'] = {'score': t_score, 'max': 2, 'details': t_detail}
-        details['Nested IF'] = {'score': if_score, 'max': 2, 'details': if_detail}
-        details['Complex'] = {'score': c_score, 'max': 2, 'details': c_detail}
+        score_s1, details_s1 = grade_excel_skill_1(wb)
+        total_score = score_s1
+        details['Excel Skill 1 (Q1-Q20)'] = {'score': score_s1, 'max': 10, 'details': details_s1}
     return {'score': round(min(total_score, 10), 2), 'max': 10, 'percentage': round((min(total_score, 10) / 10) * 100, 1), 'cheating_detected': False, 'details': details}
+
+QUESTION_MARK = 0.5
+
+def normalize_formula(value):
+    if value is None:
+        return ""
+    s = str(value).strip().upper()
+    s = re.sub(r"\s+", "", s)
+    if s.startswith("="):
+        s = s[1:]
+    s = s.replace("$", "")
+    return s
+
+def is_formula(value):
+    return isinstance(value, str) and value.strip().startswith("=")
+
+def get_function(formula):
+    f = normalize_formula(formula)
+    m = re.match(r"^([A-Z][A-Z0-9_.]*)\(", f)
+    return m.group(1) if m else ""
+
+ANSWER_CELLS_S1 = {
+    "Q1": ("VLOOKUP", "C19"),
+    "Q2": ("VLOOKUP", "C20"),
+    "Q3": ("VLOOKUP", "C21"),
+    "Q4": ("VLOOKUP", "C22"),
+
+    "Q5": ("SUMIF & COUNTIF", "C20"),
+    "Q6": ("SUMIF & COUNTIF", "C21"),
+    "Q7": ("SUMIF & COUNTIF", "C22"),
+    "Q8": ("SUMIF & COUNTIF", "C23"),
+    "Q9": ("SUMIF & COUNTIF", "C24"),
+    "Q10": ("SUMIF & COUNTIF", "C25"),
+
+    "Q11": ("LEFT RIGHT MID", "C15"),
+    "Q12": ("LEFT RIGHT MID", "C16"),
+    "Q13": ("LEFT RIGHT MID", "C17"),
+    "Q14": ("LEFT RIGHT MID", "C18"),
+    "Q15": ("LEFT RIGHT MID", "C19"),
+    "Q16": ("LEFT RIGHT MID", "C20"),
+
+    "Q17": ("Complex Challenge", "C17"),
+    "Q18": ("Complex Challenge", "C18"),
+    "Q19": ("Complex Challenge", "C19"),
+    "Q20": ("Complex Challenge", "C20"),
+}
+
+def normalize_range_list(ranges):
+    return {
+        normalize_formula(r)
+        for r in ranges
+    }
+
+def check_vlookup_s1(formula, lookup_values, return_col, table_ranges):
+    result = {"marks": 0, "status": "WRONG", "issues": [], "checks": {}}
+    if not is_formula(formula):
+        result["issues"].append("No formula found.")
+        return result
+    if get_function(formula) != "VLOOKUP":
+        result["issues"].append("VLOOKUP is required.")
+        return result
+    args = split_formula_args(formula)
+    if len(args) < 4:
+        result["issues"].append("VLOOKUP needs 4 arguments.")
+        return result
+    lookup = normalize_formula(args[0])
+    table = normalize_formula(args[1])
+    col = normalize_formula(args[2])
+    match = normalize_formula(args[3])
+    result["checks"]["function"] = 1
+    
+    possible_lookup_values = set()
+    if isinstance(lookup_values, (list, tuple, set)):
+        for value in lookup_values:
+            norm_val = normalize_formula(value)
+            possible_lookup_values.add(norm_val)
+            possible_lookup_values.add(f'"{norm_val}"')
+    else:
+        norm_val = normalize_formula(lookup_values)
+        possible_lookup_values.add(norm_val)
+        possible_lookup_values.add(f'"{norm_val}"')
+
+    possible_table_ranges = normalize_range_list(table_ranges if isinstance(table_ranges, list) else [table_ranges])
+
+    result["checks"]["lookup_value"] = int(lookup in possible_lookup_values)
+    result["checks"]["table_range"] = int(table in possible_table_ranges)
+    result["checks"]["return_column"] = int(col == str(return_col))
+    result["checks"]["exact_match"] = int(match in {"0", "FALSE"})
+    for name, value in result["checks"].items():
+        if value == 0:
+            result["issues"].append(name + " is incorrect.")
+    if all(v == 1 for v in result["checks"].values()):
+        result["marks"] = QUESTION_MARK
+        result["status"] = "CORRECT"
+    return result
+
+def check_sumif_s1(formula, criteria_ranges, criteria, sum_ranges):
+    result = {"marks": 0, "status": "WRONG", "issues": [], "checks": {}}
+    if not is_formula(formula):
+        result["issues"].append("No formula found.")
+        return result
+    if get_function(formula) != "SUMIF":
+        result["issues"].append("SUMIF is required.")
+        return result
+    args = split_formula_args(formula)
+    if len(args) != 3:
+        result["issues"].append("SUMIF must have 3 arguments.")
+        return result
+    criteria_range = normalize_formula(args[0])
+    actual_criteria = normalize_formula(args[1])
+    sum_range = normalize_formula(args[2])
+
+    possible_criteria_ranges = normalize_range_list(criteria_ranges if isinstance(criteria_ranges, list) else [criteria_ranges])
+    possible_sum_ranges = normalize_range_list(sum_ranges if isinstance(sum_ranges, list) else [sum_ranges])
+    possible_criteria = {normalize_formula(criteria), f'"{normalize_formula(criteria)}"'}
+
+    result["checks"]["function"] = 1
+    result["checks"]["criteria_range"] = int(criteria_range in possible_criteria_ranges)
+    result["checks"]["criteria"] = int(actual_criteria in possible_criteria)
+    result["checks"]["sum_range"] = int(sum_range in possible_sum_ranges)
+    for name, value in result["checks"].items():
+        if value == 0:
+            result["issues"].append(name + " is incorrect.")
+    if all(v == 1 for v in result["checks"].values()):
+        result["marks"] = QUESTION_MARK
+        result["status"] = "CORRECT"
+    return result
+
+def check_countif_s1(formula, criteria_ranges, criteria):
+    result = {"marks": 0, "status": "WRONG", "issues": [], "checks": {}}
+    if not is_formula(formula):
+        result["issues"].append("No formula found.")
+        return result
+    if get_function(formula) != "COUNTIF":
+        result["issues"].append("COUNTIF is required.")
+        return result
+    args = split_formula_args(formula)
+    if len(args) != 2:
+        result["issues"].append("COUNTIF must have 2 arguments.")
+        return result
+    criteria_range = normalize_formula(args[0])
+    actual_criteria = normalize_formula(args[1])
+
+    possible_criteria_ranges = normalize_range_list(criteria_ranges if isinstance(criteria_ranges, list) else [criteria_ranges])
+    possible_criteria = {normalize_formula(criteria), f'"{normalize_formula(criteria)}"'}
+
+    result["checks"]["function"] = 1
+    result["checks"]["criteria_range"] = int(criteria_range in possible_criteria_ranges)
+    result["checks"]["criteria"] = int(actual_criteria in possible_criteria)
+    for name, value in result["checks"].items():
+        if value == 0:
+            result["issues"].append(name + " is incorrect.")
+    if all(v == 1 for v in result["checks"].values()):
+        result["marks"] = QUESTION_MARK
+        result["status"] = "CORRECT"
+    return result
+
+def check_text_formula_s1(formula, accepted_patterns, expected_text):
+    result = {"marks": 0, "status": "WRONG", "issues": [], "checks": {}}
+    if not is_formula(formula):
+        result["issues"].append("No formula found.")
+        return result
+    f = normalize_formula(formula)
+    result["checks"]["formula_structure"] = int(any(re.fullmatch(p, f) for p in accepted_patterns))
+    if result["checks"]["formula_structure"]:
+        result["marks"] = QUESTION_MARK
+        result["status"] = "CORRECT"
+    else:
+        result["issues"].append(f"Formula does not match accepted solution for: {expected_text}")
+    return result
+
+def check_q1_s1(f): return check_vlookup_s1(f, ["E003"], 3, ["A4:C13", "A3:C13"])
+def check_q2_s1(f): return check_vlookup_s1(f, ["Sara Khan", "B20"], 4, ["B4:E13", "B3:E13"])
+def check_q3_s1(f): return check_vlookup_s1(f, ["E007"], 4, ["A4:D13", "A3:D13"])
+def check_q4_s1(f): return check_vlookup_s1(f, ["E010"], 2, ["A4:B13", "A3:B13"])
+
+def check_q5_s1(f): return check_sumif_s1(f, ["B4:B13", "B3:B13"], "ALI", ["F4:F13", "F3:F13"])
+def check_q6_s1(f): return check_countif_s1(f, ["C4:C13", "C3:C13"], "LAPTOP")
+def check_q7_s1(f): return check_sumif_s1(f, ["B4:B13", "B3:B13"], "SARA", ["E4:E13", "E3:E13"])
+def check_q8_s1(f): return check_countif_s1(f, ["D4:D13", "D3:D13"], "ELECTRONICS")
+def check_q9_s1(f): return check_sumif_s1(f, ["D4:D13", "D3:D13"], "ACCESSORIES", ["F4:F13", "F3:F13"])
+def check_q10_s1(f): return check_countif_s1(f, ["B4:B13", "B3:B13"], "FATIMA")
+
+def check_q11_s1(f): return check_text_formula_s1(f, [r'LEFT\(A4,3\)'], "Ahm")
+def check_q12_s1(f): return check_text_formula_s1(f, [r'RIGHT\(B4,7\)'], "1234567")
+def check_q13_s1(f): return check_text_formula_s1(f, [r'LEFT\(C4,FIND\("@",C4\)-1\)'], "ahmed.ali")
+def check_q14_s1(f): return check_text_formula_s1(f, [r'MID\(D4,5,4\)'], "2024")
+def check_q15_s1(f): return check_text_formula_s1(f, [r'RIGHT\(C5,LEN\(C5\)-FIND\("@",C5\)\)', r'MID\(C5,FIND\("@",C5\)+1,LEN\(C5\)\)'], "hotmail.com")
+def check_q16_s1(f): return check_text_formula_s1(f, [r'RIGHT\(A5,LEN\(A5\)-FIND\(" ",A5\)\)', r'MID\(A5,FIND\(" ",A5\)+1,LEN\(A5\)\)'], "Fatima")
+
+def check_q17_s1(f): return check_text_formula_s1(f, [r'D4\*E4', r'E4\*D4'], "340000")
+def check_q18_s1(f): return check_text_formula_s1(f, [r'RIGHT\(A4,3\)', r'MID\(A4,9,3\)'], "LAP")
+def check_q19_s1(f): return check_countif_s1(f, ["C4:C11", "C3:C11"], "ACCESSORIES")
+def check_q20_s1(f): return check_sumif_s1(f, ["C4:C11", "C3:C11"], "ELECTRONICS", ["F4:F11", "F3:F11"])
+
+CHECKERS_S1 = {
+    "Q1": check_q1_s1, "Q2": check_q2_s1, "Q3": check_q3_s1, "Q4": check_q4_s1,
+    "Q5": check_q5_s1, "Q6": check_q6_s1, "Q7": check_q7_s1, "Q8": check_q8_s1, "Q9": check_q9_s1, "Q10": check_q10_s1,
+    "Q11": check_q11_s1, "Q12": check_q12_s1, "Q13": check_q13_s1, "Q14": check_q14_s1, "Q15": check_q15_s1, "Q16": check_q16_s1,
+    "Q17": check_q17_s1, "Q18": check_q18_s1, "Q19": check_q19_s1, "Q20": check_q20_s1,
+}
+
+def grade_excel_skill_1(wb):
+    total_score = 0; details = []
+    for q_id, (sheet_name, cell_ref) in ANSWER_CELLS_S1.items():
+        if sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+            formula = ws[cell_ref].value
+            try:
+                res = CHECKERS_S1[q_id](formula)
+                marks = res.get('marks', 0)
+                status = res.get('status', 'WRONG')
+                issues = res.get('issues', [])
+                total_score += marks
+                details.append({
+                    'q': q_id,
+                    'task': f"Question {q_id} ({sheet_name} {cell_ref})",
+                    'correct': status == 'CORRECT',
+                    'error': " | ".join(issues) if issues else "Formula + result correct (0.5/0.5)"
+                })
+            except Exception as e:
+                details.append({
+                    'q': q_id,
+                    'task': f"Question {q_id} ({sheet_name} {cell_ref})",
+                    'correct': False,
+                    'error': str(e)
+                })
+        else:
+            details.append({
+                'q': q_id,
+                'task': f"Question {q_id} ({sheet_name})",
+                'correct': False,
+                'error': f"Sheet '{sheet_name}' not found."
+            })
+    return round(total_score, 2), details
 
 # GRADING HELPERS FOR SKILL 4
 
@@ -405,48 +650,88 @@ def grade_lookup_function(wb):
     score = 0; details = []
     try:
         ws = wb['LOOKUP FUNCTION']
-        if ws['B4'].value and 'cherry' in str(ws['B4'].value).lower(): score += 0.8; details.append({'q': 'Q1', 'correct': True})
-        else: details.append({'q': 'Q1', 'correct': False})
-        if ws['B5'].value and str(ws['B5'].value).strip() in ['50', '50.0']: score += 0.8; details.append({'q': 'Q2', 'correct': True})
-        else: details.append({'q': 'Q2', 'correct': False})
-        if ws['B6'].value and 'cherry' in str(ws['B6'].value).lower(): score += 0.9; details.append({'q': 'Q3', 'correct': True})
-        else: details.append({'q': 'Q3', 'correct': False})
-    except: pass
+        v1 = ws['B4'].value
+        if v1 and 'cherry' in str(v1).lower():
+            score += 0.8; details.append({'q': 'Q1', 'task': 'Find Product for code 110', 'correct': True})
+        else:
+            details.append({'q': 'Q1', 'task': 'Find Product for code 110', 'correct': False, 'error': f"Expected 'Cherry', Got '{v1}' (Cell B4)"})
+
+        v2 = ws['B5'].value
+        if v2 and str(v2).strip() in ['50', '50.0']:
+            score += 0.8; details.append({'q': 'Q2', 'task': 'Find Points for code 150', 'correct': True})
+        else:
+            details.append({'q': 'Q2', 'task': 'Find Points for code 150', 'correct': False, 'error': f"Expected '50', Got '{v2}' (Cell B5)"})
+
+        v3 = ws['B6'].value
+        if v3 and 'cherry' in str(v3).lower():
+            score += 0.9; details.append({'q': 'Q3', 'task': 'LOOKUP function for code 110', 'correct': True})
+        else:
+            details.append({'q': 'Q3', 'task': 'LOOKUP function for code 110', 'correct': False, 'error': f"Expected 'Cherry', Got '{v3}' (Cell B6)"})
+    except Exception as e:
+        details.append({'error': str(e)})
     return min(score, 2.5), details
 
 def grade_advanced_sumifs(wb):
     score = 0; details = []
     try:
         ws = wb['ADVANCED SUMIFS']
-        if ws['G4'].value and str(ws['G4'].value).strip() in ['11000', '11000.0']: score += 1.25; details.append({'q': 'Q4', 'correct': True})
-        else: details.append({'q': 'Q4', 'correct': False})
-        if ws['G5'].value and str(ws['G5'].value).strip() in ['3000', '3000.0']: score += 1.25; details.append({'q': 'Q5', 'correct': True})
-        else: details.append({'q': 'Q5', 'correct': False})
-    except: pass
+        v4 = ws['G4'].value
+        if v4 and str(v4).strip() in ['11000', '11000.0']:
+            score += 1.25; details.append({'q': 'Q4', 'task': "Total Sales in 'North' for 'Electronics'", 'correct': True})
+        else:
+            details.append({'q': 'Q4', 'task': "Total Sales in 'North' for 'Electronics'", 'correct': False, 'error': f"Expected '11000', Got '{v4}' (Cell G4)"})
+
+        v5 = ws['G5'].value
+        if v5 and str(v5).strip() in ['3000', '3000.0']:
+            score += 1.25; details.append({'q': 'Q5', 'task': "Total Sales in 'South' for 'Furniture'", 'correct': True})
+        else:
+            details.append({'q': 'Q5', 'task': "Total Sales in 'South' for 'Furniture'", 'correct': False, 'error': f"Expected '3000', Got '{v5}' (Cell G5)"})
+    except Exception as e:
+        details.append({'error': str(e)})
     return min(score, 2.5), details
 
 def grade_countifs_relationships(wb):
     score = 0; details = []
     try:
         ws = wb['COUNTIFS & RELATIONSHIPS']
-        if ws['B12'].value and str(ws['B12'].value).strip() in ['3', '3.0']: score += 1.25; details.append({'q': 'Q6', 'correct': True})
-        else: details.append({'q': 'Q6', 'correct': False})
-        if ws['B13'].value and 'sales' in str(ws['B13'].value).lower(): score += 1.25; details.append({'q': 'Q7', 'correct': True})
-        else: details.append({'q': 'Q7', 'correct': False})
-    except: pass
+        v6 = ws['B12'].value
+        if v6 and str(v6).strip() in ['3', '3.0']:
+            score += 1.25; details.append({'q': 'Q6', 'task': "Count students in 'D1' using COUNTIFS", 'correct': True})
+        else:
+            details.append({'q': 'Q6', 'task': "Count students in 'D1' using COUNTIFS", 'correct': False, 'error': f"Expected '3', Got '{v6}' (Cell B12)"})
+
+        v7 = ws['B13'].value
+        if v7 and 'sales' in str(v7).lower():
+            score += 1.25; details.append({'q': 'Q7', 'task': "LOOKUP to find DeptName for SID 4", 'correct': True})
+        else:
+            details.append({'q': 'Q7', 'task': "LOOKUP to find DeptName for SID 4", 'correct': False, 'error': f"Expected 'Sales', Got '{v7}' (Cell B13)"})
+    except Exception as e:
+        details.append({'error': str(e)})
     return min(score, 2.5), details
 
 def grade_integrated_lookup(wb):
     score = 0; details = []
     try:
         ws = wb['INTEGRATED CHALLENGE']
-        if ws['B5'].value and str(ws['B5'].value).strip() in ['6000', '6000.0']: score += 1.0; details.append({'q': 'Q8', 'correct': True})
-        else: details.append({'q': 'Q8', 'correct': False})
-        if ws['B6'].value and str(ws['B6'].value).strip() in ['1', '1.0']: score += 0.75; details.append({'q': 'Q9', 'correct': True})
-        else: details.append({'q': 'Q9', 'correct': False})
-        if ws['B7'].value and str(ws['B7'].value).strip() in ['40', '40.0']: score += 0.75; details.append({'q': 'Q10', 'correct': True})
-        else: details.append({'q': 'Q10', 'correct': False})
-    except: pass
+        v8 = ws['B5'].value
+        if v8 and str(v8).strip() in ['6000', '6000.0']:
+            score += 1.0; details.append({'q': 'Q8', 'task': "Total Sales 'Electronics' in 'North' after date", 'correct': True})
+        else:
+            details.append({'q': 'Q8', 'task': "Total Sales 'Electronics' in 'North' after date", 'correct': False, 'error': f"Expected '6000', Got '{v8}' (Cell B5)"})
+
+        v9 = ws['B6'].value
+        if v9 and str(v9).strip() in ['1', '1.0']:
+            score += 0.75; details.append({'q': 'Q9', 'task': "Departments with more than 2 students", 'correct': True})
+        else:
+            details.append({'q': 'Q9', 'task': "Departments with more than 2 students", 'correct': False, 'error': f"Expected '1', Got '{v9}' (Cell B6)"})
+
+        v10 = ws['B7'].value
+        if v10 and str(v10).strip() in ['40', '40.0']:
+            score += 0.75; details.append({'q': 'Q10', 'task': "LOOKUP points for date", 'correct': True})
+        else:
+            details.append({'q': 'Q10', 'task': "LOOKUP points for date", 'correct': False, 'error': f"Expected '40', Got '{v10}' (Cell B7)"})
+    except Exception as e:
+        details.append({'error': str(e)})
     return min(score, 2.5), details
 
 # OTHER GRADING HELPERS
@@ -481,151 +766,902 @@ def grade_power_query(wb):
     except: pass
     return min(score, 5), details
 
+import excel_auto_checker_skill2
+
 def grade_named_manager(wb):
     score = 0; details = []
     try:
-        names = wb.defined_names.keys()
-        if 'ProductList' in names: score += 0.8; details.append({'task': 'ProductList', 'correct': True})
-        else: details.append({'task': 'ProductList', 'correct': False})
-        if 'PriceList' in names: score += 0.8; details.append({'task': 'PriceList', 'correct': True})
-        else: details.append({'task': 'PriceList', 'correct': False})
-        if 'CategoryList' in names: score += 0.9; details.append({'task': 'CategoryList', 'correct': True})
-        else: details.append({'task': 'CategoryList', 'correct': False})
-    except: pass
-    return min(score, 2.5), details
+        for name, (sheet_name, cell_range) in excel_auto_checker_skill2.NAMED_MANAGER_CHECKS.items():
+            check = excel_auto_checker_skill2.check_named_range(wb, name, sheet_name, cell_range)
+            correct = (check["status"] == "CORRECT")
+            if correct:
+                score += excel_auto_checker_skill2.NAMED_MANAGER_MARKS / len(excel_auto_checker_skill2.NAMED_MANAGER_CHECKS)
+            details.append({
+                'task': name,
+                'correct': correct,
+                'error': " | ".join(check["issues"]) if not correct else ""
+            })
+    except Exception as e:
+        details.append({'error': str(e)})
+    return round(min(score, 2.5), 4), details
 
 def grade_dropdown_basic(wb):
     score = 0; details = []
     try:
-        ws = wb['DROPDOWN BASIC']; validations = ws.data_validations.dataValidation
-        c5_val = any('C5' in rng.coord for dv in validations for rng in dv.sqref if dv.type == 'list')
-        c7_val = any('C7' in rng.coord for dv in validations for rng in dv.sqref if dv.type == 'list')
-        if c5_val: score += 1.25; details.append({'task': 'C5', 'correct': True})
-        else: details.append({'task': 'C5', 'correct': False})
-        if c7_val: score += 1.25; details.append({'task': 'C7', 'correct': True})
-        else: details.append({'task': 'C7', 'correct': False})
-    except: pass
-    return min(score, 2.5), details
+        if "DROPDOWN BASIC" not in wb.sheetnames:
+            details.append({'task': 'C5', 'correct': False, 'error': "Sheet 'DROPDOWN BASIC' not found."})
+            details.append({'task': 'C7', 'correct': False, 'error': "Sheet 'DROPDOWN BASIC' not found."})
+        else:
+            ws = wb["DROPDOWN BASIC"]
+            c5_check = excel_auto_checker_skill2.check_basic_c5(ws)
+            c5_correct = (c5_check["status"] == "CORRECT")
+            if c5_correct: score += 1.25
+            details.append({'task': 'C5', 'correct': c5_correct, 'error': " | ".join(c5_check["issues"]) if not c5_correct else ""})
+
+            c7_check = excel_auto_checker_skill2.check_basic_c7(ws, wb)
+            c7_correct = (c7_check["status"] == "CORRECT")
+            if c7_correct: score += 1.25
+            details.append({'task': 'C7', 'correct': c7_correct, 'error': " | ".join(c7_check["issues"]) if not c7_correct else ""})
+    except Exception as e:
+        details.append({'error': str(e)})
+    return round(min(score, 2.5), 4), details
 
 def grade_dropdown_advanced(wb):
     score = 0; details = []
     try:
-        names = wb.defined_names.keys()
-        if 'Electronics' in names and 'Furniture' in names: score += 1.0; details.append({'task': 'Ranges', 'correct': True})
-        else: details.append({'task': 'Ranges', 'correct': False})
-        ws = wb['DROPDOWN ADVANCED']; validations = ws.data_validations.dataValidation
-        c10_val = any('C10' in rng.coord for dv in validations for rng in dv.sqref)
-        d10_val = any('D10' in rng.coord for dv in validations for rng in dv.sqref if 'INDIRECT' in str(dv.formula1).upper())
-        if c10_val: score += 0.5; details.append({'task': 'C10', 'correct': True})
-        else: details.append({'task': 'C10', 'correct': False})
-        if d10_val: score += 1.0; details.append({'task': 'D10', 'correct': True})
-        else: details.append({'task': 'D10', 'correct': False})
-    except: pass
-    return min(score, 2.5), details
+        for name, (sheet_name, cell_range) in excel_auto_checker_skill2.ADVANCED_NAMED_RANGES.items():
+            check = excel_auto_checker_skill2.check_advanced_named_range(wb, name, sheet_name, cell_range)
+            correct = (check["status"] == "CORRECT")
+            if correct:
+                score += excel_auto_checker_skill2.ADVANCED_DROPDOWN_MARKS / 4
+            details.append({
+                'task': f'Named Range - {name}',
+                'correct': correct,
+                'error': " | ".join(check["issues"]) if not correct else ""
+            })
+
+        if "DROPDOWN ADVANCED" not in wb.sheetnames:
+            details.append({'task': 'C10', 'correct': False, 'error': "Sheet 'DROPDOWN ADVANCED' not found."})
+            details.append({'task': 'C11', 'correct': False, 'error': "Sheet 'DROPDOWN ADVANCED' not found."})
+        else:
+            ws = wb["DROPDOWN ADVANCED"]
+            c10_check = excel_auto_checker_skill2.check_advanced_c10(ws)
+            c10_correct = (c10_check["status"] == "CORRECT")
+            if c10_correct: score += 0.625
+            details.append({'task': 'C10', 'correct': c10_correct, 'error': " | ".join(c10_check["issues"]) if not c10_correct else ""})
+
+            c11_check = excel_auto_checker_skill2.check_advanced_c11(ws)
+            c11_correct = (c11_check["status"] == "CORRECT")
+            if c11_correct: score += 0.625
+            details.append({'task': 'C11', 'correct': c11_correct, 'error': " | ".join(c11_check["issues"]) if not c11_correct else ""})
+    except Exception as e:
+        details.append({'error': str(e)})
+    return round(min(score, 2.5), 4), details
 
 def grade_workbook_validation(wb):
     score = 0; details = []
     try:
-        ws = wb['DATA VALIDATION SKILL 2']; validations = ws.data_validations.dataValidation
-        c5_val = any('C5' in rng.coord for dv in validations for rng in dv.sqref if dv.type == 'whole')
-        c7_val = any('C7' in rng.coord for dv in validations for rng in dv.sqref if dv.type == 'date')
-        c9_val = any('C9' in rng.coord for dv in validations for rng in dv.sqref if dv.type == 'textLength')
-        if c5_val: score += 0.8; details.append({'task': 'C5', 'correct': True})
-        else: details.append({'task': 'C5', 'correct': False})
-        if c7_val: score += 0.8; details.append({'task': 'C7', 'correct': True})
-        else: details.append({'task': 'C7', 'correct': False})
-        if c9_val: score += 0.9; details.append({'task': 'C9', 'correct': True})
-        else: details.append({'task': 'C9', 'correct': False})
-    except: pass
-    return min(score, 2.5), details
+        if "DATA VALIDATION SKILL 2" not in wb.sheetnames:
+            details.append({'task': 'C5 (Whole Number)', 'correct': False, 'error': "Sheet 'DATA VALIDATION SKILL 2' not found."})
+            details.append({'task': 'C7 (Date)', 'correct': False, 'error': "Sheet 'DATA VALIDATION SKILL 2' not found."})
+            details.append({'task': 'C9 (Text Length)', 'correct': False, 'error': "Sheet 'DATA VALIDATION SKILL 2' not found."})
+        else:
+            ws = wb["DATA VALIDATION SKILL 2"]
+            c5_check = excel_auto_checker_skill2.check_whole_number_c5(ws)
+            c5_correct = (c5_check["status"] == "CORRECT")
+            if c5_correct: score += 0.8333
+            details.append({'task': 'C5 (Whole Number)', 'correct': c5_correct, 'error': " | ".join(c5_check["issues"]) if not c5_correct else ""})
+
+            c7_check = excel_auto_checker_skill2.check_date_c7(ws)
+            c7_correct = (c7_check["status"] == "CORRECT")
+            if c7_correct: score += 0.8333
+            details.append({'task': 'C7 (Date)', 'correct': c7_correct, 'error': " | ".join(c7_check["issues"]) if not c7_correct else ""})
+
+            c9_check = excel_auto_checker_skill2.check_text_length_c9(ws)
+            c9_correct = (c9_check["status"] == "CORRECT")
+            if c9_correct: score += 0.8334
+            details.append({'task': 'C9 (Text Length)', 'correct': c9_correct, 'error': " | ".join(c9_check["issues"]) if not c9_correct else ""})
+    except Exception as e:
+        details.append({'error': str(e)})
+    return round(min(score, 2.5), 4), details
 
 def grade_vlookup(wb):
     score = 0; details = []
     try:
         ws = wb['VLOOKUP']
-        # Yellow cells are in Column C (3), Rows 19, 20, 21, 22
-        if ws['C19'].value and 'finance' in str(ws['C19'].value).lower(): score += 0.5; details.append({'q': 'Q1', 'correct': True})
-        else: details.append({'q': 'Q1', 'correct': False})
-        if ws['C20'].value and str(ws['C20'].value).strip() in ['42000', '42000.0']: score += 0.5; details.append({'q': 'Q2', 'correct': True})
-        else: details.append({'q': 'Q2', 'correct': False})
-        if ws['C21'].value and 'islamabad' in str(ws['C21'].value).lower(): score += 0.5; details.append({'q': 'Q3', 'correct': True})
-        else: details.append({'q': 'Q3', 'correct': False})
-        if ws['C22'].value and 'maryam' in str(ws['C22'].value).lower(): score += 0.5; details.append({'q': 'Q4', 'correct': True})
-        else: details.append({'q': 'Q4', 'correct': False})
-    except: pass
+        # Q1: C19 (Find Department of Employee E003 -> Finance)
+        v1 = ws['C19'].value
+        v1_str = str(v1 or "").strip()
+        if v1 and ('finance' in v1_str.lower() or ('vlookup' in v1_str.upper() and 'E003' in v1_str.upper())):
+            score += 0.5; details.append({'q': 'Q1', 'task': 'Find Department of Employee E003 (VLOOKUP)', 'correct': True})
+        else:
+            details.append({'q': 'Q1', 'task': 'Find Department of Employee E003 (VLOOKUP)', 'correct': False, 'error': f"Expected 'Finance' or VLOOKUP formula for E003, Got '{v1}' (Cell C19)"})
+
+        # Q2: C20 (Find Salary of Sara Khan -> 42000)
+        v2 = ws['C20'].value
+        v2_str = str(v2 or "").strip()
+        if v2 and (v2_str in ['42000', '42000.0'] or ('vlookup' in v2_str.upper() and 'SARA' in v2_str.upper())):
+            score += 0.5; details.append({'q': 'Q2', 'task': 'Find Salary of Sara Khan (VLOOKUP)', 'correct': True})
+        else:
+            details.append({'q': 'Q2', 'task': 'Find Salary of Sara Khan (VLOOKUP)', 'correct': False, 'error': f"Expected '42000' or VLOOKUP formula for Sara Khan, Got '{v2}' (Cell C20)"})
+
+        # Q3: C21 (Find City of Employee E007 -> Islamabad)
+        v3 = ws['C21'].value
+        v3_str = str(v3 or "").strip()
+        if v3 and ('islamabad' in v3_str.lower() or ('vlookup' in v3_str.upper() and 'E007' in v3_str.upper())):
+            score += 0.5; details.append({'q': 'Q3', 'task': 'Find City of Employee E007 (VLOOKUP)', 'correct': True})
+        else:
+            details.append({'q': 'Q3', 'task': 'Find City of Employee E007 (VLOOKUP)', 'correct': False, 'error': f"Expected 'Islamabad' or VLOOKUP formula for E007, Got '{v3}' (Cell C21)"})
+
+        # Q4: C22 (Find Name of Employee with ID E010 -> Maryam Fatima)
+        v4 = ws['C22'].value
+        v4_str = str(v4 or "").strip()
+        if v4 and ('maryam' in v4_str.lower() or ('vlookup' in v4_str.upper() and 'E010' in v4_str.upper())):
+            score += 0.5; details.append({'q': 'Q4', 'task': 'Find Name of Employee E010 (VLOOKUP)', 'correct': True})
+        else:
+            details.append({'q': 'Q4', 'task': 'Find Name of Employee E010 (VLOOKUP)', 'correct': False, 'error': f"Expected 'Maryam' or VLOOKUP formula for E010, Got '{v4}' (Cell C22)"})
+    except Exception as e:
+        details.append({'error': str(e)})
     return score, details
 
 def grade_sumif_countif(wb):
     score = 0; details = []
     try:
         ws = wb['SUMIF & COUNTIF']
-        # Yellow cells are in Column C (3), Rows 20, 21, 22, 23, 24, 25
-        if ws['C20'].value and str(ws['C20'].value).strip() in ['157000', '157000.0']: score += 0.33; details.append({'q': 'Q5', 'correct': True})
-        else: details.append({'q': 'Q5', 'correct': False})
-        if ws['C21'].value and str(ws['C21'].value).strip() in ['4', '4.0']: score += 0.33; details.append({'q': 'Q6', 'correct': True})
-        else: details.append({'q': 'Q6', 'correct': False})
-        if ws['C22'].value and str(ws['C22'].value).strip() in ['15', '15.0']: score += 0.33; details.append({'q': 'Q7', 'correct': True})
-        else: details.append({'q': 'Q7', 'correct': False})
-        if ws['C23'].value and str(ws['C23'].value).strip() in ['7', '7.0']: score += 0.33; details.append({'q': 'Q8', 'correct': True})
-        else: details.append({'q': 'Q8', 'correct': False})
-        if ws['C24'].value and str(ws['C24'].value).strip() in ['82000', '82000.0']: score += 0.33; details.append({'q': 'Q9', 'correct': True})
-        else: details.append({'q': 'Q9', 'correct': False})
-        if ws['C25'].value and str(ws['C25'].value).strip() in ['2', '2.0']: score += 0.33; details.append({'q': 'Q10', 'correct': True})
-        else: details.append({'q': 'Q10', 'correct': False})
-    except: pass
+        q_checks = [
+            {'cell': 'C20', 'q': 'Q5', 'task': 'Total sales by Ali (SUMIF)', 'expected': '157000', 'ans': ['157000', '157000.0'], 'fn': 'SUMIF'},
+            {'cell': 'C21', 'q': 'Q6', 'task': 'Count of Laptop sales (COUNTIF)', 'expected': '4', 'ans': ['4', '4.0'], 'fn': 'COUNTIF'},
+            {'cell': 'C22', 'q': 'Q7', 'task': 'Total quantity sold by Sara (SUMIF)', 'expected': '15', 'ans': ['15', '15.0'], 'fn': 'SUMIF'},
+            {'cell': 'C23', 'q': 'Q8', 'task': 'Count of Electronics sold (COUNTIF)', 'expected': '7', 'ans': ['7', '7.0'], 'fn': 'COUNTIF'},
+            {'cell': 'C24', 'q': 'Q9', 'task': 'Total amount of Accessories (SUMIF)', 'expected': '82000', 'ans': ['82000', '82000.0'], 'fn': 'SUMIF'},
+            {'cell': 'C25', 'q': 'Q10', 'task': 'Count of Fatima sales (COUNTIF)', 'expected': '2', 'ans': ['2', '2.0'], 'fn': 'COUNTIF'}
+        ]
+        for qc in q_checks:
+            v = ws[qc['cell']].value
+            v_str = str(v or "").strip()
+            if v and (v_str in qc['ans'] or qc['fn'] in v_str.upper()):
+                score += 0.33; details.append({'q': qc['q'], 'task': qc['task'], 'correct': True})
+            else:
+                details.append({'q': qc['q'], 'task': qc['task'], 'correct': False, 'error': f"Expected value '{qc['expected']}' or {qc['fn']} formula, Got '{v}' (Cell {qc['cell']})"})
+    except Exception as e:
+        details.append({'error': str(e)})
     return min(score, 2), details
 
 def grade_text_functions(wb):
     score = 0; details = []
     try:
         ws = wb['LEFT RIGHT MID']
-        # Yellow cells are in Column C (3), Rows 15, 16, 17, 18, 19, 20
-        if ws['C15'].value and str(ws['C15'].value).strip().lower() == 'ahm': score += 0.33; details.append({'q': 'Q11', 'correct': True})
-        else: details.append({'q': 'Q11', 'correct': False})
-        if ws['C16'].value and '1234567' in str(ws['C16'].value): score += 0.33; details.append({'q': 'Q12', 'correct': True})
-        else: details.append({'q': 'Q12', 'correct': False})
-        if ws['C17'].value and 'ahmed' in str(ws['C17'].value).lower(): score += 0.33; details.append({'q': 'Q13', 'correct': True})
-        else: details.append({'q': 'Q13', 'correct': False})
-        if ws['C18'].value and '2024' in str(ws['C18'].value): score += 0.33; details.append({'q': 'Q14', 'correct': True})
-        else: details.append({'q': 'Q14', 'correct': False})
-        if ws['C19'].value and 'hotmail' in str(ws['C19'].value).lower(): score += 0.33; details.append({'q': 'Q15', 'correct': True})
-        else: details.append({'q': 'Q15', 'correct': False})
-        if ws['C20'].value and 'fatima' in str(ws['C20'].value).lower(): score += 0.33; details.append({'q': 'Q16', 'correct': True})
-        else: details.append({'q': 'Q16', 'correct': False})
-    except: pass
+        q_checks = [
+            {'cell': 'C15', 'q': 'Q11', 'task': 'Extract first 3 letters (LEFT)', 'expected': 'Ahm', 'check': lambda v, s: v and ('ahm' in s.lower() or 'left' in s.upper())},
+            {'cell': 'C16', 'q': 'Q12', 'task': 'Extract last 7 digits (RIGHT)', 'expected': '1234567', 'check': lambda v, s: v and ('1234567' in s or 'right' in s.upper())},
+            {'cell': 'C17', 'q': 'Q13', 'task': 'Extract username (MID/FIND)', 'expected': 'ahmed.ali', 'check': lambda v, s: v and ('ahmed' in s.lower() or 'mid' in s.upper() or 'find' in s.upper())},
+            {'cell': 'C18', 'q': 'Q14', 'task': 'Extract year (RIGHT)', 'expected': '2024', 'check': lambda v, s: v and ('2024' in s or 'right' in s.upper())},
+            {'cell': 'C19', 'q': 'Q15', 'task': 'Extract domain (MID)', 'expected': 'hotmail', 'check': lambda v, s: v and ('hotmail' in s.lower() or 'mid' in s.upper())},
+            {'cell': 'C20', 'q': 'Q16', 'task': 'Extract middle name (MID)', 'expected': 'fatima', 'check': lambda v, s: v and ('fatima' in s.lower() or 'mid' in s.upper())}
+        ]
+        for qc in q_checks:
+            v = ws[qc['cell']].value
+            v_str = str(v or "").strip()
+            if qc['check'](v, v_str):
+                score += 0.33; details.append({'q': qc['q'], 'task': qc['task'], 'correct': True})
+            else:
+                details.append({'q': qc['q'], 'task': qc['task'], 'correct': False, 'error': f"Expected '{qc['expected']}' or text formula, Got '{v}' (Cell {qc['cell']})"})
+    except Exception as e:
+        details.append({'error': str(e)})
     return min(score, 2), details
 
 def grade_if_nested(wb):
     score = 0; details = []
     try:
         ws = wb['IF & NESTED IF']
-        # Yellow cells are in Column D (4) and E (5), Rows 4 to 13
-        students = [{'row': 4, 'g': 'A+', 's': 'Pass'}, {'row': 5, 'g': 'A', 's': 'Pass'}, {'row': 6, 'g': 'B', 's': 'Pass'}, {'row': 7, 'g': 'C', 's': 'Pass'}, {'row': 8, 'g': 'D', 's': 'Pass'}, {'row': 9, 'g': 'F', 's': 'Fail'}, {'row': 10, 'g': 'F', 's': 'Fail'}, {'row': 11, 'g': 'A', 's': 'Pass'}, {'row': 12, 'g': 'B', 's': 'Pass'}, {'row': 13, 'g': 'A+', 's': 'Pass'}]
+        students = [
+            {'row': 4, 'id': 'S001', 'name': 'Ahmed', 'g': 'A+', 's': 'Pass'},
+            {'row': 5, 'id': 'S002', 'name': 'Sara', 'g': 'A', 's': 'Pass'},
+            {'row': 6, 'id': 'S003', 'name': 'Omar', 'g': 'B', 's': 'Pass'},
+            {'row': 7, 'id': 'S004', 'name': 'Fatima', 'g': 'C', 's': 'Pass'},
+            {'row': 8, 'id': 'S005', 'name': 'Bilal', 'g': 'D', 's': 'Pass'},
+            {'row': 9, 'id': 'S006', 'name': 'Ayesha', 'g': 'F', 's': 'Fail'},
+            {'row': 10, 'id': 'S007', 'name': 'Hassan', 'g': 'F', 's': 'Fail'},
+            {'row': 11, 'id': 'S008', 'name': 'Zainab', 'g': 'A', 's': 'Pass'},
+            {'row': 12, 'id': 'S009', 'name': 'Ali', 'g': 'B', 's': 'Pass'},
+            {'row': 13, 'id': 'S010', 'name': 'Maryam', 'g': 'A+', 's': 'Pass'}
+        ]
         for std in students:
-            g = str(ws.cell(row=std['row'], column=4).value or "").strip().upper()
-            s = str(ws.cell(row=std['row'], column=5).value or "").strip().lower()
-            if g == std['g'] and s == std['s'].lower(): score += 0.2
-    except: pass
+            g_cell = ws.cell(row=std['row'], column=4).value
+            s_cell = ws.cell(row=std['row'], column=5).value
+            g = str(g_cell or "").strip().upper()
+            s = str(s_cell or "").strip().lower()
+            if (g == std['g'] or 'if' in g.lower()) and (s == std['s'].lower() or 'if' in s.lower()):
+                score += 0.2; details.append({'q': f"Student {std['id']}", 'task': f"Grade & Status for {std['name']}", 'correct': True})
+            else:
+                details.append({'q': f"Student {std['id']}", 'task': f"Grade & Status for {std['name']}", 'correct': False, 'error': f"Expected Grade '{std['g']}' and Status '{std['s']}', Got Grade '{g_cell}' and Status '{s_cell}'"})
+    except Exception as e:
+        details.append({'error': str(e)})
     return min(score, 2), details
 
-def grade_vlookup_sumif_countif_if(wb):
+def grade_complex(wb):
     score = 0; details = []
     try:
+        ws = wb['COMPLEX CHALLENGE']
+        q_checks = [
+            {'cell': 'C20', 'q': 'Q21', 'task': 'Extract category code from A4', 'expected': 'LAP', 'check': lambda v, s: v and ('lap' in s.lower() or 'right' in s.upper() or 'mid' in s.upper())},
+            {'cell': 'C21', 'q': 'Q22', 'task': 'Count products in Accessories', 'expected': '5', 'check': lambda v, s: v and (s in ['5', '5.0'] or 'countif' in s.upper())},
+            {'cell': 'C22', 'q': 'Q23', 'task': 'Total stock of Electronics', 'expected': '25', 'check': lambda v, s: v and (s in ['25', '25.0'] or 'sumif' in s.upper())},
+            {'cell': 'C23', 'q': 'Q24', 'task': 'Find price of PRD-KEY-003', 'expected': '4500', 'check': lambda v, s: v and (s in ['4500', '4500.0'] or 'vlookup' in s.upper())},
+            {'cell': 'C24', 'q': 'Q25', 'task': 'Extract first word from B5', 'expected': 'Wireless', 'check': lambda v, s: v and ('wireless' in s.lower() or 'left' in s.upper() or 'find' in s.upper())}
+        ]
+        for qc in q_checks:
+            v = ws[qc['cell']].value
+            v_str = str(v or "").strip()
+            if qc['check'](v, v_str):
+                score += 0.2; details.append({'q': qc['q'], 'task': qc['task'], 'correct': True})
+            else:
+                details.append({'q': qc['q'], 'task': qc['task'], 'correct': False, 'error': f"Expected '{qc['expected']}' or formula, Got '{v}' (Cell {qc['cell']})"})
+        
+        for i in range(5):
+            r = 25 + i
+            q_num = f"Q{26+i}"
+            v = ws.cell(row=r, column=3).value
+            if v is not None and str(v).strip() != '':
+                score += 0.2; details.append({'q': q_num, 'task': f'Complex Challenge Task {26+i}', 'correct': True})
+            else:
+                details.append({'q': q_num, 'task': f'Complex Challenge Task {26+i}', 'correct': False, 'error': f"Cell C{r} is empty. Provide the required formula or value."})
+    except Exception as e:
+        details.append({'error': str(e)})
+    return min(score, 2), details
+
+def split_formula_args(formula):
+    formula = str(formula).strip()
+    if formula.startswith("="):
+        formula = formula[1:]
+    start = formula.find("(")
+    end = formula.rfind(")")
+    if start == -1 or end == -1:
+        return []
+    inside = formula[start + 1:end]
+    args = []
+    current = []
+    depth = 0
+    inside_string = False
+    for char in inside:
+        if char == '"':
+            inside_string = not inside_string
+            current.append(char)
+            continue
+        if not inside_string:
+            if char == "(":
+                depth += 1
+            elif char == ")":
+                depth -= 1
+            elif char == "," and depth == 0:
+                args.append("".join(current).strip())
+                current = []
+                continue
+        current.append(char)
+    if current:
+        args.append("".join(current).strip())
+    return args
+
+def get_function_name(formula):
+    if not isinstance(formula, str) or not formula.startswith("="):
+        return None
+    match = re.match(r"=\s*([A-Z][A-Z0-9_]*)\s*\(", formula.upper())
+    return match.group(1) if match else None
+
+def clean_arg(arg):
+    return str(arg).strip().replace("$", "").upper()
+
+def equivalent_exact_match(arg):
+    arg = clean_arg(arg)
+    return arg in ("FALSE", "0")
+
+def parse_range(arg):
+    arg = clean_arg(arg)
+    match = re.match(r"^([A-Z]+)(\d+):([A-Z]+)(\d+)$", arg)
+    if not match:
+        return None
+    return {
+        "start_col": match.group(1),
+        "start_row": int(match.group(2)),
+        "end_col": match.group(3),
+        "end_row": int(match.group(4)),
+    }
+
+def range_equals(arg, expected):
+    parsed = parse_range(arg)
+    if not parsed:
+        return False
+    return (
+        parsed["start_col"] == expected["start_col"]
+        and parsed["start_row"] == expected["start_row"]
+        and parsed["end_col"] == expected["end_col"]
+        and parsed["end_row"] == expected["end_row"]
+    )
+
+def check_q1(formula):
+    result = {
+        "marks": 0,
+        "status": "WRONG",
+        "issues": [],
+        "checks": {}
+    }
+
+    # ------------------------------------
+    # 1. Formula check
+    # ------------------------------------
+    if not is_formula(formula):
+        result["issues"].append("No formula found.")
+        return result
+
+    function = get_function_name(formula)
+
+    result["checks"]["function"] = function == "VLOOKUP"
+
+    if function != "VLOOKUP":
+        result["issues"].append(
+            "VLOOKUP function is required."
+        )
+        return result
+
+    args = split_formula_args(formula)
+
+    if len(args) < 3:
+        result["issues"].append(
+            "VLOOKUP does not contain enough arguments."
+        )
+        return result
+
+    # ------------------------------------
+    # 2. Lookup value
+    # ------------------------------------
+    lookup_value = clean_arg(args[0])
+
+    lookup_correct = lookup_value in (
+        '"E050"',
+        "E050"
+    )
+
+    result["checks"]["lookup_value"] = lookup_correct
+
+    if not lookup_correct:
+        result["issues"].append(
+            f"Wrong lookup value: {args[0]}. "
+            f"Expected E050."
+        )
+
+    # ------------------------------------
+    # 3. Lookup table
+    #
+    # Both are valid:
+    # A3:E103  -> header included
+    # A4:E103  -> data only
+    #
+    # $ references are also accepted
+    # because parse_range() uses clean_arg()
+    # ------------------------------------
+    parsed_table = parse_range(args[1])
+
+    valid_q1_ranges = [
+        {
+            "start_col": "A",
+            "start_row": 3,
+            "end_col": "E",
+            "end_row": 103
+        },
+        {
+            "start_col": "A",
+            "start_row": 4,
+            "end_col": "E",
+            "end_row": 103
+        }
+    ]
+
+    table_correct = (
+        parsed_table is not None
+        and any(
+            parsed_table == valid_range
+            for valid_range in valid_q1_ranges
+        )
+    )
+
+    result["checks"]["lookup_table"] = table_correct
+
+    if not table_correct:
+        result["issues"].append(
+            f"Wrong lookup table: {args[1]}. "
+            f"Expected A3:E103 or A4:E103."
+        )
+
+    # ------------------------------------
+    # 4. Column index
+    # ------------------------------------
+    try:
+        column_index = int(
+            clean_arg(args[2])
+        )
+    except:
+        column_index = None
+
+    column_correct = column_index == 5
+
+    result["checks"]["column_index"] = column_correct
+
+    if not column_correct:
+        result["issues"].append(
+            f"Wrong column index: {args[2]}. "
+            f"Expected 5."
+        )
+
+    # ------------------------------------
+    # 5. Exact match
+    #
+    # FALSE and 0 both mean exact match
+    # ------------------------------------
+    if len(args) >= 4:
+
+        exact_correct = equivalent_exact_match(
+            args[3]
+        )
+
+        result["checks"]["exact_match"] = exact_correct
+
+        if not exact_correct:
+            result["issues"].append(
+                f"Approximate match used ({args[3]}). "
+                f"Use FALSE or 0 for exact match."
+            )
+
+    else:
+
+        result["checks"]["exact_match"] = False
+
+        result["issues"].append(
+            "VLOOKUP match argument missing. "
+            "Exact match FALSE/0 is required."
+        )
+
+    # ------------------------------------
+    # 6. Final scoring
+    # ------------------------------------
+    if all(result["checks"].values()):
+
+        result["marks"] = 1.25
+        result["status"] = "CORRECT"
+
+    return result
+
+def check_q2(formula):
+    result = {
+        "marks": 0,
+        "status": "WRONG",
+        "issues": [],
+        "checks": {}
+    }
+
+    # ------------------------------------
+    # 1. Formula check
+    # ------------------------------------
+    if not is_formula(formula):
+        result["issues"].append("No formula found.")
+        return result
+
+    function = get_function_name(formula)
+
+    result["checks"]["function"] = function == "SUMIF"
+
+    if function != "SUMIF":
+        result["issues"].append(
+            "SUMIF function is required."
+        )
+        return result
+
+    args = split_formula_args(formula)
+
+    if len(args) < 3:
+        result["issues"].append(
+            "SUMIF requires 3 arguments."
+        )
+        return result
+
+    # ------------------------------------
+    # 2. Criteria range = Department C
+    #
+    # Both valid:
+    # C3:C103 -> header included
+    # C4:C103 -> data only
+    # ------------------------------------
+    parsed_criteria_range = parse_range(
+        args[0]
+    )
+
+    valid_criteria_ranges = [
+        {
+            "start_col": "C",
+            "start_row": 3,
+            "end_col": "C",
+            "end_row": 103
+        },
+        {
+            "start_col": "C",
+            "start_row": 4,
+            "end_col": "C",
+            "end_row": 103
+        }
+    ]
+
+    criteria_range_correct = (
+        parsed_criteria_range is not None
+        and any(
+            parsed_criteria_range == valid_range
+            for valid_range in valid_criteria_ranges
+        )
+    )
+
+    result["checks"]["criteria_range"] = (
+        criteria_range_correct
+    )
+
+    if not criteria_range_correct:
+        result["issues"].append(
+            f"Wrong criteria range: {args[0]}. "
+            f"Expected C3:C103 or C4:C103."
+        )
+
+    # ------------------------------------
+    # 3. Criteria = IT
+    # ------------------------------------
+    criteria = clean_arg(args[1])
+
+    criteria_correct = criteria in (
+        '"IT"',
+        "IT"
+    )
+
+    result["checks"]["criteria"] = criteria_correct
+
+    if not criteria_correct:
+        result["issues"].append(
+            f"Wrong criteria: {args[1]}. "
+            f"Expected IT."
+        )
+
+    # ------------------------------------
+    # 4. Sum range = Salary E
+    #
+    # Both valid:
+    # E3:E103 -> header included
+    # E4:E103 -> data only
+    # ------------------------------------
+    parsed_sum_range = parse_range(
+        args[2]
+    )
+
+    valid_sum_ranges = [
+        {
+            "start_col": "E",
+            "start_row": 3,
+            "end_col": "E",
+            "end_row": 103
+        },
+        {
+            "start_col": "E",
+            "start_row": 4,
+            "end_col": "E",
+            "end_row": 103
+        }
+    ]
+
+    sum_range_correct = (
+        parsed_sum_range is not None
+        and any(
+            parsed_sum_range == valid_range
+            for valid_range in valid_sum_ranges
+        )
+    )
+
+    result["checks"]["sum_range"] = (
+        sum_range_correct
+    )
+
+    if not sum_range_correct:
+        result["issues"].append(
+            f"Wrong sum range: {args[2]}. "
+            f"Expected E3:E103 or E4:E103."
+        )
+
+    # ------------------------------------
+    # 5. Final scoring
+    # ------------------------------------
+    if all(result["checks"].values()):
+
+        result["marks"] = 1.25
+        result["status"] = "CORRECT"
+
+    return result
+
+def check_q3(formula):
+    """
+    Q3:
+    Count of students from Karachi using COUNTIF.
+
+    Valid examples:
+        =COUNTIF(D4:D103,"Karachi")
+        =COUNTIF(D3:D103,"Karachi")
+
+    D3 = header "City", isliye D3:D103 bhi logically valid hai.
+
+    Total = 1.25 marks
+    """
+
+    MAX_MARKS = 1.25
+
+    result = {
+        "status": "WRONG",
+        "marks": 0,
+        "formula": formula,
+        "checks": {},
+        "issues": []
+    }
+
+    # -----------------------------------------
+    # 1. Formula hona chahiye
+    # -----------------------------------------
+    if not isinstance(formula, str) or not formula.startswith("="):
+        result["issues"].append(
+            "COUNTIF formula nahi mila."
+        )
+        return result
+
+    # Normalize
+    f = formula.upper().replace(" ", "")
+
+    # -----------------------------------------
+    # 2. COUNTIF function
+    # -----------------------------------------
+    countif_function = f.startswith("=COUNTIF(")
+
+    result["checks"]["COUNTIF_function"] = countif_function
+
+    if not countif_function:
+        result["issues"].append(
+            "COUNTIF function required hai."
+        )
+        return result
+
+    # -----------------------------------------
+    # 3. Arguments extract
+    # -----------------------------------------
+    inside = f[
+        f.find("(") + 1:
+        f.rfind(")")
+    ]
+
+    args = [
+        x.strip()
+        for x in inside.split(",")
+    ]
+
+    if len(args) != 2:
+        result["issues"].append(
+            "COUNTIF ke exactly 2 arguments hone chahiye."
+        )
+        return result
+
+    range_part = args[0]
+    criteria = args[1]
+
+    # -----------------------------------------
+    # 4. Range validation
+    #
+    # D3 = City header
+    # D4:D103 = student data
+    #
+    # DONO ACCEPTED
+    # -----------------------------------------
+    valid_ranges = [
+        "D3:D103",
+        "D4:D103"
+    ]
+
+    correct_range = range_part in valid_ranges
+
+    result["checks"]["city_range"] = correct_range
+
+    if not correct_range:
+        result["issues"].append(
+            f"Wrong range: {range_part}. "
+            "Expected D3:D103 or D4:D103."
+        )
+
+    # -----------------------------------------
+    # 5. Karachi criteria
+    #
+    # Accept:
+    # "KARACHI"
+    # KARACHI
+    # -----------------------------------------
+    correct_criteria = criteria in [
+        '"KARACHI"',
+        "KARACHI"
+    ]
+
+    result["checks"]["karachi_criteria"] = correct_criteria
+
+    if not correct_criteria:
+        result["issues"].append(
+            'Criteria "Karachi" hona chahiye.'
+        )
+
+    # -----------------------------------------
+    # 6. Final grading
+    # -----------------------------------------
+    if (
+        countif_function
+        and correct_range
+        and correct_criteria
+    ):
+        result["status"] = "CORRECT"
+        result["marks"] = MAX_MARKS
+
+    return result
+
+def check_q4(formula):
+    """
+    Q4:
+    Salary C108 > 45000  -> High
+    Otherwise             -> Low
+
+    Total = 1.25 marks
+    """
+
+    MAX_MARKS = 1.25
+
+    result = {
+        "status": "WRONG",
+        "marks": 0,
+        "formula": formula,
+        "checks": {},
+        "issues": []
+    }
+
+    if not isinstance(formula, str) or not formula.startswith("="):
+        result["issues"].append(
+            "IF formula nahi mila."
+        )
+        return result
+
+    f = formula.upper().replace(" ", "")
+
+    if_function = f.startswith("=IF(")
+
+    result["checks"]["IF_function"] = if_function
+
+    if not if_function:
+        result["issues"].append(
+            "IF function required hai."
+        )
+        return result
+
+    inside = f[
+        f.find("(") + 1:
+        f.rfind(")")
+    ]
+
+    args = [
+        x.strip()
+        for x in inside.split(",")
+    ]
+
+    if len(args) != 3:
+        result["issues"].append(
+            "IF ke exactly 3 arguments hone chahiye."
+        )
+        return result
+
+    condition = args[0]
+    true_value = args[1]
+    false_value = args[2]
+
+    correct_condition = (
+        condition == "C108>45000"
+    )
+
+    result["checks"]["salary_condition"] = correct_condition
+
+    if not correct_condition:
+        result["issues"].append(
+            f"Wrong condition: {condition}. "
+            "Expected C108>45000."
+        )
+
+    correct_true = (
+        true_value in ['"HIGH"', "HIGH"]
+    )
+
+    result["checks"]["true_result"] = correct_true
+
+    if not correct_true:
+        result["issues"].append(
+            'TRUE result "High" hona chahiye.'
+        )
+
+    correct_false = (
+        false_value in ['"LOW"', "LOW"]
+    )
+
+    result["checks"]["false_result"] = correct_false
+
+    if not correct_false:
+        result["issues"].append(
+            'FALSE result "Low" hona chahiye.'
+        )
+
+    if (
+        if_function
+        and correct_condition
+        and correct_true
+        and correct_false
+    ):
+        result["status"] = "CORRECT"
+        result["marks"] = MAX_MARKS
+
+    return result
+
+def grade_vlookup_sumif_countif_if(wb):
+    score = 0
+    details = []
+    try:
         ws = wb['EXCEL SKILL 5']
-        # Q1: VLOOKUP
-        if ws['B108'].value and 'VLOOKUP' in str(ws['B108'].value).upper(): score += 1.25; details.append({'q': 'Q1', 'correct': True})
-        else: details.append({'q': 'Q1', 'correct': False})
         
-        # Q2: SUMIF
-        if ws['B109'].value and 'SUMIF' in str(ws['B109'].value).upper(): score += 1.25; details.append({'q': 'Q2', 'correct': True})
-        else: details.append({'q': 'Q2', 'correct': False})
+        # Q1
+        f1 = ws['C108'].value
+        res1 = check_q1(f1)
+        score += res1['marks']
+        issues_str1 = " | ".join(res1['issues']) if res1['issues'] else "Formula + result correct (1.25/1.25)"
+        details.append({
+            'q': 'Q1',
+            'task': 'Find Salary of Employee E050 (VLOOKUP)',
+            'correct': res1['status'] == 'CORRECT',
+            'error': issues_str1 if res1['status'] != 'CORRECT' else 'Formula + result correct (1.25/1.25)'
+        })
         
-        # Q3: COUNTIF
-        if ws['B110'].value and 'COUNTIF' in str(ws['B110'].value).upper(): score += 1.25; details.append({'q': 'Q3', 'correct': True})
-        else: details.append({'q': 'Q3', 'correct': False})
+        # Q2
+        f2 = ws['C109'].value
+        res2 = check_q2(f2)
+        score += res2['marks']
+        issues_str2 = " | ".join(res2['issues']) if res2['issues'] else "Formula + result correct (1.25/1.25)"
+        details.append({
+            'q': 'Q2',
+            'task': 'Total Salary of IT Department (SUMIF)',
+            'correct': res2['status'] == 'CORRECT',
+            'error': issues_str2 if res2['status'] != 'CORRECT' else 'Formula + result correct (1.25/1.25)'
+        })
         
-        # Q4: IF
-        if ws['B111'].value and 'IF' in str(ws['B111'].value).upper(): score += 1.25; details.append({'q': 'Q4', 'correct': True})
-        else: details.append({'q': 'Q4', 'correct': False})
-    except: pass
-    return min(score, 5), details
+        # Q3
+        f3 = ws['C110'].value
+        res3 = check_q3(f3)
+        score += res3['marks']
+        issues_str3 = " | ".join(res3['issues']) if res3['issues'] else "Formula + result correct (1.25/1.25)"
+        details.append({
+            'q': 'Q3',
+            'task': 'Count of students from Karachi (COUNTIF)',
+            'correct': res3['status'] == 'CORRECT',
+            'error': issues_str3 if res3['status'] != 'CORRECT' else 'Formula + result correct (1.25/1.25)'
+        })
+        
+        # Q4
+        f4 = ws['C111'].value
+        res4 = check_q4(f4)
+        score += res4['marks']
+        issues_str4 = " | ".join(res4['issues']) if res4['issues'] else "Formula + result correct (1.25/1.25)"
+        details.append({
+            'q': 'Q4',
+            'task': 'If Salary > 45000 then "High" else "Low" (IF)',
+            'correct': res4['status'] == 'CORRECT',
+            'error': issues_str4 if res4['status'] != 'CORRECT' else 'Formula + result correct (1.25/1.25)'
+        })
+        
+    except Exception as e:
+        details.append({'error': str(e)})
+        
+    return round(score, 2), details

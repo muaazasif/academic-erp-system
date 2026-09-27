@@ -382,12 +382,22 @@ def sync_midterm(student_id, name, midterm_title, grade, graded_at):
 
 def sync_excel_assignment(student_id, name, assignment_title, score, feedback, submitted_at, max_marks=5):
     """Sync Excel assignment result to Google Sheets with detailed formatted feedback"""
-    # If feedback is a list of dicts (for new Skill 5), format it nicely
-    if isinstance(feedback, list):
-        formatted_feedback = "\n".join([f"{item['q'] or item['task']}: {'Correct' if item['correct'] else 'Incorrect (' + item.get('error', '') + ')'}" for item in feedback])
+    lines = []
+    if isinstance(feedback, dict):
+        for cat_name, cat_data in feedback.items():
+            items = cat_data.get('details', []) if isinstance(cat_data, dict) else (cat_data if isinstance(cat_data, list) else [])
+            for item in items:
+                if isinstance(item, dict):
+                    q = item.get('q') or item.get('task') or 'Task'
+                    correct = item.get('correct', False)
+                    err = item.get('error', '')
+                    status_text = "Correct" if correct else f"Incorrect ({err})"
+                    lines.append(f"{q}: {status_text}")
+        formatted_feedback = "\n".join(lines) if lines else str(feedback)
+    elif isinstance(feedback, list):
+        formatted_feedback = "\n".join([f"{item.get('q') or item.get('task', 'Task')}: {'Correct' if item.get('correct') else 'Incorrect (' + item.get('error', '') + ')'}" for item in feedback if isinstance(item, dict)])
     else:
-        # Fallback for old style string feedback
-        formatted_feedback = feedback
+        formatted_feedback = str(feedback)
     
     percentage = f"{(score/max_marks*100):.1f}%" if max_marks > 0 else "0%"
     # Status: CLEAN (Assuming this is the status identifier the user wants)

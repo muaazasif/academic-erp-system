@@ -101,6 +101,44 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
+# Ensure SQLite columns exist immediately upon startup
+with app.app_context():
+    db.create_all()
+    import sqlite3
+    db_uri = app.config['SQLALCHEMY_DATABASE_URI']
+    if db_uri and db_uri.startswith('sqlite:///'):
+        db_file = db_uri.replace('sqlite:///', '')
+        paths_to_try = [
+            db_file,
+            os.path.join(app.instance_path, db_file),
+            os.path.join(os.path.dirname(__file__), db_file)
+        ]
+        for db_path in paths_to_try:
+            if os.path.exists(db_path):
+                try:
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    columns_to_add = [
+                        ("quiz", "allow_all_resubmits", "BOOLEAN DEFAULT 0"),
+                        ("quiz_submission", "allow_resubmit", "BOOLEAN DEFAULT 0"),
+                        ("assignment", "allow_all_resubmits", "BOOLEAN DEFAULT 0"),
+                        ("assignment_submission", "allow_resubmit", "BOOLEAN DEFAULT 0"),
+                        ("excel_skills_assignment", "allow_all_resubmits", "BOOLEAN DEFAULT 0"),
+                        ("excel_submission", "allow_resubmit", "BOOLEAN DEFAULT 0"),
+                        ("sql_skills_assignment", "allow_all_resubmits", "BOOLEAN DEFAULT 0"),
+                        ("sql_submission", "allow_resubmit", "BOOLEAN DEFAULT 0"),
+                    ]
+                    for table, col, col_def in columns_to_add:
+                        try:
+                            cursor.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_def};")
+                            conn.commit()
+                        except Exception:
+                            pass
+                    conn.close()
+                    print(f"✅ SQLite database migration checked for {db_path}")
+                except Exception as e:
+                    print(f"Migration error on {db_path}: {e}")
+
 
 class Admin(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -150,6 +188,7 @@ class Quiz(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     due_date = db.Column(db.DateTime)
     is_active = db.Column(db.Boolean, default=True)
+    allow_all_resubmits = db.Column(db.Boolean, default=False)
 
     # Relationship to admin who created the quiz
     admin = db.relationship('Admin', backref=db.backref('quizzes', lazy=True))
@@ -182,6 +221,7 @@ class QuizSubmission(db.Model):
     student_id = db.Column(db.String(50), db.ForeignKey('student.student_id'), nullable=False)
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
     score = db.Column(db.Integer)  # Total score for the quiz
+    allow_resubmit = db.Column(db.Boolean, default=False)
 
     # Relationship
     quiz = db.relationship('Quiz', backref=db.backref('submissions', lazy=True))
@@ -211,6 +251,7 @@ class Assignment(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     due_date = db.Column(db.DateTime)
     is_active = db.Column(db.Boolean, default=True)
+    allow_all_resubmits = db.Column(db.Boolean, default=False)
 
     # Relationship to admin who created the assignment
     admin = db.relationship('Admin', backref=db.backref('assignments', lazy=True))
@@ -256,6 +297,7 @@ class ExcelSkillsAssignment(db.Model):
     deadline = db.Column(db.DateTime)
     max_marks = db.Column(db.Integer, default=10)
     is_active = db.Column(db.Boolean, default=True)
+    allow_all_resubmits = db.Column(db.Boolean, default=False)
 
 
 class ExcelSubmission(db.Model):
@@ -270,6 +312,7 @@ class ExcelSubmission(db.Model):
     status = db.Column(db.String(20), default='submitted')  # submitted, graded
     is_cheating = db.Column(db.Boolean, default=False)
     macros_disabled = db.Column(db.Boolean, default=False)
+    allow_resubmit = db.Column(db.Boolean, default=False)
     
     # Relationships
     assignment = db.relationship('ExcelSkillsAssignment', backref=db.backref('submissions', lazy=True))
@@ -287,6 +330,7 @@ class SQLSkillsAssignment(db.Model):
     deadline = db.Column(db.DateTime)
     max_marks = db.Column(db.Integer, default=10)
     is_active = db.Column(db.Boolean, default=True)
+    allow_all_resubmits = db.Column(db.Boolean, default=False)
 
 
 class SQLSubmission(db.Model):
@@ -299,6 +343,7 @@ class SQLSubmission(db.Model):
     percentage = db.Column(db.Float)
     grade_details = db.Column(db.Text)  # JSON with detailed breakdown (which queries were correct)
     status = db.Column(db.String(20), default='submitted')  # submitted, graded
+    allow_resubmit = db.Column(db.Boolean, default=False)
 
     # Relationships
     assignment = db.relationship('SQLSkillsAssignment', backref=db.backref('submissions', lazy=True))
@@ -331,6 +376,7 @@ class AssignmentSubmission(db.Model):
     assigned_at = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(20), default='assigned')  # assigned, submitted, graded
     grade = db.Column(db.Float)  # Numeric grade for the assignment
+    allow_resubmit = db.Column(db.Boolean, default=False)
 
     # Relationships
     assignment = db.relationship('Assignment', backref=db.backref('assignment_submissions', lazy=True))
@@ -2463,6 +2509,28 @@ def view_excel_submissions(assignment_id):
     return render_template('view_excel_submissions.html', assignment=assignment, submissions=submissions)
 
 
+@app.route('/admin/excel-assignments/<int:assignment_id>/toggle-all-resubmits')
+def admin_excel_toggle_all_resubmits(assignment_id):
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    assignment = ExcelSkillsAssignment.query.get_or_404(assignment_id)
+    assignment.allow_all_resubmits = not assignment.allow_all_resubmits
+    db.session.commit()
+    flash(f"✅ All resubmits for '{assignment.title}' set to: {assignment.allow_all_resubmits}", "success")
+    return redirect(url_for('view_excel_submissions', assignment_id=assignment_id))
+
+
+@app.route('/admin/excel-submissions/<int:submission_id>/toggle-resubmit')
+def admin_excel_toggle_resubmit(submission_id):
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    sub = ExcelSubmission.query.get_or_404(submission_id)
+    sub.allow_resubmit = not sub.allow_resubmit
+    db.session.commit()
+    flash(f"✅ Resubmit permission for student {sub.student_id} set to: {sub.allow_resubmit}", "success")
+    return redirect(url_for('view_excel_submissions', assignment_id=sub.assignment_id))
+
+
 @app.route('/admin/excel-assignments/<int:assignment_id>/assign', methods=['GET', 'POST'])
 def assign_excel_to_students(assignment_id):
     """Assign Excel assignment to all students or selected students"""
@@ -2539,6 +2607,10 @@ def submit_excel_assignment(assignment_id):
     ).first()
     
     if request.method == 'POST':
+        if existing and existing.score is not None and not assignment.allow_all_resubmits and not existing.allow_resubmit:
+            flash('❌ You have already submitted this assignment. Please request permission from the admin to resubmit.', 'error')
+            return redirect(url_for('student_excel_assignments'))
+        
         if 'file' not in request.files:
             flash('❌ No file uploaded!')
             return redirect(request.url)
@@ -2555,7 +2627,7 @@ def submit_excel_assignment(assignment_id):
         # Save file temporarily
         import tempfile
         import os
-        from excel_grader import grade_excel_assignment
+        from excel_assignment import grade_excel_submission
         from clean_sheets_sync import sync_excel_assignment
         
         ext = '.xlsm' if file.filename.endswith('.xlsm') else '.xlsx'
@@ -2564,12 +2636,11 @@ def submit_excel_assignment(assignment_id):
             
             # Paths
             submission_path = tmp.name
-            # Default to a generic template if specific solution not defined
-            solution_filename = getattr(assignment, 'solution_filename', 'Excel_Skill_5_Template.xlsx')
-            solution_path = os.path.join(app.root_path, 'static', 'solutions', solution_filename)
             
-            # Auto-grade
-            score, feedback = grade_excel_assignment(submission_path, solution_path, assignment.title)
+            # Auto-grade using robust excel_assignment grader
+            grading_result = grade_excel_submission(submission_path, assignment.title)
+            score = grading_result.get('score', 0)
+            feedback = grading_result.get('details', {})
             
             # Prepare structured feedback for JSON serialization
             feedback_data = {
@@ -2586,13 +2657,15 @@ def submit_excel_assignment(assignment_id):
                 existing.score = score
                 existing.grade_details = grade_details_json
                 existing.submitted_at = datetime.now()
+                existing.allow_resubmit = False
             else:
                 submission = ExcelSubmission(
                     assignment_id=assignment_id,
                     student_id=student_id,
                     score=score,
                     grade_details=grade_details_json,
-                    submitted_at=datetime.now()
+                    submitted_at=datetime.now(),
+                    allow_resubmit=False
                 )
                 db.session.add(submission)
             
@@ -3207,6 +3280,33 @@ def init_app_data():
     with app.app_context():
         db.create_all()
 
+        # Ensure new resubmit columns exist in SQLite if table was already created
+        import sqlite3
+        db_path = os.path.join(app.instance_path, 'erp_system.db')
+        if os.path.exists(db_path):
+            try:
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                columns_to_add = [
+                    ("quiz", "allow_all_resubmits", "BOOLEAN DEFAULT 0"),
+                    ("quiz_submission", "allow_resubmit", "BOOLEAN DEFAULT 0"),
+                    ("assignment", "allow_all_resubmits", "BOOLEAN DEFAULT 0"),
+                    ("assignment_submission", "allow_resubmit", "BOOLEAN DEFAULT 0"),
+                    ("excel_skills_assignment", "allow_all_resubmits", "BOOLEAN DEFAULT 0"),
+                    ("excel_submission", "allow_resubmit", "BOOLEAN DEFAULT 0"),
+                    ("sql_skills_assignment", "allow_all_resubmits", "BOOLEAN DEFAULT 0"),
+                    ("sql_submission", "allow_resubmit", "BOOLEAN DEFAULT 0"),
+                ]
+                for table, col, col_def in columns_to_add:
+                    try:
+                        cursor.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_def};")
+                        conn.commit()
+                    except Exception:
+                        pass
+                conn.close()
+            except Exception as e:
+                print(f"Migration check error: {e}")
+
         # Create default admin if not exists
         admin = Admin.query.filter_by(username='admin').first()
         if not admin:
@@ -3371,6 +3471,8 @@ def reviews():
         print(f"Error fetching reviews: {e}")
         return f"Error loading reviews: {e}", 500
 
+
+if __name__ == '__main__':
     # Initialize data
     init_app_data()
     

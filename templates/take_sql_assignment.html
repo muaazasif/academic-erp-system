@@ -50,7 +50,7 @@
     </div>
     {% endif %}
 
-    {% if not existing %}
+    {% if not existing or assignment.allow_all_resubmits or (existing and existing.allow_resubmit) %}
     <form method="POST" id="sqlForm">
         {% for q in questions %}
         <div class="card mb-3">
@@ -69,6 +69,11 @@
             </button>
         </div>
     </form>
+    {% else %}
+    <div class="alert alert-secondary mt-4">
+        <strong>🔒 Re-submission Locked</strong><br>
+        You have already submitted this SQL assignment. You cannot re-submit until the <strong>Admin grants permission / access</strong>.
+    </div>
     {% endif %}
 </div>
 

@@ -17,7 +17,7 @@
     {% if existing %}
     <div class="alert alert-success">
         <strong>✅ Already Submitted!</strong><br>
-        Score: <strong>{{ existing.score }}/{{ existing.assignment.max_marks }}</strong> ({{ existing.percentage }}%)<br>
+        Score: <strong>{{ existing.score }}/{{ assignment.max_marks }}</strong> ({{ existing.percentage }}%)<br>
         Submitted: {{ existing.submitted_at.strftime('%Y-%m-%d %H:%M') }}
     </div>
 
@@ -28,22 +28,26 @@
             <span class="badge bg-primary">Auto-Graded</span>
         </div>
         <div class="card-body">
-            {% set details = existing.grade_details|from_json %}
+            {% set result_obj = existing.grade_details|from_json %}
+            {% set top_data = result_obj.get("Assignment Results", result_obj) %}
+            {% set categories = top_data.get("details", {}) %}
             
-            {% if details %}
-                {% for category, data in details.items() %}
+            {% if categories %}
+                {% for cat_name, cat_info in categories.items() %}
                     <div class="mb-4">
-                        <h6 class="border-bottom pb-2">{{ category }} (Score: {{ data.score }}/{{ data.max }})</h6>
+                        <h6 class="border-bottom pb-2 fw-bold text-primary">{{ cat_name }} (Score: {{ cat_info.score }}/{{ cat_info.max }})</h6>
                         <ul class="list-group list-group-flush">
-                            {% for item in data.details %}
+                            {% for item in cat_info.details %}
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <div>
-                                    <strong>{{ item.q }}: {{ item.task }}</strong>
+                                    <strong>{% if item.q %}{{ item.q }}{% else %}Task{% endif %}{% if item.task %}: {{ item.task }}{% endif %}</strong>
                                     {% if item.correct %}
                                         <span class="text-success fw-bold">Correct ✅</span>
                                     {% else %}
                                         <span class="text-danger fw-bold">Incorrect ❌</span>
-                                        <br><small class="text-muted">{{ item.error }}</small>
+                                        {% if item.error %}
+                                        <br><small class="text-danger"><i class="bi bi-info-circle"></i> {{ item.error }}</small>
+                                        {% endif %}
                                     {% endif %}
                                 </div>
                             </li>
@@ -55,17 +59,15 @@
                 <p>No detailed feedback available yet.</p>
             {% endif %}
             
-            <div class="alert alert-info">
-                <i class="bi bi-lightbulb"></i> <strong>Tip:</strong> Re-download the template and try again to improve your score!
+            <div class="alert alert-info mt-3">
+                <i class="bi bi-lightbulb"></i> <strong>Tip:</strong> Re-download the template and re-submit below to improve your score!
             </div>
         </div>
     </div>
     {% endif %}
+    {% endif %}
 
-    <a href="/student/excel-assignments" class="btn btn-secondary mb-5">Back to Assignments</a>
-    {% else %}
-    
-    <div class="alert alert-warning">
+    <div class="alert alert-warning mt-4">
         <strong>🚨 IMPORTANT:</strong> You <strong>MUST</strong> enable macros (click "Enable Content" in Excel) for the anti-cheating system to work. 
         If macros are not enabled, your score will be <strong>ZERO</strong>!
     </div>
@@ -75,13 +77,13 @@
         <ol class="mb-0">
             <li>Download the exercise file (<strong>.xlsm</strong>)</li>
             <li>Open it and <strong>CLICK 'ENABLE CONTENT'</strong> (very important!)</li>
-            <li>Complete all exercises (VLOOKUP, SUMIF, COUNTIF, LEFT, RIGHT, MID, etc.)</li>
+            <li>Complete all exercises</li>
             <li><strong>DO NOT</strong> switch windows, open other files, or search Google while working!</li>
-            <li>Save your work and upload the <strong>.xlsm</strong> file</li>
+            <li>Save your work and upload the <strong>.xlsm</strong> file below to submit or improve your score</li>
         </ol>
     </div>
     
-    <div class="row">
+    <div class="row mb-5">
         <div class="col-md-6">
             <div class="card bg-light">
                 <div class="card-header">Step 1: Download Exercise File</div>
@@ -98,16 +100,25 @@
             <div class="card">
                 <div class="card-header">Step 2: Upload Completed File</div>
                 <div class="card-body">
-                    <form method="POST" enctype="multipart/form-data" id="uploadForm">
-                        <input type="file" name="file" class="form-control" accept=".xlsx,.xlsm" required>
-                        <button type="submit" class="btn btn-primary mt-2" id="submitBtn">
-                            📤 Submit & Auto-Grade
-                        </button>
-                    </form>
+                    {% if not existing or assignment.allow_all_resubmits or existing.allow_resubmit %}
+                        <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                            <input type="file" name="file" class="form-control" accept=".xlsx,.xlsm" required>
+                            <button type="submit" class="btn btn-primary mt-2" id="submitBtn">
+                                📤 Submit & Auto-Grade
+                            </button>
+                        </form>
+                    {% else %}
+                        <div class="alert alert-secondary mb-0">
+                            <strong>🔒 Re-submission Locked</strong><br>
+                            You have already submitted this assignment. You cannot re-upload or re-submit until the <strong>Admin grants permission / access</strong> to resubmit.
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
+
+    <a href="/student/excel-assignments" class="btn btn-secondary mb-5">Back to Assignments</a>
     
     <script>
     document.getElementById('uploadForm').addEventListener('submit', function() {
@@ -116,7 +127,5 @@
         btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Grading... Please wait';
     });
     </script>
-    
-    {% endif %}
 </div>
 {% endblock %}
