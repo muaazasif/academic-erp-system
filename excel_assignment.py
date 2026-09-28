@@ -319,19 +319,33 @@ def create_if_nested_exercises(wb):
 
 def create_complex_challenge(wb):
     ws = wb.create_sheet("COMPLEX CHALLENGE")
-    ws.merge_cells('A1:F1'); ws['A1'] = "🏆 CHALLENGE - Complete Product Analysis"; ws['A1'].font = Font(size=14, bold=True, color="C00000")
-    headers = ['Product Code', 'Product Name', 'Category', 'Price', 'Stock', 'Status']
+    ws.merge_cells('A1:F1'); ws['A1'] = "🏆 CHALLENGE - Product Sales Analysis"; ws['A1'].font = Font(size=14, bold=True, color="C00000")
+    headers = ['Product Code', 'Product Name', 'Category', 'Price', 'Units Sold', 'Total Revenue']
     for col, h in enumerate(headers, 1): ws.cell(row=3, column=col, value=h)
     style_header(ws, 3, 6)
-    data = [['PRD-LAP-001', 'Laptop Pro 15', 'Electronics', 85000, 12, ''], ['PRD-MOU-002', 'Wireless Mouse', 'Accessories', 1500, 50, ''], ['PRD-KEY-003', 'Mech Keyboard', 'Accessories', 4500, 25, ''], ['PRD-MON-004', 'Monitor 27 inch', 'Electronics', 35000, 8, ''], ['PRD-USB-005', 'USB Hub 7-in-1', 'Accessories', 2500, 40, ''], ['PRD-HDD-006', 'External HDD 1TB', 'Storage', 8000, 15, ''], ['PRD-SSD-007', 'SSD 500GB', 'Storage', 6500, 20, ''], ['PRD-WEB-008', 'Webcam HD', 'Accessories', 3500, 30, ''], ['PRD-TAB-009', 'Tablet 10 inch', 'Electronics', 45000, 5, ''], ['PRD-SPK-010', 'Bluetooth Speaker', 'Accessories', 5500, 35, '']]
+    data = [
+        ['PRD-001-LAP', 'Laptop Pro 15', 'Electronics', 85000, 12, ''],
+        ['PRD-002-MOU', 'Wireless Mouse', 'Accessories', 1500, 50, ''],
+        ['PRD-003-KEY', 'Mech Keyboard', 'Accessories', 4500, 25, ''],
+        ['PRD-004-MON', 'Monitor 27"', 'Electronics', 35000, 8, ''],
+        ['PRD-005-USB', 'USB Hub 7-in-1', 'Accessories', 2500, 40, ''],
+        ['PRD-006-HDD', 'External HDD 1TB', 'Storage', 8000, 15, ''],
+        ['PRD-007-SSD', 'SSD 500GB', 'Storage', 6500, 20, ''],
+        ['PRD-008-WEB', 'Webcam HD', 'Accessories', 3500, 30, '']
+    ]
     for i, row in enumerate(data):
         for j, val in enumerate(row): ws.cell(row=4+i, column=1+j, value=val)
-    q_row = 17; ws.merge_cells(f'A{q_row}:F{q_row}'); ws.cell(row=q_row, column=1, value="📝 CHALLENGE - Combine all functions!").font = Font(size=12, bold=True, color="C00000")
-    questions = [['Q21', 'Extract category code from A4'], ['Q22', 'Count products in "Accessories"'], ['Q23', 'Total stock of Electronics'], ['Q24', 'Find price of PRD-KEY-003'], ['Q25', 'Extract first word from B5'], ['Q26', 'Status: IF stock > 20 then "In Stock" else "Low"'], ['Q27', 'Total value of all Accessories'], ['Q28', 'Extract number from A5'], ['Q29', 'Count products with price > 10000'], ['Q30', 'Extract domain from admin@company.com']]
+    q_row = 15; ws.merge_cells(f'A{q_row}:F{q_row}'); ws.cell(row=q_row, column=1, value="📝 CHALLENGE QUESTIONS").font = Font(size=12, bold=True, color="C00000")
+    questions = [
+        ['Q17', 'Calculate Total Revenue (Price × Units) for row 4'],
+        ['Q18', 'Extract category code from Product Code A4'],
+        ['Q19', 'Count products in "Accessories" category'],
+        ['Q20', 'Total revenue of Electronics']
+    ]
     for i, q in enumerate(questions):
-        r = q_row + 3 + i; ws.cell(row=r, column=1, value=q[0]); ws.cell(row=r, column=2, value=q[1])
+        r = q_row + 2 + i; ws.cell(row=r, column=1, value=q[0]); ws.cell(row=r, column=2, value=q[1])
         ws.cell(row=r, column=3).fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
-    ws.column_dimensions['B'].width = 55
+    ws.column_dimensions['B'].width = 50
 
 def create_vlookup_sumif_countif_if_exercises(wb):
     ws = wb.create_sheet("EXCEL SKILL 5")

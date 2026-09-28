@@ -886,7 +886,7 @@ def check_q17(f):
     return check_text_formula(
         f,
         patterns,
-        "340000"
+        "1020000"
     )
 
 
