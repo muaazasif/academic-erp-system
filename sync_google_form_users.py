@@ -21,21 +21,72 @@ LOCK_FILE = 'instance/sync_users.lock'
 
 from clean_sheets_sync import get_sheets_service
 
-def sync_users_from_sheet():
-    # Simple file-based lock to prevent concurrent syncs
-    if os.path.exists(LOCK_FILE):
-        # Check if lock is old (more than 10 minutes)
-        if time.time() - os.path.getmtime(LOCK_FILE) < 600:
-            print(f"⚠️ Sync already in progress (locked at {datetime.fromtimestamp(os.path.getmtime(LOCK_FILE))}). Skipping.")
-            return
-        else:
-            print("⚠️ Old lock file found, removing it.")
-            os.remove(LOCK_FILE)
+def is_process_alive(pid):
+    if not pid:
+        return False
+    try:
+        pid = int(pid)
+        if pid <= 0:
+            return False
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except Exception:
+        return False
 
-    # Create lock file
+def sync_users_from_sheet():
     os.makedirs('instance', exist_ok=True)
-    with open(LOCK_FILE, 'w') as f:
-        f.write(str(os.getpid()))
+    
+    # Safe stale-lock recovery & concurrency check
+    if os.path.exists(LOCK_FILE):
+        try:
+            with open(LOCK_FILE, 'r') as f:
+                content = f.read().strip()
+                lock_data = {}
+                try:
+                    lock_data = json.loads(content)
+                except json.JSONDecodeError:
+                    lock_data = {'pid': content, 'timestamp': os.path.getmtime(LOCK_FILE)}
+                
+                lock_time = float(lock_data.get('timestamp', os.path.getmtime(LOCK_FILE)))
+                lock_pid = lock_data.get('pid')
+                age = time.time() - lock_time
+                
+                # Check if lock is stale (older than 10 minutes OR recorded process is dead)
+                is_stale = (age > 600) or (lock_pid and not is_process_alive(lock_pid))
+                
+                if not is_stale:
+                    print(f"⚠️ Sync already in progress (locked at {datetime.fromtimestamp(lock_time)}). Skipping.")
+                    return
+                else:
+                    print(f"⚠️ Stale or orphaned lock file found (age: {int(age)}s, PID: {lock_pid}), removing it.")
+                    os.remove(LOCK_FILE)
+        except Exception as e:
+            print(f"⚠️ Error reading lock file: {e}, removing it.")
+            try:
+                os.remove(LOCK_FILE)
+            except:
+                pass
+
+    # Acquire lock atomically
+    try:
+        fd = os.open(LOCK_FILE, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        with os.fdopen(fd, 'w') as f:
+            lock_info = {
+                'pid': os.getpid(),
+                'timestamp': time.time(),
+                'datetime': datetime.now().isoformat()
+            }
+            json.dump(lock_info, f)
+    except FileExistsError:
+        print("⚠️ Sync already in progress (lock file exists). Skipping.")
+        return
+    except Exception as e:
+        print(f"⚠️ Failed to create lock file: {e}")
+        return
 
     try:
         print(f"🚀 Starting User Sync from Google Sheet: {SPREADSHEET_ID}")
@@ -170,7 +221,10 @@ def sync_users_from_sheet():
     finally:
         # Always remove lock file
         if os.path.exists(LOCK_FILE):
-            os.remove(LOCK_FILE)
+            try:
+                os.remove(LOCK_FILE)
+            except Exception as e:
+                print(f"⚠️ Error removing lock file: {e}")
 
 if __name__ == "__main__":
     sync_users_from_sheet()

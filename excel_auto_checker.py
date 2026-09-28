@@ -1104,12 +1104,15 @@ def check_student_file(file_path):
         # Q1-Q20
         # ----------------------------------------------------
 
+        sheet_map = {s.strip().upper(): s for s in wb.sheetnames}
+
         for question, (
             sheet_name,
             cell
         ) in ANSWER_CELLS.items():
 
-            if sheet_name not in wb.sheetnames:
+            actual_sheet = sheet_map.get(sheet_name.strip().upper())
+            if not actual_sheet:
 
                 check = {
                     "marks": 0,
@@ -1123,7 +1126,7 @@ def check_student_file(file_path):
 
             else:
 
-                ws = wb[sheet_name]
+                ws = wb[actual_sheet]
 
                 formula = ws[cell].value
 

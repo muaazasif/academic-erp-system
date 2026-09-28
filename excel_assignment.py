@@ -318,7 +318,7 @@ def create_if_nested_exercises(wb):
     ws.column_dimensions['B'].width = 20
 
 def create_complex_challenge(wb):
-    ws = wb.create_sheet("COMPLEX CHALLENGE")
+    ws = wb.create_sheet("Complex Challenge")
     ws.merge_cells('A1:F1'); ws['A1'] = "🏆 CHALLENGE - Product Sales Analysis"; ws['A1'].font = Font(size=14, bold=True, color="C00000")
     headers = ['Product Code', 'Product Name', 'Category', 'Price', 'Units Sold', 'Total Revenue']
     for col, h in enumerate(headers, 1): ws.cell(row=3, column=col, value=h)
@@ -612,7 +612,7 @@ def check_q14_s1(f): return check_text_formula_s1(f, [r'MID\(D4,5,4\)'], "2024")
 def check_q15_s1(f): return check_text_formula_s1(f, [r'RIGHT\(C5,LEN\(C5\)-FIND\("@",C5\)\)', r'MID\(C5,FIND\("@",C5\)+1,LEN\(C5\)\)'], "hotmail.com")
 def check_q16_s1(f): return check_text_formula_s1(f, [r'RIGHT\(A5,LEN\(A5\)-FIND\(" ",A5\)\)', r'MID\(A5,FIND\(" ",A5\)+1,LEN\(A5\)\)'], "Fatima")
 
-def check_q17_s1(f): return check_text_formula_s1(f, [r'D4\*E4', r'E4\*D4'], "340000")
+def check_q17_s1(f): return check_text_formula_s1(f, [r'D4\*E4', r'E4\*D4'], "1020000")
 def check_q18_s1(f): return check_text_formula_s1(f, [r'RIGHT\(A4,3\)', r'MID\(A4,9,3\)'], "LAP")
 def check_q19_s1(f): return check_countif_s1(f, ["C4:C11", "C3:C11"], "ACCESSORIES")
 def check_q20_s1(f): return check_sumif_s1(f, ["C4:C11", "C3:C11"], "ELECTRONICS", ["F4:F11", "F3:F11"])
@@ -626,9 +626,11 @@ CHECKERS_S1 = {
 
 def grade_excel_skill_1(wb):
     total_score = 0; details = []
+    sheet_map = {name.strip().upper(): name for name in wb.sheetnames}
     for q_id, (sheet_name, cell_ref) in ANSWER_CELLS_S1.items():
-        if sheet_name in wb.sheetnames:
-            ws = wb[sheet_name]
+        actual_sheet = sheet_map.get(sheet_name.strip().upper())
+        if actual_sheet:
+            ws = wb[actual_sheet]
             formula = ws[cell_ref].value
             try:
                 res = CHECKERS_S1[q_id](formula)
@@ -638,14 +640,14 @@ def grade_excel_skill_1(wb):
                 total_score += marks
                 details.append({
                     'q': q_id,
-                    'task': f"Question {q_id} ({sheet_name} {cell_ref})",
+                    'task': f"Question {q_id} ({actual_sheet} {cell_ref})",
                     'correct': status == 'CORRECT',
                     'error': " | ".join(issues) if issues else "Formula + result correct (0.5/0.5)"
                 })
             except Exception as e:
                 details.append({
                     'q': q_id,
-                    'task': f"Question {q_id} ({sheet_name} {cell_ref})",
+                    'task': f"Question {q_id} ({actual_sheet} {cell_ref})",
                     'correct': False,
                     'error': str(e)
                 })
@@ -996,7 +998,9 @@ def grade_if_nested(wb):
 def grade_complex(wb):
     score = 0; details = []
     try:
-        ws = wb['COMPLEX CHALLENGE']
+        sheet_map = {name.strip().upper(): name for name in wb.sheetnames}
+        actual_sheet = sheet_map.get('COMPLEX CHALLENGE', 'Complex Challenge')
+        ws = wb[actual_sheet]
         q_checks = [
             {'cell': 'C20', 'q': 'Q21', 'task': 'Extract category code from A4', 'expected': 'LAP', 'check': lambda v, s: v and ('lap' in s.lower() or 'right' in s.upper() or 'mid' in s.upper())},
             {'cell': 'C21', 'q': 'Q22', 'task': 'Count products in Accessories', 'expected': '5', 'check': lambda v, s: v and (s in ['5', '5.0'] or 'countif' in s.upper())},
