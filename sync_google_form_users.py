@@ -161,6 +161,7 @@ def sync_users_from_sheet():
         existing_users_count = 0
         
         with app.app_context():
+            db.create_all()
             # Get all existing student IDs in one go to avoid autoflush issues
             existing_student_ids = {s.student_id for s in Student.query.with_entities(Student.student_id).all()}
             processed_in_this_run = set()

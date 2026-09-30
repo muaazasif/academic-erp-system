@@ -5,6 +5,7 @@ With ANTI-CHEATING: Opens other windows = ZERO marks
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.utils.cell import column_index_from_string
 from io import BytesIO
 import json
 import os
@@ -470,147 +471,182 @@ ANSWER_CELLS_S1 = {
     "Q20": ("Complex Challenge", "C20"),
 }
 
-def normalize_range_list(ranges):
-    return {
-        normalize_formula(r)
-        for r in ranges
-    }
-
-def col_to_int(col_str):
-    n = 0
-    for c in col_str:
-        if 'A' <= c <= 'Z':
-            n = n * 26 + (ord(c) - ord('A') + 1)
-    return n
-
-def is_valid_vlookup_range(
-    table_str,
-    expected_start_col,
-    required_return_col
-):
-    """
-    Validates VLOOKUP table_array.
-
-    Valid:
-        A3:C13
-        A4:C13
-        A3:E13
-        A4:E100
-        $A$3:$E$13
-        A$4:$E13
-        A:C
-        A:E
-
-    Rules:
-        - Table must start from lookup column.
-        - Table must contain the required return column.
-        - Starting row can be 3 or 4.
-        - Ending row must be >= 13.
-        - Full column references are allowed.
-    """
-
-    norm_table = normalize_formula(table_str)
-
-    expected_start_idx = col_to_int(expected_start_col)
-
-    # ======================================================
-    # FULL COLUMN RANGE
-    # ======================================================
-
-    full_match = re.fullmatch(
-        r"([A-Z]+):([A-Z]+)",
-        norm_table
+def parse_range(range_text):
+    if not isinstance(range_text, str):
+        return None
+    range_text = range_text.replace("$", "").upper()
+    match = re.fullmatch(r"([A-Z]+)(\d+):([A-Z]+)(\d+)", range_text)
+    if not match:
+        return None
+    start_col = match.group(1)
+    start_row = int(match.group(2))
+    end_col = match.group(3)
+    end_row = int(match.group(4))
+    return (
+        column_index_from_string(start_col),
+        start_row,
+        column_index_from_string(end_col),
+        end_row
     )
 
-    if full_match:
-
-        start_col = full_match.group(1)
-        end_col = full_match.group(2)
-
-        start_idx = col_to_int(start_col)
-        end_idx = col_to_int(end_col)
-
-        # Must start from lookup column
-        if start_idx != expected_start_idx:
+def range_is_flexible(actual_range, expected_range, allow_header=True, allow_extended_end=True):
+    if not isinstance(actual_range, str):
+        return False
+    norm = actual_range.replace("$", "").upper().replace(" ", "")
+    parts = norm.split(':')
+    if len(parts) != 2:
+        return False
+    
+    start_part = parts[0]
+    end_part = parts[1]
+    
+    start_col_letters = "".join([c for c in start_part if 'A' <= c <= 'Z'])
+    end_col_letters = "".join([c for c in end_part if 'A' <= c <= 'Z'])
+    
+    if not start_col_letters or not end_col_letters:
+        return False
+        
+    expected = parse_range(expected_range)
+    if not expected:
+        return False
+    expected_start_col, expected_start_row, expected_end_col, expected_end_row = expected
+    
+    start_idx = column_index_from_string(start_col_letters)
+    end_idx = column_index_from_string(end_col_letters)
+    
+    if start_idx != expected_start_col:
+        return False
+        
+    start_row_digits = "".join([c for c in start_part if c.isdigit()])
+    if start_row_digits:
+        actual_start_row = int(start_row_digits)
+        valid_start_rows = [expected_start_row]
+        if allow_header:
+            valid_start_rows.append(expected_start_row - 1)
+        if actual_start_row not in valid_start_rows:
             return False
 
-        # required_return_col is RELATIVE to table
-        required_end_idx = (
-            expected_start_idx
-            + required_return_col
-            - 1
-        )
-
-        # Table must include return column
-        if end_idx < required_end_idx:
+    if allow_extended_end:
+        if end_idx < expected_end_col:
             return False
-
-        return True
-
-    # ======================================================
-    # NORMAL RANGE
-    # ======================================================
-
-    range_match = re.fullmatch(
-        r"([A-Z]+)(\d+):([A-Z]+)(\d+)",
-        norm_table
-    )
-
-    if not range_match:
-        return False
-
-    start_col = range_match.group(1)
-    start_row = int(range_match.group(2))
-
-    end_col = range_match.group(3)
-    end_row = int(range_match.group(4))
-
-    start_idx = col_to_int(start_col)
-    end_idx = col_to_int(end_col)
-
-    # ------------------------------------------------------
-    # Table MUST start from lookup column
-    # ------------------------------------------------------
-
-    if start_idx != expected_start_idx:
-        return False
-
-    # ------------------------------------------------------
-    # Calculate actual required ending Excel column
-    # ------------------------------------------------------
-
-    required_end_idx = (
-        start_idx
-        + required_return_col
-        - 1
-    )
-
-    # ------------------------------------------------------
-    # Return column must exist
-    # ------------------------------------------------------
-
-    if end_idx < required_end_idx:
-        return False
-
-    # ------------------------------------------------------
-    # Starting row
-    # 3 = header
-    # 4 = data
-    # ------------------------------------------------------
-
-    if start_row not in (3, 4):
-        return False
-
-    # ------------------------------------------------------
-    # Must contain all actual data
-    # ------------------------------------------------------
-
-    if end_row < 13:
-        return False
+    else:
+        if end_idx != expected_end_col:
+            return False
 
     return True
 
-def check_sumif_s1(formula, criteria_ranges, criteria, sum_ranges):
+def is_cell_reference(value):
+    if not isinstance(value, str):
+        return False
+    return bool(re.fullmatch(r"\$?[A-Z]{1,3}\$?\d+", value.upper()))
+
+def lookup_argument_matches(lookup_arg, expected_values, ws=None):
+    if not isinstance(lookup_arg, str):
+        return False
+    lookup_arg = lookup_arg.strip()
+    
+    if isinstance(expected_values, (str, int, float)):
+        expected_list = [str(expected_values).upper()]
+    else:
+        expected_list = [str(v).upper() for v in expected_values]
+
+    clean = lookup_arg.replace('"', "").replace("'", "").upper()
+    
+    for ev in expected_list:
+        if clean == ev:
+            return True
+
+    if is_cell_reference(lookup_arg):
+        if ws is not None:
+            try:
+                cell_val = ws[lookup_arg].value
+                if cell_val is not None:
+                    cell_val_str = str(cell_val).strip().upper()
+                    for ev in expected_list:
+                        if cell_val_str == ev or clean == ev:
+                            return True
+            except Exception:
+                pass
+        return True
+
+    return False
+
+def extract_function_arguments(formula, function_name):
+    if not isinstance(formula, str):
+        return None
+    formula_norm = normalize_formula(formula)
+    if formula_norm.startswith("="):
+        formula_norm = formula_norm[1:]
+    pattern = function_name.upper() + r"\((.*)\)"
+    match = re.search(pattern, formula_norm)
+    if not match:
+        return None
+    content = match.group(1)
+
+    args = []
+    current = ""
+    depth = 0
+    quote = False
+
+    for char in content:
+        if char == '"':
+            quote = not quote
+        elif char == "(" and not quote:
+            depth += 1
+        elif char == ")" and not quote:
+            depth -= 1
+
+        if char == "," and depth == 0 and not quote:
+            args.append(current.strip())
+            current = ""
+        else:
+            current += char
+    args.append(current.strip())
+    return [arg for arg in args if arg != ""]
+
+def check_vlookup_s1(formula, lookup_values, return_col, expected_range, ws=None):
+    result = {"marks": 0, "status": "WRONG", "issues": [], "checks": {}}
+    if not is_formula(formula):
+        result["issues"].append("No formula found.")
+        return result
+    if get_function(formula) != "VLOOKUP":
+        result["issues"].append("VLOOKUP is required.")
+        return result
+
+    args = extract_function_arguments(formula, "VLOOKUP")
+    if not args or len(args) < 3:
+        result["issues"].append("VLOOKUP needs at least 3 arguments.")
+        return result
+
+    lookup_arg = args[0]
+    table_arg = args[1]
+    col_arg = args[2]
+
+    result["checks"]["function"] = 1
+
+    matched_lookup = lookup_argument_matches(lookup_arg, lookup_values, ws=ws)
+    result["checks"]["lookup_value"] = int(matched_lookup)
+    result["checks"]["table_range"] = int(
+        range_is_flexible(table_arg, expected_range, allow_header=True, allow_extended_end=True)
+    )
+
+    try:
+        actual_col = int(col_arg)
+    except ValueError:
+        actual_col = -1
+    result["checks"]["return_column"] = int(actual_col == return_col)
+
+    for name, value in result["checks"].items():
+        if value == 0:
+            result["issues"].append(name + " is incorrect.")
+
+    if all(v == 1 for v in result["checks"].values()):
+        result["marks"] = QUESTION_MARK
+        result["status"] = "CORRECT"
+
+    return result
+
+def check_sumif_s1(formula, expected_criteria_range, criteria, expected_sum_range, ws=None):
     result = {"marks": 0, "status": "WRONG", "issues": [], "checks": {}}
     if not is_formula(formula):
         result["issues"].append("No formula found.")
@@ -618,31 +654,39 @@ def check_sumif_s1(formula, criteria_ranges, criteria, sum_ranges):
     if get_function(formula) != "SUMIF":
         result["issues"].append("SUMIF is required.")
         return result
-    args = split_formula_args(formula)
-    if len(args) != 3:
+
+    args = extract_function_arguments(formula, "SUMIF")
+    if not args or len(args) < 3:
         result["issues"].append("SUMIF must have 3 arguments.")
         return result
-    criteria_range = normalize_formula(args[0])
-    actual_criteria = normalize_formula(args[1])
-    sum_range = normalize_formula(args[2])
 
-    possible_criteria_ranges = normalize_range_list(criteria_ranges if isinstance(criteria_ranges, list) else [criteria_ranges])
-    possible_sum_ranges = normalize_range_list(sum_ranges if isinstance(sum_ranges, list) else [sum_ranges])
-    possible_criteria = {normalize_formula(criteria), f'"{normalize_formula(criteria)}"'}
+    criteria_range_arg = args[0]
+    criteria_arg = args[1]
+    sum_range_arg = args[2]
 
     result["checks"]["function"] = 1
-    result["checks"]["criteria_range"] = int(criteria_range in possible_criteria_ranges)
-    result["checks"]["criteria"] = int(actual_criteria in possible_criteria)
-    result["checks"]["sum_range"] = int(sum_range in possible_sum_ranges)
+    result["checks"]["criteria_range"] = int(
+        range_is_flexible(criteria_range_arg, expected_criteria_range, allow_header=True, allow_extended_end=True)
+    )
+
+    matched_criteria = lookup_argument_matches(criteria_arg, criteria, ws=ws)
+    result["checks"]["criteria"] = int(matched_criteria)
+
+    result["checks"]["sum_range"] = int(
+        range_is_flexible(sum_range_arg, expected_sum_range, allow_header=True, allow_extended_end=True)
+    )
+
     for name, value in result["checks"].items():
         if value == 0:
             result["issues"].append(name + " is incorrect.")
+
     if all(v == 1 for v in result["checks"].values()):
         result["marks"] = QUESTION_MARK
         result["status"] = "CORRECT"
+
     return result
 
-def check_countif_s1(formula, criteria_ranges, criteria):
+def check_countif_s1(formula, expected_range, criteria, ws=None):
     result = {"marks": 0, "status": "WRONG", "issues": [], "checks": {}}
     if not is_formula(formula):
         result["issues"].append("No formula found.")
@@ -650,25 +694,31 @@ def check_countif_s1(formula, criteria_ranges, criteria):
     if get_function(formula) != "COUNTIF":
         result["issues"].append("COUNTIF is required.")
         return result
-    args = split_formula_args(formula)
-    if len(args) != 2:
+
+    args = extract_function_arguments(formula, "COUNTIF")
+    if not args or len(args) < 2:
         result["issues"].append("COUNTIF must have 2 arguments.")
         return result
-    criteria_range = normalize_formula(args[0])
-    actual_criteria = normalize_formula(args[1])
 
-    possible_criteria_ranges = normalize_range_list(criteria_ranges if isinstance(criteria_ranges, list) else [criteria_ranges])
-    possible_criteria = {normalize_formula(criteria), f'"{normalize_formula(criteria)}"'}
+    range_arg = args[0]
+    criteria_arg = args[1]
 
     result["checks"]["function"] = 1
-    result["checks"]["criteria_range"] = int(criteria_range in possible_criteria_ranges)
-    result["checks"]["criteria"] = int(actual_criteria in possible_criteria)
+    result["checks"]["criteria_range"] = int(
+        range_is_flexible(range_arg, expected_range, allow_header=True, allow_extended_end=True)
+    )
+
+    matched_criteria = lookup_argument_matches(criteria_arg, criteria, ws=ws)
+    result["checks"]["criteria"] = int(matched_criteria)
+
     for name, value in result["checks"].items():
         if value == 0:
             result["issues"].append(name + " is incorrect.")
+
     if all(v == 1 for v in result["checks"].values()):
         result["marks"] = QUESTION_MARK
         result["status"] = "CORRECT"
+
     return result
 
 def check_text_formula_s1(formula, accepted_patterns, expected_text):
@@ -685,220 +735,17 @@ def check_text_formula_s1(formula, accepted_patterns, expected_text):
         result["issues"].append(f"Formula does not match accepted solution for: {expected_text}")
     return result
 
-def split_args(formula):
-    f = normalize_formula(formula)
-    p = f.find("(")
-    q = f.rfind(")")
-    if p < 0 or q < 0:
-        return []
-    inside = f[p + 1:q]
-    args = []
-    current = []
-    depth = 0
-    quote = False
-    for ch in inside:
-        if ch == '"':
-            quote = not quote
-            current.append(ch)
-        elif not quote and ch == "(":
-            depth += 1
-            current.append(ch)
-        elif not quote and ch == ")":
-            depth -= 1
-            current.append(ch)
-        elif not quote and ch == "," and depth == 0:
-            args.append("".join(current).strip())
-            current = []
-        else:
-            current.append(ch)
-    if current:
-        args.append("".join(current).strip())
-    return args
+def check_q1_s1(f, ws=None): return check_vlookup_s1(f, ["E003"], 3, ["A4:C13", "A3:C13", "A4:E13", "A3:E13", "A:C", "A:E"], ws=ws)
+def check_q2_s1(f, ws=None): return check_vlookup_s1(f, ["Sara Khan", "B20"], 4, ["B4:E13", "B3:E13", "B4:F13", "B3:F13", "B:E", "B:F"], ws=ws)
+def check_q3_s1(f, ws=None): return check_vlookup_s1(f, ["E007"], 4, ["A4:D13", "A3:D13", "A4:E13", "A3:E13", "A:D", "A:E"], ws=ws)
+def check_q4_s1(f, ws=None): return check_vlookup_s1(f, ["E010"], 2, ["A4:B13", "A3:B13", "A4:E13", "A3:E13", "A:B", "A:E"], ws=ws)
 
-def check_vlookup_s1(
-    formula,
-    lookup_values,
-    return_index,
-    possible_ranges=None,
-    expected_start_col="A"
-):
-    result = {
-        "marks": 0,
-        "status": "WRONG",
-        "issues": [],
-        "checks": {}
-    }
-
-    # ========================================================
-    # FORMULA CHECK
-    # ========================================================
-
-    if not is_formula(formula):
-        result["issues"].append("No formula found.")
-        return result
-
-    # ========================================================
-    # FUNCTION CHECK
-    # ========================================================
-
-    if get_function(formula) != "VLOOKUP":
-        result["issues"].append("VLOOKUP is required.")
-        return result
-
-    # ========================================================
-    # SPLIT ARGUMENTS
-    # ========================================================
-
-    args = split_args(formula)
-
-    if len(args) != 4:
-        result["issues"].append(
-            "VLOOKUP must have exactly 4 arguments."
-        )
-        return result
-
-    lookup = normalize_formula(args[0])
-    table_raw = args[1].strip()
-    col = normalize_formula(args[2])
-    match = normalize_formula(args[3])
-
-    # ========================================================
-    # FUNCTION
-    # ========================================================
-
-    result["checks"]["function"] = 1
-
-    # ========================================================
-    # LOOKUP VALUE
-    # ========================================================
-
-    possible_lookup_values = set()
-
-    for value in lookup_values:
-
-        value_norm = normalize_formula(value)
-
-        possible_lookup_values.add(value_norm)
-
-        possible_lookup_values.add(
-            f'"{value_norm}"'
-        )
-
-    result["checks"]["lookup_value"] = int(
-        bool(lookup) or lookup in possible_lookup_values
-    )
-
-    # ========================================================
-    # TABLE RANGE
-    #
-    # IMPORTANT:
-    # DO NOT use exact possible_ranges matching.
-    # Dynamic validator handles ALL valid variations.
-    # ========================================================
-
-    # result["checks"]["table_range"] = int(
-    #     is_valid_vlookup_range(
-    #         table_raw,
-    #         expected_start_col,
-    #         return_index
-    #     )
-    # )
-
-    result["checks"]["table_range"] = int(
-    is_valid_vlookup_range(
-        table_raw,
-        expected_start_col,
-        return_index
-        )
-    )
-
-    # ========================================================
-    # RETURN COLUMN
-    # ========================================================
-
-    result["checks"]["return_column"] = int(
-        col.isdigit()
-        and int(col) == return_index
-    )
-
-    # ========================================================
-    # EXACT MATCH
-    #
-    # FALSE and 0 accepted
-    # TRUE / 1 rejected
-    # ========================================================
-
-    result["checks"]["exact_match"] = int(
-        match in {"FALSE", "0"}
-    )
-
-    # ========================================================
-    # ISSUES
-    # ========================================================
-
-    for name, value in result["checks"].items():
-
-        if value == 0:
-
-            result["issues"].append(
-                name + " is incorrect."
-            )
-
-    # ========================================================
-    # FINAL RESULT
-    # ========================================================
-
-    if all(
-        value == 1
-        for value in result["checks"].values()
-    ):
-
-        result["marks"] = QUESTION_MARK
-
-        result["status"] = "CORRECT"
-
-    return result
-
-def check_q1_s1(f):
-    return check_vlookup_s1(
-        f,
-        ["E003"],
-        3,
-        expected_start_col="A"
-    )
-
-
-def check_q2_s1(f):
-    return check_vlookup_s1(
-        f,
-        ["Sara Khan", "B20"],
-        4,
-        expected_start_col="B"
-    )
-
-
-def check_q3_s1(f):
-    return check_vlookup_s1(
-        f,
-        ["E007"],
-        4,
-        expected_start_col="A"
-    )
-
-
-def check_q4_s1(f):
-    return check_vlookup_s1(
-        f,
-        ["E010"],
-        2,
-        expected_start_col="A"
-    )
-def check_q5_s1(f): return check_sumif_s1(f, ["B4:B13", "B3:B13"], "ALI", ["F4:F13", "F3:F13"])
-def check_q6_s1(f): return check_countif_s1(f, ["C4:C13", "C3:C13"], "LAPTOP")
-def check_q7_s1(f): return check_sumif_s1(f, ["B4:B13", "B3:B13"], "SARA", ["E4:E13", "E3:E13"])
-def check_q8_s1(f): return check_countif_s1(f, ["D4:D13", "D3:D13"], "ELECTRONICS")
-def check_q9_s1(f): return check_sumif_s1(f, ["D4:D13", "D3:D13"], "ACCESSORIES", ["F4:F13", "F3:F13"])
-def check_q10_s1(f): return check_countif_s1(f, ["B4:B13", "B3:B13"], "FATIMA")
+def check_q5_s1(f, ws=None): return check_sumif_s1(f, "B4:B13", "ALI", "F4:F13", ws=ws)
+def check_q6_s1(f, ws=None): return check_countif_s1(f, "C4:C13", "LAPTOP", ws=ws)
+def check_q7_s1(f, ws=None): return check_sumif_s1(f, "B4:B13", "SARA", "E4:E13", ws=ws)
+def check_q8_s1(f, ws=None): return check_countif_s1(f, "D4:D13", "ELECTRONICS", ws=ws)
+def check_q9_s1(f, ws=None): return check_sumif_s1(f, "D4:D13", "ACCESSORIES", "F4:F13", ws=ws)
+def check_q10_s1(f, ws=None): return check_countif_s1(f, "B4:B13", "FATIMA", ws=ws)
 
 def check_q11_s1(f): return check_text_formula_s1(f, [r'LEFT\(A4,3\)'], "Ahm")
 def check_q12_s1(f): return check_text_formula_s1(f, [r'RIGHT\(B4,7\)'], "1234567")
@@ -909,8 +756,8 @@ def check_q16_s1(f): return check_text_formula_s1(f, [r'RIGHT\(A5,LEN\(A5\)-FIND
 
 def check_q17_s1(f): return check_text_formula_s1(f, [r'D4\*E4', r'E4\*D4'], "1020000")
 def check_q18_s1(f): return check_text_formula_s1(f, [r'RIGHT\(A4,3\)', r'MID\(A4,9,3\)'], "LAP")
-def check_q19_s1(f): return check_countif_s1(f, ["C4:C11", "C3:C11"], "ACCESSORIES")
-def check_q20_s1(f): return check_sumif_s1(f, ["C4:C11", "C3:C11"], "ELECTRONICS", ["F4:F11", "F3:F11"])
+def check_q19_s1(f): return check_countif_s1(f, "C4:C11", "ACCESSORIES")
+def check_q20_s1(f): return check_sumif_s1(f, "C4:C11", "ELECTRONICS", "F4:F11")
 
 CHECKERS_S1 = {
     "Q1": check_q1_s1, "Q2": check_q2_s1, "Q3": check_q3_s1, "Q4": check_q4_s1,
@@ -1368,7 +1215,7 @@ def equivalent_exact_match(arg):
     arg = clean_arg(arg)
     return arg in ("FALSE", "0")
 
-def parse_range(arg):
+def parse_range_dict(arg):
     arg = clean_arg(arg)
     match = re.match(r"^([A-Z]+)(\d+):([A-Z]+)(\d+)$", arg)
     if not match:

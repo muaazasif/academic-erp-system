@@ -50,8 +50,8 @@
                     {% endif %}
                 </td>
                 <td>
-                    <a href="/admin/excel-submissions/{{ sub.id }}/toggle-resubmit" class="btn btn-sm {% if sub.allow_resubmit %}btn-success{% else %}btn-outline-primary{% endif %}">
-                        {% if sub.allow_resubmit %}Allowed (Revoke){% else %}Allow Resubmit{% endif %}
+                    <a href="/admin/excel-submissions/{{ sub.id }}/toggle-resubmit" class="btn btn-sm {% if sub.allow_resubmit %}btn-success{% else %}btn-outline-danger{% endif %}">
+                        {% if sub.allow_resubmit %}🔓 Access: ON (Click to Revoke){% else %}🔒 Access: OFF (Click to Grant){% endif %}
                     </a>
                 </td>
             </tr>

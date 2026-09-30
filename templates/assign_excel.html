@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Assign Excel Assignment - ERP System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        {% include 'sidebar.html' %}
+        
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Assign Excel Assignment: {{ assignment.title }}</h1>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <h5>Student Access Control (Yes / No)</h5>
+                            <p class="text-muted">Select <strong>Yes</strong> to allow the student to attempt this Excel skill assignment, or <strong>No</strong> to restrict access.</p>
+                            
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="assignToAll" name="assign_to_all" onchange="toggleStudentSelection()">
+                                <label class="form-check-label fw-bold" for="assignToAll">
+                                    Assign to All Students (Set all to Yes)
+                                </label>
+                            </div>
+                            
+                            <div id="studentSelection" class="table-responsive">
+                                <table class="table table-bordered table-striped align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>Student ID</th>
+                                            <th>Student Name</th>
+                                            <th class="text-center">Can Attempt? (Excel Skill Access)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for student in students %}
+                                        <tr>
+                                            <td>{{ student.student_id }}</td>
+                                            <td>{{ student.name }}</td>
+                                            <td class="text-center">
+                                                <div class="btn-group" role="group" aria-label="Access for {{ student.name }}">
+                                                    <input type="radio" class="btn-check" name="access_{{ student.student_id }}" id="yes_{{ student.student_id }}" value="yes" {% if student.student_id in assigned_student_ids %}checked{% endif %}>
+                                                    <label class="btn btn-outline-success btn-sm" for="yes_{{ student.student_id }}">Yes</label>
+
+                                                    <input type="radio" class="btn-check" name="access_{{ student.student_id }}" id="no_{{ student.student_id }}" value="no" {% if student.student_id not in assigned_student_ids %}checked{% endif %}>
+                                                    <label class="btn btn-outline-danger btn-sm" for="no_{{ student.student_id }}">No</label>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Save Access Settings</button>
+                        <a href="{{ url_for('admin_excel_assignments') }}" class="btn btn-secondary">Cancel</a>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+function toggleStudentSelection() {
+    const assignToAllCheckbox = document.getElementById('assignToAll');
+    const studentSelectionDiv = document.getElementById('studentSelection');
+    const radios = studentSelectionDiv.querySelectorAll('input[type="radio"]');
+    
+    if (assignToAllCheckbox.checked) {
+        radios.forEach(radio => {
+            if (radio.value === 'yes') {
+                radio.checked = true;
+            } else {
+                radio.checked = false;
+            }
+            radio.disabled = true;
+        });
+    } else {
+        radios.forEach(radio => {
+            radio.disabled = false;
+        });
+    }
+}
+</script>
+{% endblock %}

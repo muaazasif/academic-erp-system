@@ -8,18 +8,26 @@ import openpyxl
 # EXCEL SKILL 1 - AUTO CHECKER
 # 20 Questions | 10 Marks | 100+ Students
 #
-# IMPORTANT:
-# Range-based questions accept BOTH:
-#   1) Range WITHOUT header
-#   2) Range WITH header
+# UPDATED:
+# Q1-Q4 VLOOKUP checker now supports:
+#   - WITH HEADER ranges
+#   - WITHOUT HEADER ranges
+#   - Extended ranges
+#   - Full column references
+#   - Absolute references
+#   - Relative references
+#   - Mixed references
+#   - Correct VLOOKUP table-array structure
+#   - Correct lookup column
+#   - Correct return column index
+#   - Exact match: FALSE / 0
 #
-# Example:
-#   A4:C13
-#   A3:C13
+# Q1-Q4:
 #
-# Absolute references are also accepted:
-#   $A$4:$C$13
-#   $A$3:$C$13
+# Q1: Department of E003 -> Finance
+# Q2: Salary of Sara Khan -> 42000
+# Q3: City of E007 -> Islamabad
+# Q4: Name of E010 -> Maryam Fatima
 # ============================================================
 
 
@@ -90,6 +98,7 @@ def normalize_formula(value):
 
     # Remove absolute reference $
     s = s.replace("$", "")
+    s = s.replace(r"\:", ":").replace("\\:", ":")
 
     return s
 
@@ -97,11 +106,6 @@ def normalize_formula(value):
 def normalize_range_list(ranges):
     """
     Converts possible ranges into normalized set.
-
-    Example:
-        ["A4:C13", "A3:C13"]
-    becomes:
-        {"A4:C13", "A3:C13"}
     """
 
     return {
@@ -184,14 +188,256 @@ def split_args(formula):
 
 
 # ============================================================
+# VLOOKUP HELPERS
+# ============================================================
+
+def col_to_int(col_str):
+    """
+    Converts Excel column letters to number.
+
+    A -> 1
+    B -> 2
+    Z -> 26
+    AA -> 27
+    """
+
+    n = 0
+
+    for c in col_str.upper():
+
+        if "A" <= c <= "Z":
+            n = (
+                n * 26
+                + ord(c)
+                - ord("A")
+                + 1
+            )
+
+    return n
+
+
+def parse_vlookup_range(table_str):
+    """
+    Parse VLOOKUP table_array.
+
+    Supports:
+
+        A3:C13
+        A4:E13
+        A3:E100
+        $A$4:$E$13
+        A$4:$E13
+        A:C
+        A:E
+        $A:$E
+
+    Returns:
+
+        start_col_number,
+        end_col_number,
+        start_row,
+        end_row
+
+    """
+
+    s = normalize_formula(table_str)
+
+    # ========================================================
+    # FULL COLUMN RANGE
+    # Example:
+    # A:C
+    # A:E
+    # B:F
+    # ========================================================
+
+    full_match = re.fullmatch(
+        r"([A-Z]+):([A-Z]+)",
+        s
+    )
+
+    if full_match:
+
+        start_col = full_match.group(1)
+        end_col = full_match.group(2)
+
+        start_col_num = col_to_int(start_col)
+        end_col_num = col_to_int(end_col)
+
+        if start_col_num > end_col_num:
+            return None
+
+        return (
+            start_col_num,
+            end_col_num,
+            None,
+            None
+        )
+
+    # ========================================================
+    # NORMAL CELL RANGE
+    #
+    # A3:C13
+    # A4:E13
+    # A3:E100
+    # ========================================================
+
+    range_match = re.fullmatch(
+        r"([A-Z]+)(\d+):([A-Z]+)(\d+)",
+        s
+    )
+
+    if not range_match:
+        return None
+
+    start_col = range_match.group(1)
+    start_row = int(range_match.group(2))
+
+    end_col = range_match.group(3)
+    end_row = int(range_match.group(4))
+
+    start_col_num = col_to_int(start_col)
+    end_col_num = col_to_int(end_col)
+
+    if start_col_num > end_col_num:
+        return None
+
+    if start_row > end_row:
+        return None
+
+    return (
+        start_col_num,
+        end_col_num,
+        start_row,
+        end_row
+    )
+
+
+def is_valid_vlookup_range(
+    table_str,
+    expected_start_col,
+    required_return_index
+):
+    """
+    Validates VLOOKUP table_array.
+
+    Examples accepted:
+
+        A3:C13
+        A4:C13
+        A3:E13
+        A4:E13
+        A3:E100
+        A4:E100
+
+        $A$4:$E$13
+        A$4:$E13
+
+        A:C
+        A:E
+
+    Rules:
+
+        1. Table must start from lookup column.
+        2. Table must contain the required VLOOKUP return index.
+        3. Row 3 or row 4 is accepted.
+        4. Ending row must reach row 13.
+        5. Full-column references are accepted.
+    """
+
+    parsed = parse_vlookup_range(table_str)
+
+    if parsed is None:
+        return False
+
+    (
+        start_col_num,
+        end_col_num,
+        start_row,
+        end_row
+    ) = parsed
+
+    # ========================================================
+    # 1. TABLE MUST START FROM LOOKUP COLUMN
+    # ========================================================
+
+    expected_start_num = col_to_int(
+        expected_start_col
+    )
+
+    if start_col_num != expected_start_num:
+        return False
+
+    # ========================================================
+    # 2. REQUIRED RETURN COLUMN
+    #
+    # VLOOKUP return_index is RELATIVE to table.
+    #
+    # Example:
+    #
+    # A:E
+    #
+    # A = 1
+    # B = 2
+    # C = 3
+    # D = 4
+    # E = 5
+    #
+    # Therefore:
+    #
+    # A + return_index 4 - 1 = D
+    # ========================================================
+
+    required_end_col_num = (
+        start_col_num
+        + required_return_index
+        - 1
+    )
+
+    # Table must extend far enough
+    if end_col_num < required_end_col_num:
+        return False
+
+    # ========================================================
+    # 3. FULL COLUMN REFERENCE
+    #
+    # A:D
+    # A:E
+    # B:E
+    # ========================================================
+
+    if start_row is None and end_row is None:
+        return True
+
+    # ========================================================
+    # 4. NORMAL RANGE
+    #
+    # Header row = 3
+    # Data row   = 4
+    # ========================================================
+
+    if start_row not in (3, 4):
+        return False
+
+    # ========================================================
+    # 5. Must include all student data
+    # ========================================================
+
+    if end_row < 13:
+        return False
+
+    return True
+
+
+# ============================================================
 # VLOOKUP CHECKER
 # ============================================================
 
 def check_vlookup(
     formula,
     lookup_values,
-    return_col,
-    table_ranges
+    return_index,
+    expected_start_col,
+    expected_return_col
 ):
 
     result = {
@@ -206,9 +452,11 @@ def check_vlookup(
     # --------------------------------------------------------
 
     if not is_formula(formula):
+
         result["issues"].append(
             "No formula found."
         )
+
         return result
 
     # --------------------------------------------------------
@@ -216,9 +464,11 @@ def check_vlookup(
     # --------------------------------------------------------
 
     if get_function(formula) != "VLOOKUP":
+
         result["issues"].append(
             "VLOOKUP is required."
         )
+
         return result
 
     # --------------------------------------------------------
@@ -227,75 +477,99 @@ def check_vlookup(
 
     args = split_args(formula)
 
-    if len(args) < 4:
+    if len(args) != 4:
+
         result["issues"].append(
-            "VLOOKUP needs 4 arguments."
+            "VLOOKUP must have exactly 4 arguments."
         )
+
         return result
 
-    lookup = normalize_formula(args[0])
-    table = normalize_formula(args[1])
-    col = normalize_formula(args[2])
-    match = normalize_formula(args[3])
+    lookup = normalize_formula(
+        args[0]
+    )
+
+    table_raw = args[1].strip()
+
+    col = normalize_formula(
+        args[2]
+    )
+
+    match = normalize_formula(
+        args[3]
+    )
 
     # --------------------------------------------------------
     # Possible lookup values
-    #
-    # Example Q2:
-    # "Sara Khan"
-    # "B20"
-    # Sara Khan
-    # B20
     # --------------------------------------------------------
 
     possible_lookup_values = set()
 
     for value in lookup_values:
 
-        value = normalize_formula(value)
+        value_norm = normalize_formula(
+            value
+        )
 
-        possible_lookup_values.add(value)
-
-        # Also accept quoted text
+        # Direct value
         possible_lookup_values.add(
-            f'"{value}"'
+            value_norm
+        )
+
+        # Quoted value
+        possible_lookup_values.add(
+            f'"{value_norm}"'
         )
 
     # --------------------------------------------------------
-    # Possible table ranges
-    #
-    # Example:
-    #
-    # B4:E13  -> WITHOUT HEADER
-    # B3:E13  -> WITH HEADER
-    #
-    # Both are valid.
-    # --------------------------------------------------------
-
-    possible_table_ranges = normalize_range_list(
-        table_ranges
-    )
-
-    # --------------------------------------------------------
-    # Checks
+    # Function
     # --------------------------------------------------------
 
     result["checks"]["function"] = 1
+
+    # --------------------------------------------------------
+    # Lookup value
+    # --------------------------------------------------------
 
     result["checks"]["lookup_value"] = int(
         lookup in possible_lookup_values
     )
 
+    # --------------------------------------------------------
+    # Table range
+    # --------------------------------------------------------
+
     result["checks"]["table_range"] = int(
-        table in possible_table_ranges
+        is_valid_vlookup_range(
+            table_raw,
+            expected_start_col,
+            return_index
+        )
     )
+
+    # --------------------------------------------------------
+    # Return column index
+    # --------------------------------------------------------
 
     result["checks"]["return_column"] = int(
-        col == str(return_col)
+        col.isdigit()
+        and int(col) == return_index
     )
 
+    # --------------------------------------------------------
+    # Exact match
+    #
+    # FALSE and 0 are equivalent.
+    #
+    # TRUE / 1 are NOT accepted because these questions
+    # require exact matching.
+    # --------------------------------------------------------
+
     result["checks"]["exact_match"] = int(
-        match in {"0", "FALSE"}
+        match in {
+            "FALSE",
+            "0"
+        }
     )
 
     # --------------------------------------------------------
@@ -305,6 +579,7 @@ def check_vlookup(
     for name, value in result["checks"].items():
 
         if value == 0:
+
             result["issues"].append(
                 name + " is incorrect."
             )
@@ -317,10 +592,122 @@ def check_vlookup(
         value == 1
         for value in result["checks"].values()
     ):
+
         result["marks"] = QUESTION_MARK
+
         result["status"] = "CORRECT"
 
     return result
+
+
+# ============================================================
+# Q1-Q4 VLOOKUP
+#
+# IMPORTANT:
+#
+# Q1:
+# E003 -> Department -> C
+#
+# Q2:
+# Sara Khan -> Salary -> E
+# Table MUST start from B because Sara Khan is in B.
+#
+# Q3:
+# E007 -> City -> D
+#
+# Q4:
+# E010 -> Name -> B
+#
+# ============================================================
+
+def check_q1(f):
+
+    return check_vlookup(
+
+        f,
+
+        # Lookup value
+        ["E003"],
+
+        # VLOOKUP col_index_num
+        3,
+
+        # First table column
+        "A",
+
+        # Actual return column
+        "C"
+    )
+
+
+def check_q2(f):
+
+    return check_vlookup(
+
+        f,
+
+        # Lookup value
+        ["Sara Khan"],
+
+        # B:E
+        # B=1
+        # C=2
+        # D=3
+        # E=4
+        4,
+
+        # Table must start from B
+        "B",
+
+        # Salary = E
+        "E"
+    )
+
+
+def check_q3(f):
+
+    return check_vlookup(
+
+        f,
+
+        # Lookup value
+        ["E007"],
+
+        # A:D
+        # A=1
+        # B=2
+        # C=3
+        # D=4
+        4,
+
+        # Table starts from A
+        "A",
+
+        # City = D
+        "D"
+    )
+
+
+def check_q4(f):
+
+    return check_vlookup(
+
+        f,
+
+        # Lookup value
+        ["E010"],
+
+        # A:B
+        # A=1
+        # B=2
+        2,
+
+        # Table starts from A
+        "A",
+
+        # Name = B
+        "B"
+    )
 
 
 # ============================================================
@@ -373,19 +760,11 @@ def check_sumif(
         args[2]
     )
 
-    # --------------------------------------------------------
-    # Possible criteria ranges
-    # --------------------------------------------------------
-
     possible_criteria_ranges = (
         normalize_range_list(
             criteria_ranges
         )
     )
-
-    # --------------------------------------------------------
-    # Possible sum ranges
-    # --------------------------------------------------------
 
     possible_sum_ranges = (
         normalize_range_list(
@@ -393,36 +772,27 @@ def check_sumif(
         )
     )
 
-    # --------------------------------------------------------
-    # Possible criteria
-    # --------------------------------------------------------
-
     possible_criteria = {
         normalize_formula(criteria),
         f'"{normalize_formula(criteria)}"'
     }
 
-    # --------------------------------------------------------
-    # Checks
-    # --------------------------------------------------------
-
     result["checks"]["function"] = 1
 
     result["checks"]["criteria_range"] = int(
-        criteria_range in possible_criteria_ranges
+        criteria_range
+        in possible_criteria_ranges
     )
 
     result["checks"]["criteria"] = int(
-        actual_criteria in possible_criteria
+        actual_criteria
+        in possible_criteria
     )
 
     result["checks"]["sum_range"] = int(
-        sum_range in possible_sum_ranges
+        sum_range
+        in possible_sum_ranges
     )
-
-    # --------------------------------------------------------
-    # Issues
-    # --------------------------------------------------------
 
     for name, value in result["checks"].items():
 
@@ -431,14 +801,11 @@ def check_sumif(
                 name + " is incorrect."
             )
 
-    # --------------------------------------------------------
-    # Final
-    # --------------------------------------------------------
-
     if all(
         value == 1
         for value in result["checks"].values()
     ):
+
         result["marks"] = QUESTION_MARK
         result["status"] = "CORRECT"
 
@@ -490,42 +857,28 @@ def check_countif(
         args[1]
     )
 
-    # --------------------------------------------------------
-    # Possible ranges
-    # --------------------------------------------------------
-
     possible_criteria_ranges = (
         normalize_range_list(
             criteria_ranges
         )
     )
 
-    # --------------------------------------------------------
-    # Possible criteria
-    # --------------------------------------------------------
-
     possible_criteria = {
         normalize_formula(criteria),
         f'"{normalize_formula(criteria)}"'
     }
 
-    # --------------------------------------------------------
-    # Checks
-    # --------------------------------------------------------
-
     result["checks"]["function"] = 1
 
     result["checks"]["criteria_range"] = int(
-        criteria_range in possible_criteria_ranges
+        criteria_range
+        in possible_criteria_ranges
     )
 
     result["checks"]["criteria"] = int(
-        actual_criteria in possible_criteria
+        actual_criteria
+        in possible_criteria
     )
-
-    # --------------------------------------------------------
-    # Issues
-    # --------------------------------------------------------
 
     for name, value in result["checks"].items():
 
@@ -534,14 +887,11 @@ def check_countif(
                 name + " is incorrect."
             )
 
-    # --------------------------------------------------------
-    # Final
-    # --------------------------------------------------------
-
     if all(
         value == 1
         for value in result["checks"].values()
     ):
+
         result["marks"] = QUESTION_MARK
         result["status"] = "CORRECT"
 
@@ -575,7 +925,10 @@ def check_text_formula(
 
     result["checks"]["formula_structure"] = int(
         any(
-            re.fullmatch(pattern, f)
+            re.fullmatch(
+                pattern,
+                f
+            )
             for pattern in accepted_patterns
         )
     )
@@ -596,94 +949,21 @@ def check_text_formula(
 
 
 # ============================================================
-# Q1-Q4 VLOOKUP
-#
-# BOTH ranges are accepted:
-#
-# WITHOUT HEADER
-# WITH HEADER
-# ============================================================
-
-def check_q1(f):
-
-    return check_vlookup(
-        f,
-        ["E003"],
-        3,
-        [
-            "A4:C13",   # WITHOUT HEADER
-            "A3:C13"    # WITH HEADER
-        ]
-    )
-
-
-def check_q2(f):
-
-    return check_vlookup(
-        f,
-
-        # Both direct value and cell reference accepted
-        [
-            "Sara Khan",
-            "B20"
-        ],
-
-        4,
-
-        [
-            "B4:E13",   # WITHOUT HEADER
-            "B3:E13"    # WITH HEADER
-        ]
-    )
-
-
-def check_q3(f):
-
-    return check_vlookup(
-        f,
-        ["E007"],
-        4,
-        [
-            "A4:D13",   # WITHOUT HEADER
-            "A3:D13"    # WITH HEADER
-        ]
-    )
-
-
-def check_q4(f):
-
-    return check_vlookup(
-        f,
-        ["E010"],
-        2,
-        [
-            "A4:B13",   # WITHOUT HEADER
-            "A3:B13"    # WITH HEADER
-        ]
-    )
-
-
-# ============================================================
 # Q5-Q10 SUMIF / COUNTIF
-#
-# BOTH WITH HEADER AND WITHOUT HEADER ACCEPTED
 # ============================================================
 
 def check_q5(f):
 
     return check_sumif(
         f,
-
         [
-            "B4:B13",   # WITHOUT HEADER
-            "B3:B13"    # WITH HEADER
+            "B4:B13",
+            "B3:B13"
         ],
-
         "ALI",
-
         [
-            "F4:F13",   # WITHOUT HEADER
-            "F3:F13"    # WITH HEADER
+            "F4:F13",
+            "F3:F13"
         ]
     )
 
@@ -692,12 +972,10 @@ def check_q6(f):
 
     return check_countif(
         f,
-
         [
-            "C4:C13",   # WITHOUT HEADER
-            "C3:C13"    # WITH HEADER
+            "C4:C13",
+            "C3:C13"
         ],
-
         "LAPTOP"
     )
 
@@ -706,17 +984,14 @@ def check_q7(f):
 
     return check_sumif(
         f,
-
         [
-            "B4:B13",   # WITHOUT HEADER
-            "B3:B13"    # WITH HEADER
+            "B4:B13",
+            "B3:B13"
         ],
-
         "SARA",
-
         [
-            "E4:E13",   # WITHOUT HEADER
-            "E3:E13"    # WITH HEADER
+            "E4:E13",
+            "E3:E13"
         ]
     )
 
@@ -725,12 +1000,10 @@ def check_q8(f):
 
     return check_countif(
         f,
-
         [
-            "D4:D13",   # WITHOUT HEADER
-            "D3:D13"    # WITH HEADER
+            "D4:D13",
+            "D3:D13"
         ],
-
         "ELECTRONICS"
     )
 
@@ -739,17 +1012,14 @@ def check_q9(f):
 
     return check_sumif(
         f,
-
         [
-            "D4:D13",   # WITHOUT HEADER
-            "D3:D13"    # WITH HEADER
+            "D4:D13",
+            "D3:D13"
         ],
-
         "ACCESSORIES",
-
         [
-            "F4:F13",   # WITHOUT HEADER
-            "F3:F13"    # WITH HEADER
+            "F4:F13",
+            "F3:F13"
         ]
     )
 
@@ -758,12 +1028,10 @@ def check_q10(f):
 
     return check_countif(
         f,
-
         [
-            "B4:B13",   # WITHOUT HEADER
-            "B3:B13"    # WITH HEADER
+            "B4:B13",
+            "B3:B13"
         ],
-
         "FATIMA"
     )
 
@@ -800,12 +1068,6 @@ def check_q12(f):
 
 def check_q13(f):
 
-    # Username from:
-    # ahmed.ali@gmail.com
-    #
-    # Result:
-    # ahmed.ali
-
     patterns = [
         r'LEFT\(C4,FIND\("@",C4\)-1\)',
     ]
@@ -818,10 +1080,6 @@ def check_q13(f):
 
 
 def check_q14(f):
-
-    # STU-2024-001
-    # Result:
-    # 2024
 
     patterns = [
         r'MID\(D4,5,4\)',
@@ -836,13 +1094,8 @@ def check_q14(f):
 
 def check_q15(f):
 
-    # sara.f@hotmail.com
-    # Result:
-    # hotmail.com
-
     patterns = [
         r'RIGHT\(C5,LEN\(C5\)-FIND\("@",C5\)\)',
-
         r'MID\(C5,FIND\("@",C5\)+1,LEN\(C5\)\)',
     ]
 
@@ -855,13 +1108,8 @@ def check_q15(f):
 
 def check_q16(f):
 
-    # Sara Fatima
-    # Result:
-    # Fatima
-
     patterns = [
         r'RIGHT\(A5,LEN\(A5\)-FIND\(" ",A5\)\)',
-
         r'MID\(A5,FIND\(" ",A5\)+1,LEN\(A5\)\)',
     ]
 
@@ -908,12 +1156,10 @@ def check_q19(f):
 
     return check_countif(
         f,
-
         [
-            "C4:C11",   # WITHOUT HEADER
-            "C3:C11"    # WITH HEADER
+            "C4:C11",
+            "C3:C11"
         ],
-
         "ACCESSORIES"
     )
 
@@ -922,17 +1168,14 @@ def check_q20(f):
 
     return check_sumif(
         f,
-
         [
-            "C4:C11",   # WITHOUT HEADER
-            "C3:C11"    # WITH HEADER
+            "C4:C11",
+            "C3:C11"
         ],
-
         "ELECTRONICS",
-
         [
-            "F4:F11",   # WITHOUT HEADER
-            "F3:F11"    # WITH HEADER
+            "F4:F11",
+            "F3:F11"
         ]
     )
 
@@ -1104,14 +1347,20 @@ def check_student_file(file_path):
         # Q1-Q20
         # ----------------------------------------------------
 
-        sheet_map = {s.strip().upper(): s for s in wb.sheetnames}
+        sheet_map = {
+            s.strip().upper(): s
+            for s in wb.sheetnames
+        }
 
         for question, (
             sheet_name,
             cell
         ) in ANSWER_CELLS.items():
 
-            actual_sheet = sheet_map.get(sheet_name.strip().upper())
+            actual_sheet = sheet_map.get(
+                sheet_name.strip().upper()
+            )
+
             if not actual_sheet:
 
                 check = {

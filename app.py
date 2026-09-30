@@ -319,6 +319,18 @@ class ExcelSubmission(db.Model):
     student = db.relationship('Student', backref=db.backref('excel_submissions', lazy=True))
 
 
+class ExcelAssignment(db.Model):
+    """Link table to assign Excel skills assignments to students"""
+    id = db.Column(db.Integer, primary_key=True)
+    assignment_id = db.Column(db.Integer, db.ForeignKey('excel_skills_assignment.id'), nullable=False)
+    student_id = db.Column(db.String(50), db.ForeignKey('student.student_id'), nullable=False)
+    assigned_at = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default='assigned')  # assigned, submitted, graded
+    
+    assignment = db.relationship('ExcelSkillsAssignment', backref=db.backref('excel_assignments', lazy=True, cascade='all, delete-orphan'))
+    student = db.relationship('Student', backref=db.backref('excel_assignments', lazy=True, cascade='all, delete-orphan'))
+
+
 class SQLSkillsAssignment(db.Model):
     """SQL Skills Assignment with auto-grading"""
     id = db.Column(db.Integer, primary_key=True)
@@ -2533,18 +2545,39 @@ def admin_excel_toggle_resubmit(submission_id):
 
 @app.route('/admin/excel-assignments/<int:assignment_id>/assign', methods=['GET', 'POST'])
 def assign_excel_to_students(assignment_id):
-    """Assign Excel assignment to all students or selected students"""
+    """Assign Excel assignment to all students or selected students with Yes/No access"""
     if 'admin_id' not in session:
         return redirect(url_for('login'))
     
-    if request.method == 'POST':
-        student_ids = request.form.getlist('student_ids')
-        flash(f'✅ Assignment assigned to {len(student_ids)} students!')
-        return redirect(url_for('admin_excel_assignments'))
-    
     assignment = ExcelSkillsAssignment.query.get_or_404(assignment_id)
     students = Student.query.all()
-    return render_template('assign_excel.html', assignment=assignment, students=students)
+    
+    if request.method == 'POST':
+        assign_to_all = request.form.get('assign_to_all')
+        
+        # Clear existing assignments for this Excel assignment
+        ExcelAssignment.query.filter_by(assignment_id=assignment_id).delete()
+        
+        if assign_to_all == 'on':
+            for student in students:
+                excel_assign = ExcelAssignment(assignment_id=assignment_id, student_id=student.student_id)
+                db.session.add(excel_assign)
+            flash('✅ Excel assignment assigned to all students!')
+        else:
+            assigned_count = 0
+            for student in students:
+                access = request.form.get(f'access_{student.student_id}')
+                if access == 'yes':
+                    excel_assign = ExcelAssignment(assignment_id=assignment_id, student_id=student.student_id)
+                    db.session.add(excel_assign)
+                    assigned_count += 1
+            flash(f'✅ Excel assignment access updated: assigned to {assigned_count} students.')
+            
+        db.session.commit()
+        return redirect(url_for('admin_excel_assignments'))
+    
+    assigned_student_ids = {ea.student_id for ea in ExcelAssignment.query.filter_by(assignment_id=assignment_id).all()}
+    return render_template('assign_excel.html', assignment=assignment, students=students, assigned_student_ids=assigned_student_ids)
 
 
 @app.route('/student/excel-assignments')
@@ -2553,6 +2586,9 @@ def student_excel_assignments():
     if 'student_id' not in session:
         return redirect(url_for('login'))
     
+    student_id = session['student_id']
+    
+    # Get all active Excel assignments
     assignments = ExcelSkillsAssignment.query.filter_by(is_active=True).all()
     
     # Get submissions for this student
@@ -2560,7 +2596,7 @@ def student_excel_assignments():
     for assignment in assignments:
         sub = ExcelSubmission.query.filter_by(
             assignment_id=assignment.id,
-            student_id=session['student_id']
+            student_id=student_id
         ).first()
         submissions[assignment.id] = sub
     
@@ -2573,14 +2609,26 @@ def download_excel_exercise(assignment_id):
     if 'student_id' not in session:
         return redirect(url_for('login'))
     
+    student_id = session['student_id']
     assignment = ExcelSkillsAssignment.query.get_or_404(assignment_id)
+    if not assignment.is_active:
+        flash('❌ This Excel assignment is not active.', 'error')
+        return redirect(url_for('student_excel_assignments'))
+    
+    excel_assign = ExcelAssignment.query.filter_by(
+        assignment_id=assignment_id,
+        student_id=student_id
+    ).first()
+    if not excel_assign:
+        excel_assign = ExcelAssignment(assignment_id=assignment_id, student_id=student_id)
+        db.session.add(excel_assign)
+        db.session.commit()
     
     # Generate workbook with exercises
     wb = create_excel_exercise_workbook(assignment_title=assignment.title)
 
     # Save to BytesIO
     output = BytesIO()
-    # Save as .xlsm if it was loaded from a template with VBA
     wb.save(output)
     output.seek(0)
 
@@ -2597,8 +2645,20 @@ def submit_excel_assignment(assignment_id):
     if 'student_id' not in session:
         return redirect(url_for('login'))
     
-    assignment = ExcelSkillsAssignment.query.get_or_404(assignment_id)
     student_id = session['student_id']
+    assignment = ExcelSkillsAssignment.query.get_or_404(assignment_id)
+    if not assignment.is_active:
+        flash('❌ This Excel assignment is not active.', 'error')
+        return redirect(url_for('student_excel_assignments'))
+    
+    excel_assign = ExcelAssignment.query.filter_by(
+        assignment_id=assignment_id,
+        student_id=student_id
+    ).first()
+    if not excel_assign:
+        excel_assign = ExcelAssignment(assignment_id=assignment_id, student_id=student_id)
+        db.session.add(excel_assign)
+        db.session.commit()
     
     # Check if already submitted
     existing = ExcelSubmission.query.filter_by(
@@ -3446,6 +3506,25 @@ def init_app_data():
                 db.session.commit()
                 print("✅ Excel Skill 4 activated!")
 
+        # Create Excel Skill 5 if not exists
+        skill5 = ExcelSkillsAssignment.query.filter_by(title="Excel Skill 5: VLOOKUP, SUMIF, COUNTIF & IF Formula").first()
+        if not skill5:
+            new_skill5 = ExcelSkillsAssignment(
+                title="Excel Skill 5: VLOOKUP, SUMIF, COUNTIF & IF Formula",
+                description="Complex Assignment: 1. VLOOKUP (Range/Exact), 2. SUMIF, 3. COUNTIF, 4. IF Formula. Total 5 marks. AI checks formula logic and data accuracy. Feedback provided on mistakes.",
+                created_at=datetime.now(),
+                deadline=datetime.now() + timedelta(days=14),
+                is_active=True
+            )
+            db.session.add(new_skill5)
+            db.session.commit()
+            print("✅ Excel Skill 5 created!")
+        else:
+            if not skill5.is_active:
+                skill5.is_active = True
+                db.session.commit()
+                print("✅ Excel Skill 5 activated!")
+
 # Run initialization ONLY if running directly (not via gunicorn)
 @app.route('/reviews')
 def reviews():
@@ -3486,4 +3565,4 @@ if __name__ == '__main__':
 
     # Use port from environment or default to 5000
     port = int(os.environ.get('PORT', 5000))
-    app.run(debug=True, host='0.0.0.0', port=port)
+    app.run(debug=True, host='0.0.0.0', port=port, use_reloader=False)
