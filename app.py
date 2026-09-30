@@ -2588,8 +2588,12 @@ def student_excel_assignments():
     
     student_id = session['student_id']
     
-    # Get all active Excel assignments
-    assignments = ExcelSkillsAssignment.query.filter_by(is_active=True).all()
+    # Get assignments explicitly assigned to this student
+    assigned_assignment_ids = [ea.assignment_id for ea in ExcelAssignment.query.filter_by(student_id=student_id).all()]
+    assignments = ExcelSkillsAssignment.query.filter(
+        ExcelSkillsAssignment.id.in_(assigned_assignment_ids),
+        ExcelSkillsAssignment.is_active == True
+    ).all() if assigned_assignment_ids else []
     
     # Get submissions for this student
     submissions = {}
@@ -2620,9 +2624,8 @@ def download_excel_exercise(assignment_id):
         student_id=student_id
     ).first()
     if not excel_assign:
-        excel_assign = ExcelAssignment(assignment_id=assignment_id, student_id=student_id)
-        db.session.add(excel_assign)
-        db.session.commit()
+        flash('❌ This Excel assignment has not been assigned to you.', 'error')
+        return redirect(url_for('student_excel_assignments'))
     
     # Generate workbook with exercises
     wb = create_excel_exercise_workbook(assignment_title=assignment.title)
@@ -2656,9 +2659,8 @@ def submit_excel_assignment(assignment_id):
         student_id=student_id
     ).first()
     if not excel_assign:
-        excel_assign = ExcelAssignment(assignment_id=assignment_id, student_id=student_id)
-        db.session.add(excel_assign)
-        db.session.commit()
+        flash('❌ This Excel assignment has not been assigned to you.', 'error')
+        return redirect(url_for('student_excel_assignments'))
     
     # Check if already submitted
     existing = ExcelSubmission.query.filter_by(
