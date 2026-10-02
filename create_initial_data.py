@@ -65,6 +65,10 @@ def create_initial_data():
             {
                 "title": "Excel Skill 5: VLOOKUP, SUMIF, COUNTIF & IF Formula",
                 "description": "Complex Assignment: 1. VLOOKUP (Range/Exact), 2. SUMIF, 3. COUNTIF, 4. IF Formula. Total 5 marks. AI checks formula logic and data accuracy. Feedback provided on mistakes."
+            },
+            {
+                "title": "Excel Skill 6: IFERROR, DATE, TEXT, AND & OR",
+                "description": "Advanced Formulas & Logic: 1. IFERROR (1 mark). 2. DATE (1 mark). 3. TEXT (1 mark). 4. AND Condition (1 mark). 5. OR Condition (1 mark). Total 5 marks. AI checks formula logic and data accuracy."
             }
         ]
 
