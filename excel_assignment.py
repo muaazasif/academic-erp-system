@@ -57,6 +57,9 @@ def create_excel_exercise_workbook(assignment_title=""):
     elif "Excel Skill 5" in assignment_title:
         create_instructions_skill5(wb) # Use new specialized instructions
         create_vlookup_sumif_countif_if_exercises(wb)
+    elif "Excel Skill 6" in assignment_title or "IFERROR" in assignment_title or "DATE" in assignment_title or "TEXT" in assignment_title or "AND" in assignment_title or "OR" in assignment_title:
+        create_instructions_skill6(wb)
+        create_excel_skill_6_exercises(wb)
     else:
         create_instructions(wb)
         create_vlookup_exercises(wb)
@@ -417,6 +420,10 @@ def grade_excel_submission(file_path, assignment_title=""):
         v_score, v_detail = grade_vlookup_sumif_countif_if(wb)
         total_score = v_score
         details['VLOOKUP/SUMIF/COUNTIF/IF'] = {'score': v_score, 'max': 5, 'details': v_detail}
+    elif "Excel Skill 6" in assignment_title or "IFERROR" in assignment_title or "DATE" in assignment_title or "TEXT" in assignment_title or "AND" in assignment_title or "OR" in assignment_title:
+        v_score, v_detail = grade_excel_skill_6(wb)
+        total_score = v_score
+        details['IFERROR/DATE/TEXT/AND/OR'] = {'score': v_score, 'max': 5, 'details': v_detail}
     else:
         score_s1, details_s1 = grade_excel_skill_1(wb)
         total_score = score_s1
@@ -1977,4 +1984,323 @@ def grade_vlookup_sumif_countif_if(wb):
     except Exception as e:
         details.append({'error': str(e)})
         
+    return round(score, 2), details
+
+
+def create_instructions_skill6(wb):
+    ws = wb.create_sheet("Instructions", 0)
+    ws['A1'] = "📊 EXCEL SKILLS 6: ADVANCED LOGIC, IFERROR, DATE, TEXT, AND & OR"; ws['A1'].font = Font(size=18, bold=True, color="FFFFFF"); ws['A1'].fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid"); ws.merge_cells('A1:F1'); ws.row_dimensions[1].height = 40
+    ws['A2'] = "⚠️ IMPORTANT: YOU MUST ENABLE MACROS TO START"; ws['A2'].font = Font(size=14, bold=True, color="FF0000"); ws.merge_cells('A2:F2')
+    ws['A3'] = "📋 OVERVIEW: Total Marks: 5.0 (20 Questions, 0.25 marks each). Perform all tasks in Yellow cells."; ws['A3'].font = Font(bold=True)
+    ws['A5'] = "📝 FORMULA SOLUTIONS & VARIATIONS:"; ws['A5'].font = Font(bold=True)
+    ws['A6'] = "Q1: =VLOOKUP(\"E050\", A4:E103, 5, 0)"
+    ws['A7'] = "Q2: =IFERROR(VLOOKUP(\"E999\", A4:H103, 5, 0), \"Not Found\")"
+    ws['A8'] = "Q3: =IFERROR(E4/I4, 0)"
+    ws['A9'] = "Q4: =VLOOKUP(\"E020\", A4:E103, 5, FALSE)"
+    ws['A10'] = "Q5: =DATE(F4, G4, H4)"
+    ws['A11'] = "Q6-Q8: =YEAR(...), =MONTH(...), =DAY(...)"
+    ws['A12'] = "Q9-Q11: =TEXT(E4, \"$#,##0\"), =TEXT(DATE(F4,G4,H4), \"yyyy-mm-dd\"), =TEXT(..., \"mmmm\")"
+    ws['A13'] = "Q13-Q16: =AND(...), =IF(AND(...))"
+    ws['A14'] = "Q17-Q20: =OR(...), =AND(OR(...)), =IF(IFERROR(VLOOKUP(...),0)>50000, \"High\", \"Low\")"
+    ws.column_dimensions['A'].width = 75
+
+def create_excel_skill_6_exercises(wb):
+    ws = wb.create_sheet("EXCEL SKILL 6")
+    ws.merge_cells('A1:H1'); ws['A1'] = "📊 Employee Master Data (100 Records)"; ws['A1'].font = Font(size=14, bold=True, color="1F4E79")
+    headers = ['Emp ID', 'Name', 'Department', 'City', 'Salary', 'Join Year', 'Join Month', 'Join Day']
+    for col, h in enumerate(headers, 1): ws.cell(row=3, column=col, value=h)
+    style_header(ws, 3, 8)
+    
+    import random
+    departments = ['IT', 'HR', 'Finance', 'Sales', 'Marketing']
+    cities = ['Karachi', 'Lahore', 'Islamabad', 'Peshawar', 'Quetta']
+    data = []
+    for i in range(1, 101):
+        data.append([
+            f'E{i:03d}',
+            f'Employee {i}',
+            random.choice(departments),
+            random.choice(cities),
+            random.randint(35000, 75000),
+            random.choice([2023, 2024, 2025]),
+            random.randint(1, 12),
+            random.randint(1, 28)
+        ])
+        
+    for i, row in enumerate(data):
+        for j, val in enumerate(row):
+            ws.cell(row=4+i, column=1+j, value=val)
+            
+    # Exercises (20 Questions, C108 to C127)
+    q_row = 106
+    ws.merge_cells(f'A{q_row}:F{q_row}'); ws.cell(row=q_row, column=1, value="📝 EXERCISES (Use formulas in Yellow cells - Column C, 20 Questions, 0.25 marks each)").font = Font(size=12, bold=True, color="C00000")
+    questions = [
+        ['Q1', 'Q1. Use VLOOKUP to find Salary for employee "E050" from A4:E103 (Output: Salary number)', 'C108'],
+        ['Q2', 'Q2. Use IFERROR & VLOOKUP for "E999". If not found, output text "Not Found"', 'C109'],
+        ['Q3', 'Q3. Use IFERROR: Divide Salary (E4) by Bonus (I4). If error, output 0', 'C110'],
+        ['Q4', 'Q4. Use VLOOKUP with FALSE (exact match) for "E020" from A4:E103', 'C111'],
+        ['Q5', 'Q5. Use DATE function: Combine Year (F4), Month (G4), Day (H4)', 'C112'],
+        ['Q6', 'Q6. Use YEAR function: Extract year from date in F4', 'C113'],
+        ['Q7', 'Q7. Use MONTH function: Extract month number from G4', 'C114'],
+        ['Q8', 'Q8. Use DAY function: Extract day number from H4', 'C115'],
+        ['Q9', 'Q9. Use TEXT function: Format Salary (E4) as currency "$#,##0"', 'C116'],
+        ['Q10', 'Q10. Use TEXT function: Format Date as text "yyyy-mm-dd"', 'C117'],
+        ['Q11', 'Q11. Use TEXT function: Get month name as text "mmmm"', 'C118'],
+        ['Q12', 'Q12. Use & operator: Join Emp ID (A4) & Name (B4) as "ID - Name"', 'C119'],
+        ['Q13', 'Q13. Use AND function: Check if Dept (C4) = "IT" AND Salary (E4) > 50000 (TRUE/FALSE)', 'C120'],
+        ['Q14', 'Q14. Use AND function: Check if Year (F4) = 2024 AND City (D4) = "Karachi" (TRUE/FALSE)', 'C121'],
+        ['Q15', 'Q15. Use AND function (3 rules): Dept="Sales", Salary>40000, Year>=2023 (TRUE/FALSE)', 'C122'],
+        ['Q16', 'Q16. Use IF & AND: If Dept="IT" and Salary>60000, output "Senior", else "Standard"', 'C123'],
+        ['Q17', 'Q17. Use OR function: Check if City (D4) = "Karachi" OR "Lahore" (TRUE/FALSE)', 'C124'],
+        ['Q18', 'Q18. Use OR function: Check if Dept (C4) = "HR" OR "Finance" (TRUE/FALSE)', 'C125'],
+        ['Q19', 'Q19. Use AND & OR: (City is "Karachi" OR "Lahore") AND Salary > 45000 (TRUE/FALSE)', 'C126'],
+        ['Q20', 'Q20. Use IF + IFERROR + VLOOKUP: If VLOOKUP for "E050" > 50000, output "High", else "Low"', 'C127']
+    ]
+    for i, q in enumerate(questions):
+        r = q_row + 2 + i
+        ws.cell(row=r, column=1, value=q[0])
+        ws.cell(row=r, column=2, value=q[1])
+        ws.cell(row=r, column=3).fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    ws.column_dimensions['B'].width = 65
+
+def check_s6_q1(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=VLOOKUP("):
+        res["issues"].append("VLOOKUP required in C108"); return res
+    s = f.upper().replace(" ", "")
+    if "VLOOKUP" in s and '"E050"' in s and ("0" in s or "FALSE" in s):
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =VLOOKUP(\"E050\", A4:E103, 5, 0)")
+    return res
+
+def check_s6_q2(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=IFERROR("):
+        res["issues"].append("IFERROR required in C109"); return res
+    s = f.upper().replace(" ", "")
+    if "IFERROR" in s and "VLOOKUP" in s and '"E999"' in s and "NOTFOUND" in s:
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =IFERROR(VLOOKUP(\"E999\", A4:H103, 5, 0), \"Not Found\")")
+    return res
+
+def check_s6_q3(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=IFERROR("):
+        res["issues"].append("IFERROR required in C110"); return res
+    s = f.upper().replace(" ", "")
+    if "IFERROR" in s and "/" in s:
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =IFERROR(E4/I4, 0)")
+    return res
+
+def check_s6_q4(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=VLOOKUP("):
+        res["issues"].append("VLOOKUP required in C111"); return res
+    s = f.upper().replace(" ", "")
+    if "VLOOKUP" in s and '"E020"' in s and "FALSE" in s:
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =VLOOKUP(\"E020\", A4:E103, 5, FALSE)")
+    return res
+
+def check_s6_q5(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=DATE("):
+        res["issues"].append("DATE required in C112"); return res
+    s = f.upper().replace(" ", "")
+    if "F4" in s and "G4" in s and "H4" in s:
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =DATE(F4, G4, H4)")
+    return res
+
+def check_s6_q6(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=YEAR("):
+        res["issues"].append("YEAR required in C113"); return res
+    s = f.upper().replace(" ", "")
+    if "F4" in s or "DATE" in s or "J4" in s:
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =YEAR(DATE(F4, G4, H4))")
+    return res
+
+def check_s6_q7(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=MONTH("):
+        res["issues"].append("MONTH required in C114"); return res
+    s = f.upper().replace(" ", "")
+    if "G4" in s or "DATE" in s:
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =MONTH(DATE(F4, G4, H4))")
+    return res
+
+def check_s6_q8(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=DAY("):
+        res["issues"].append("DAY required in C115"); return res
+    s = f.upper().replace(" ", "")
+    if "H4" in s or "DATE" in s:
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =DAY(DATE(F4, G4, H4))")
+    return res
+
+def check_s6_q9(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=TEXT("):
+        res["issues"].append("TEXT required in C116"); return res
+    s = f.upper().replace(" ", "")
+    if "E4" in s and ("$#,##0" in s or "0" in s):
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =TEXT(E4, \"$#,##0\")")
+    return res
+
+def check_s6_q10(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=TEXT("):
+        res["issues"].append("TEXT required in C117"); return res
+    s = f.upper().replace(" ", "")
+    if ("DATE" in s or "F4" in s) and ("YYYY" in s or "MM" in s or "DD" in s):
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =TEXT(DATE(F4, G4, H4), \"yyyy-mm-dd\")")
+    return res
+
+def check_s6_q11(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=TEXT("):
+        res["issues"].append("TEXT required in C118"); return res
+    s = f.upper().replace(" ", "")
+    if "MMMM" in s:
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =TEXT(DATE(F4, G4, H4), \"mmmm\")")
+    return res
+
+def check_s6_q12(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not (("&" in f) or ("CONCATENATE" in f.upper())):
+        res["issues"].append("Concatenation (& or CONCATENATE) required in C119"); return res
+    s = f.upper().replace(" ", "")
+    if "A4" in s and "B4" in s:
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =A4 & \" - \" & B4")
+    return res
+
+def check_s6_q13(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=AND("):
+        res["issues"].append("AND required in C120"); return res
+    s = f.upper().replace(" ", "")
+    if "C4=\"IT\"" in s and "E4>50000" in s:
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =AND(C4=\"IT\", E4>50000)")
+    return res
+
+def check_s6_q14(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=AND("):
+        res["issues"].append("AND required in C121"); return res
+    s = f.upper().replace(" ", "")
+    if "F4=2024" in s and "D4=\"KARACHI\"" in s:
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =AND(F4=2024, D4=\"Karachi\")")
+    return res
+
+def check_s6_q15(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=AND("):
+        res["issues"].append("AND required in C122"); return res
+    s = f.upper().replace(" ", "")
+    if "C4=\"SALES\"" in s and "E4>40000" in s and "F4>=2023" in s:
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =AND(C4=\"Sales\", E4>40000, F4>=2023)")
+    return res
+
+def check_s6_q16(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=IF("):
+        res["issues"].append("IF required in C123"); return res
+    s = f.upper().replace(" ", "")
+    if "AND" in s and "C4=\"IT\"" in s and "E4>60000" in s:
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =IF(AND(C4=\"IT\", E4>60000), \"Senior\", \"Standard\")")
+    return res
+
+def check_s6_q17(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=OR("):
+        res["issues"].append("OR required in C124"); return res
+    s = f.upper().replace(" ", "")
+    if "D4=\"KARACHI\"" in s and "D4=\"LAHORE\"" in s:
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =OR(D4=\"Karachi\", D4=\"Lahore\")")
+    return res
+
+def check_s6_q18(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=OR("):
+        res["issues"].append("OR required in C125"); return res
+    s = f.upper().replace(" ", "")
+    if "C4=\"HR\"" in s and "C4=\"FINANCE\"" in s:
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =OR(C4=\"HR\", C4=\"Finance\")")
+    return res
+
+def check_s6_q19(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=AND("):
+        res["issues"].append("AND required in C126"); return res
+    s = f.upper().replace(" ", "")
+    if "OR" in s and "KARACHI" in s and "LAHORE" in s and "E4>45000" in s:
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =AND(OR(D4=\"Karachi\", D4=\"Lahore\"), E4>45000)")
+    return res
+
+def check_s6_q20(f):
+    res = {"status": "WRONG", "marks": 0, "issues": []}
+    if not isinstance(f, str) or not f.upper().startswith("=IF("):
+        res["issues"].append("IF required in C127"); return res
+    s = f.upper().replace(" ", "")
+    if "IFERROR" in s and "VLOOKUP" in s and "E050" in s and "50000" in s:
+        res["status"] = "CORRECT"; res["marks"] = 0.25
+    else: res["issues"].append("Expected: =IF(IFERROR(VLOOKUP(\"E050\", A4:H103, 5, 0), 0)>50000, \"High\", \"Low\")")
+    return res
+
+def grade_excel_skill_6(wb):
+    score = 0
+    details = []
+    try:
+        ws = wb['EXCEL SKILL 6']
+        checkers = [
+            (check_s6_q1, 'C108', 'Q1', 'VLOOKUP Employee E050'),
+            (check_s6_q2, 'C109', 'Q2', 'IFERROR VLOOKUP E999'),
+            (check_s6_q3, 'C110', 'Q3', 'IFERROR Division by Zero'),
+            (check_s6_q4, 'C111', 'Q4', 'VLOOKUP Exact Match FALSE'),
+            (check_s6_q5, 'C112', 'Q5', 'DATE Function'),
+            (check_s6_q6, 'C113', 'Q6', 'YEAR Function'),
+            (check_s6_q7, 'C114', 'Q7', 'MONTH Function'),
+            (check_s6_q8, 'C115', 'Q8', 'DAY Function'),
+            (check_s6_q9, 'C116', 'Q9', 'TEXT Currency Format'),
+            (check_s6_q10, 'C117', 'Q10', 'TEXT Date Format'),
+            (check_s6_q11, 'C118', 'Q11', 'TEXT Month Name'),
+            (check_s6_q12, 'C119', 'Q12', 'Concatenate ID & Name'),
+            (check_s6_q13, 'C120', 'Q13', 'AND Condition 1'),
+            (check_s6_q14, 'C121', 'Q14', 'AND Condition 2'),
+            (check_s6_q15, 'C122', 'Q15', 'AND 3 Conditions'),
+            (check_s6_q16, 'C123', 'Q16', 'IF with AND Operator'),
+            (check_s6_q17, 'C124', 'Q17', 'OR Condition 1'),
+            (check_s6_q18, 'C125', 'Q18', 'OR Condition 2'),
+            (check_s6_q19, 'C126', 'Q19', 'Combined AND/OR Operator'),
+            (check_s6_q20, 'C127', 'Q20', 'Expert Logical Formula')
+        ]
+        for checker_func, cell, q_num, task_name in checkers:
+            val = ws[cell].value
+            res = checker_func(val)
+            score += res['marks']
+            err_msg = " | ".join(res['issues']) if res['issues'] else f'Correct (0.25/0.25)'
+            details.append({
+                'q': q_num,
+                'task': f'{task_name} (Cell {cell})',
+                'correct': res['status'] == 'CORRECT',
+                'error': err_msg
+            })
+    except Exception as e:
+        details.append({'error': str(e)})
     return round(score, 2), details

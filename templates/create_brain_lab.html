@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Create Brain Lab Challenge{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        {% include 'sidebar.html' %}
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>🧠 Create New Brain Lab Challenge</h2>
+                <a href="{{ url_for('admin_brain_labs') }}" class="btn btn-secondary btn-sm">Back to List</a>
+            </div>
+
+            <div class="card bg-card border-secondary shadow-sm">
+                <div class="card-body p-4">
+                    <form method="POST">
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label for="challenge_number" class="form-label text-white">Challenge Number</label>
+                                <input type="number" class="form-control" id="challenge_number" name="challenge_number" value="8" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="title" class="form-label text-white">Challenge Title</label>
+                                <input type="text" class="form-control" id="title" name="title" placeholder="e.g. The Missing Records" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="xp" class="form-label text-white">XP Reward</label>
+                                <input type="number" class="form-control" id="xp" name="xp" value="100" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="scenario" class="form-label text-white">Scenario / Mystery Situation</label>
+                            <textarea class="form-control" id="scenario" name="scenario" rows="4" placeholder="Describe the manager quote or problem setup..." required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="think_prompt" class="form-label text-white">Think Prompt (Observation Question)</label>
+                            <input type="text" class="form-control" id="think_prompt" name="think_prompt" placeholder="What looks suspicious or abnormal?" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="verify_instructions" class="form-label text-white">Verify Instructions (Excel formulas/tools)</label>
+                            <textarea class="form-control" id="verify_instructions" name="verify_instructions" rows="2" placeholder="e.g. Use =AVERAGE() and filters..." required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="final_question" class="form-label text-white">Final Conclusion Question</label>
+                            <input type="text" class="form-control" id="final_question" name="final_question" placeholder="What caused the discrepancy?" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="correct_reasoning" class="form-label text-white">Correct Analytical Reasoning (Expected Takeaway)</label>
+                            <textarea class="form-control" id="correct_reasoning" name="correct_reasoning" rows="3" placeholder="Explain the underlying analytical principle..." required></textarea>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="no_hint_mode" name="no_hint_mode">
+                            <label class="form-check-label text-white" for="no_hint_mode">Enable No Hint Mode (Independent thinking required)</label>
+                        </div>
+
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-success px-5 py-2 fw-bold">💾 Save & Publish Challenge</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}

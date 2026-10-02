@@ -412,6 +412,50 @@ class CourseOutline(db.Model):
     admin = db.relationship('Admin', backref=db.backref('course_outlines', lazy=True))
 
 
+class BrainLabChallenge(db.Model):
+    """Brain Lab mystery challenges focusing on critical thinking before Excel formulas"""
+    id = db.Column(db.Integer, primary_key=True)
+    challenge_number = db.Column(db.Integer, nullable=False, default=1)
+    title = db.Column(db.String(200), nullable=False)
+    scenario = db.Column(db.Text, nullable=False)  # Mystery situation / manager quote
+    dataset_json = db.Column(db.Text, nullable=False)  # JSON representation of sample dataset table
+    think_prompt = db.Column(db.Text, nullable=False)  # What looks suspicious / what to check first
+    predict_options_json = db.Column(db.Text, nullable=False)  # JSON list of options for prediction
+    verify_instructions = db.Column(db.Text, nullable=False)  # Basic Excel formulas/tools to use
+    final_question = db.Column(db.Text, nullable=False)  # Conclusion question
+    correct_reasoning = db.Column(db.Text, nullable=False)  # Expected analytical takeaway
+    xp = db.Column(db.Integer, default=100)
+    no_hint_mode = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    submissions = db.relationship('BrainLabSubmission', backref=db.backref('challenge', lazy=True), cascade='all, delete-orphan')
+
+
+class BrainLabSubmission(db.Model):
+    """Tracks student attempts, thinking scores, and case solutions"""
+    id = db.Column(db.Integer, primary_key=True)
+    challenge_id = db.Column(db.Integer, db.ForeignKey('brain_lab_challenge.id'), nullable=False)
+    student_id = db.Column(db.String(50), db.ForeignKey('student.student_id'), nullable=False)
+    think_answer = db.Column(db.Text)
+    prediction_answer = db.Column(db.Text)
+    verification_notes = db.Column(db.Text)
+    conclusion_answer = db.Column(db.Text)
+    
+    observation_score = db.Column(db.Float, default=0.0)
+    reasoning_score = db.Column(db.Float, default=0.0)
+    prediction_score = db.Column(db.Float, default=0.0)
+    verification_score = db.Column(db.Float, default=0.0)
+    conclusion_score = db.Column(db.Float, default=0.0)
+    thinking_score_pct = db.Column(db.Float, default=0.0)
+    
+    feedback = db.Column(db.Text)
+    status = db.Column(db.String(20), default='completed')  # in_progress, completed
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    student = db.relationship('Student', backref=db.backref('brain_lab_submissions', lazy=True, cascade='all, delete-orphan'))
+
+
 # Google Sheets Integration - CLEAN SYNC MODULE
 from clean_sheets_sync import (
     sync_student,
@@ -3526,6 +3570,439 @@ def init_app_data():
                 skill5.is_active = True
                 db.session.commit()
                 print("✅ Excel Skill 5 activated!")
+
+        # Create Excel Skill 6 if not exists
+        skill6 = ExcelSkillsAssignment.query.filter_by(title="Excel Skill 6: IFERROR, DATE, TEXT, AND & OR").first()
+        if not skill6:
+            new_skill6 = ExcelSkillsAssignment(
+                title="Excel Skill 6: IFERROR, DATE, TEXT, AND & OR",
+                description="Advanced Formulas & Logic: 1. IFERROR (1 mark). 2. DATE (1 mark). 3. TEXT (1 mark). 4. AND Condition (1 mark). 5. OR Condition (1 mark). Total 5 marks. AI checks formula logic and data accuracy.",
+                created_at=datetime.now(),
+                deadline=datetime.now() + timedelta(days=14),
+                max_marks=5,
+                is_active=True
+            )
+            db.session.add(new_skill6)
+            db.session.commit()
+            print("✅ Excel Skill 6 created!")
+        else:
+            if not skill6.is_active:
+                skill6.is_active = True
+                db.session.commit()
+                print("✅ Excel Skill 6 activated!")
+
+        # Seed Brain Lab Challenges
+        seed_brain_labs()
+
+
+def seed_brain_labs():
+    """Seed or update default Brain Lab challenges"""
+    challenges = [
+        {
+            "challenge_number": 1,
+            "title": "The Suspicious Salary",
+            "scenario": "The manager says:\n‘The average salary of Karachi employees is extremely high.’\n\nBut something may be wrong.\n\nDON’T CALCULATE YET.\n\nWhat looks suspicious?",
+            "dataset_json": json.dumps([
+                {"Employee": "Ali", "City": "Karachi", "Salary": "45,000"},
+                {"Employee": "Ahmed", "City": "Lahore", "Salary": "52,000"},
+                {"Employee": "Sara", "City": "Karachi", "Salary": "48,000"},
+                {"Employee": "Hamza", "City": "Karachi", "Salary": "450,000"},
+                {"Employee": "Zain", "City": "Lahore", "Salary": "55,000"}
+            ]),
+            "think_prompt": "Examine the salary figures for Karachi employees. Which entry stands out as abnormal before doing any math?",
+            "predict_options_json": json.dumps([
+                {"id": "a", "text": "Ali's salary is too low"},
+                {"id": "b", "text": "Hamza's salary of 450,000 is an extreme outlier / data entry error"},
+                {"id": "c", "text": "All Karachi salaries are incorrect"},
+                {"id": "d", "text": "Zain is assigned to the wrong city"}
+            ]),
+            "verify_instructions": "Now unlock Excel. Use `=AVERAGE()` to calculate the average salary with Hamza included, then calculate it excluding Hamza. Notice the massive difference.",
+            "final_question": "What caused the unusual average reported by the manager, and how does it prove why data observation matters?",
+            "correct_reasoning": "Hamza's salary of 450,000 is an extreme outlier that disproportionately skews the arithmetic mean. In data analytics, you must always check for outliers before trusting summary statistics.",
+            "xp": 100
+        },
+        {
+            "challenge_number": 2,
+            "title": "The Double Total",
+            "scenario": "A regional sales report shows individual store sales, but the Grand Total at the bottom is displayed as 950,000.\n\nBefore opening Excel, what would you investigate first?",
+            "dataset_json": json.dumps([
+                {"Store": "North", "Manager": "Bilal", "Month": "Jan", "Sales": "120,000"},
+                {"Store": "South", "Manager": "Ayesha", "Month": "Jan", "Sales": "95,000"},
+                {"Store": "East", "Manager": "Fahad", "Month": "Jan", "Sales": "150,000"},
+                {"Store": "West", "Manager": "Sana", "Month": "Jan", "Sales": "110,000"},
+                {"Store": "Grand Total", "Manager": "All", "Month": "Jan", "Sales": "950,000"}
+            ]),
+            "think_prompt": "Look closely at the individual store sales (120k + 95k + 150k + 110k = 475k) and compare it with the displayed Grand Total of 950,000.",
+            "predict_options_json": json.dumps([
+                {"id": "a", "text": "The Grand Total of 950,000 is exactly double the sum of the four stores (475,000), indicating double-counting"},
+                {"id": "b", "text": "Sales are too high overall across all regions"},
+                {"id": "c", "text": "Manager names are misspelled in the North region"},
+                {"id": "d", "text": "The month column has formatting errors"}
+            ]),
+            "verify_instructions": "Now unlock Excel. Use `=SUM()` on individual store sales. Notice how the actual sum is 475,000, while the report states 950,000 (475,000 × 2).",
+            "final_question": "Why did the grand total appear as 950,000 instead of 475,000?",
+            "correct_reasoning": "The individual store sales correctly add up to 475,000. The reported Grand Total of 950,000 is exactly double (475,000 × 2), creating a double-counting mystery.",
+            "xp": 100
+        },
+        {
+            "challenge_number": 3,
+            "title": "Find the Impossible Record",
+            "scenario": "HR provided an employee roster for analysis.\n\nBefore calculating departmental averages or tenure, scan the data for logical impossibilities.",
+            "dataset_json": json.dumps([
+                {"ID": "101", "Name": "Usman", "Age": "28", "Salary": "60,000", "Joining Date": "2021-05-12"},
+                {"ID": "102", "Name": "Mariam", "Age": "150", "Salary": "75,000", "Joining Date": "2019-03-01"},
+                {"ID": "103", "Name": "Bilal", "Age": "32", "Salary": "-20,000", "Joining Date": "2022-01-15"},
+                {"ID": "104", "Name": "Hira", "Age": "25", "Salary": "45,000", "Joining Date": "2028-09-10"}
+            ]),
+            "think_prompt": "Which employee records contain values that defy physical or logical reality?",
+            "predict_options_json": json.dumps([
+                {"id": "a", "text": "Mariam (Age 150), Bilal (Negative salary), and Hira (Future joining date 2028)"},
+                {"id": "b", "text": "All employees have completely realistic records"},
+                {"id": "c", "text": "Usman joined too early in 2021"},
+                {"id": "d", "text": "Only salary values are incorrect"}
+            ]),
+            "verify_instructions": "Now unlock Excel. Use conditional formatting (e.g., Highlight Cell Rules < 0 or > 100) to flag invalid numbers.",
+            "final_question": "What types of data quality issues must be cleaned before performing descriptive statistics?",
+            "correct_reasoning": "Data entry errors such as impossible ages (150), negative salaries (-20,000), and future joining dates (2028) severely distort calculations like AVERAGE and COUNT.",
+            "xp": 120
+        },
+        {
+            "challenge_number": 4,
+            "title": "Who Is Actually #1?",
+            "scenario": "Two sales representatives are claiming to be the top performer:\n\n* **Rep A = Kamran** — highest total sales volume\n* **Rep B = Nida** — highest average deal size\n\nThe sales manager asks:\n\n> **‘Who should we consider the top performer?’**\n\nBefore calculating anything, **what should leadership investigate first?**",
+            "dataset_json": json.dumps([
+                {"Rep": "Kamran (Rep A)", "Total Sales": "2,500,000", "Deals Closed": "50", "Avg Deal Size": "50,000"},
+                {"Rep": "Nida (Rep B)", "Total Sales": "1,800,000", "Deals Closed": "15", "Avg Deal Size": "120,000"},
+                {"Rep": "Zubair", "Total Sales": "2,100,000", "Deals Closed": "35", "Avg Deal Size": "60,000"}
+            ]),
+            "think_prompt": "Don't choose based only on the biggest number.\n\nThink about **what ‘top performer’ actually means** and which metric would be relevant to the business goal.",
+            "predict_options_json": json.dumps([
+                {"id": "a", "text": "Rep A has higher total sales, while Rep B has a higher average deal size."},
+                {"id": "b", "text": "Rep B has both the highest total sales and highest average deal size."},
+                {"id": "c", "text": "Zubair has the highest performance on every metric."},
+                {"id": "d", "text": "All three representatives have almost identical performance."}
+            ]),
+            "verify_instructions": "Now unlock Excel. Sort the table by Total Sales, then sort by Avg Deal Size. Observe how rankings change.",
+            "final_question": "How should leadership define '#1 performer' in this context?",
+            "correct_reasoning": "Performance metrics depend on business strategy. Kamran drives aggregate revenue, whereas Nida secures high-value clients with greater efficiency and less deal friction.",
+            "xp": 120
+        },
+        {
+            "challenge_number": 5,
+            "title": "The Duplicate",
+            "scenario": "A customer feedback dataset shows satisfaction scores. You notice customer names spelled slightly differently.\n\nHow does this affect unique customer counts?",
+            "dataset_json": json.dumps([
+                {"Customer": "Muhammad Ali", "City": "Lahore", "Score": "9"},
+                {"Customer": "Mohammad Ali", "City": "Lahore", "Score": "8"},
+                {"Customer": "Fatima Noor", "City": "Karachi", "Score": "10"},
+                {"Customer": "Ahmed Raza", "City": "Islamabad", "Score": "7"}
+            ]),
+            "think_prompt": "What problem do 'Muhammad Ali' and 'Mohammad Ali' present when calculating unique customers?",
+            "predict_options_json": json.dumps([
+                {"id": "a", "text": "They are duplicate records with minor spelling variations that inflate unique customer counts"},
+                {"id": "b", "text": "They are completely independent customers"},
+                {"id": "c", "text": "Their feedback scores will cancel each other out"},
+                {"id": "d", "text": "No data discrepancy exists"}
+            ]),
+            "verify_instructions": "Now unlock Excel. Use Find & Replace or sorting to check for spelling consistency.",
+            "final_question": "Why is text standardization crucial before performing unique entity counts?",
+            "correct_reasoning": "Spelling variations cause automated systems to treat the same person as two distinct individuals, skewing customer retention and satisfaction metrics.",
+            "xp": 110
+        },
+        {
+            "challenge_number": 6,
+            "title": "The Date Mystery",
+            "scenario": "Monthly transaction reports are combined, but quarterly revenue formulas return #VALUE! errors.\n\nBefore running formulas, what do you notice about date formats?",
+            "dataset_json": json.dumps([
+                {"Transaction ID": "T101", "Date": "12/15/2025", "Amount": "15,000"},
+                {"Transaction ID": "T102", "Date": "2025-12-16", "Amount": "22,000"},
+                {"Transaction ID": "T103", "Date": "17-Dec-2025", "Amount": "18,000"},
+                {"Transaction ID": "T104", "Date": "Jan 12 2026", "Amount": "30,000"}
+            ]),
+            "think_prompt": "Are all transaction dates formatted consistently across the rows?",
+            "predict_options_json": json.dumps([
+                {"id": "a", "text": "Dates have mixed formats (MM/DD, YYYY-MM-DD, text month names), preventing Excel from recognizing them as serial numbers"},
+                {"id": "b", "text": "All dates are in standard serial number format"},
+                {"id": "c", "text": "The transaction amounts are negative"},
+                {"id": "d", "text": "Transaction IDs are duplicated"}
+            ]),
+            "verify_instructions": "Now unlock Excel. Try sorting by date or applying `=MONTH()` to see which cells fail with `#VALUE!`.",
+            "final_question": "Why did date aggregation and quarterly formulas fail?",
+            "correct_reasoning": "Excel stores dates as sequential numbers. Mixed text and date formats prevent chronological sorting and date-based aggregation formulas.",
+            "xp": 130
+        },
+        {
+            "challenge_number": 7,
+            "title": "The Salary Trap",
+            "scenario": "A department of 5 employees has 4 salaries around 50,000 and 1 CEO salary at 1,000,000.\n\nWill the Mean (Average) or Median better represent the typical salary?",
+            "dataset_json": json.dumps([
+                {"Employee": "Staff 1", "Salary": "48,000"},
+                {"Employee": "Staff 2", "Salary": "52,000"},
+                {"Employee": "Staff 3", "Salary": "50,000"},
+                {"Employee": "Staff 4", "Salary": "55,000"},
+                {"Employee": "CEO", "Salary": "1,000,000"}
+            ]),
+            "think_prompt": "How will the CEO's salary impact the arithmetic mean versus the median?",
+            "predict_options_json": json.dumps([
+                {"id": "a", "text": "Mean will be pulled very high by the outlier, whereas Median will remain representative of the 4 staff"},
+                {"id": "b", "text": "Median will be higher than Mean"},
+                {"id": "c", "text": "Both statistical measures will be identical"},
+                {"id": "d", "text": "Neither formula will work in Excel"}
+            ]),
+            "verify_instructions": "Now unlock Excel. Use `=AVERAGE()` and `=MEDIAN()` to compare both results.",
+            "final_question": "When should an analyst choose Median over Average?",
+            "correct_reasoning": "When data contains extreme outliers or skewed distributions, the median provides a true reflection of the typical central tendency without being distorted by extremes.",
+            "xp": 130
+        }
+    ]
+
+    for c_data in challenges:
+        existing = BrainLabChallenge.query.filter_by(challenge_number=c_data["challenge_number"]).first()
+        if existing:
+            existing.title = c_data["title"]
+            existing.scenario = c_data["scenario"]
+            existing.dataset_json = c_data["dataset_json"]
+            existing.think_prompt = c_data["think_prompt"]
+            existing.predict_options_json = c_data["predict_options_json"]
+            existing.verify_instructions = c_data["verify_instructions"]
+            existing.final_question = c_data["final_question"]
+            existing.correct_reasoning = c_data["correct_reasoning"]
+            existing.xp = c_data["xp"]
+        else:
+            challenge = BrainLabChallenge(**c_data)
+            db.session.add(challenge)
+    db.session.commit()
+    print("✅ Brain Lab challenges seeded & updated successfully!")
+
+
+# ============================================
+# DATACRAFT BRAIN LAB ROUTES
+# ============================================
+
+@app.route('/student/brain-labs')
+def student_brain_labs():
+    """Student hub for Brain Lab challenges"""
+    if 'student_id' not in session:
+        return redirect(url_for('login'))
+
+    student_id = session['student_id']
+    student = Student.query.filter_by(student_id=student_id).first()
+    if not student:
+        return redirect(url_for('logout'))
+
+    challenges = BrainLabChallenge.query.filter_by(is_active=True).order_by(BrainLabChallenge.challenge_number).all()
+    
+    submissions = BrainLabSubmission.query.filter_by(student_id=student_id).all()
+    sub_map = {s.challenge_id: s for s in submissions}
+
+    completed_count = len([s for s in submissions if s.status == 'completed'])
+    total_challenges = len(challenges)
+    
+    total_xp = sum([c.xp for c in challenges if c.id in sub_map and sub_map[c.id].status == 'completed'])
+    level = 1 + (completed_count // 3)
+    
+    thinking_scores = [s.thinking_score_pct for s in submissions if s.thinking_score_pct]
+    avg_thinking_score = round(sum(thinking_scores) / len(thinking_scores), 1) if thinking_scores else 0.0
+    
+    obs_scores = [s.observation_score for s in submissions if s.observation_score]
+    avg_obs = round(sum(obs_scores) / len(obs_scores) * 10, 1) if obs_scores else 0.0
+
+    reas_scores = [s.reasoning_score for s in submissions if s.reasoning_score]
+    avg_reas = round(sum(reas_scores) / len(reas_scores) * 10, 1) if reas_scores else 0.0
+
+    pred_scores = [s.prediction_score for s in submissions if s.prediction_score]
+    avg_pred = round(sum(pred_scores) / len(pred_scores) * 10, 1) if pred_scores else 0.0
+
+    for c in challenges:
+        c.submission = sub_map.get(c.id)
+
+    stats = {
+        'completed': completed_count,
+        'total': total_challenges,
+        'xp': total_xp,
+        'level': level,
+        'thinking_score': avg_thinking_score,
+        'observation': avg_obs,
+        'reasoning': avg_reas,
+        'prediction': avg_pred,
+        'streak': min(completed_count, 5)
+    }
+
+    return render_template('student_brain_labs.html', student=student, challenges=challenges, stats=stats)
+
+
+@app.route('/student/brain-lab/<int:challenge_id>', methods=['GET', 'POST'])
+def take_brain_lab(challenge_id):
+    """Interactive Brain Lab challenge flow: THINK -> PREDICT -> VERIFY -> CONCLUDE"""
+    if 'student_id' not in session:
+        return redirect(url_for('login'))
+
+    challenge = BrainLabChallenge.query.get_or_404(challenge_id)
+    student_id = session['student_id']
+    student = Student.query.filter_by(student_id=student_id).first()
+
+    existing = BrainLabSubmission.query.filter_by(challenge_id=challenge_id, student_id=student_id).first()
+    dataset = json.loads(challenge.dataset_json)
+    predict_options = json.loads(challenge.predict_options_json)
+
+    if request.method == 'POST':
+        think_answer = request.form.get('think_answer', '').strip()
+        prediction_answer = request.form.get('prediction_answer', '').strip()
+        verification_notes = request.form.get('verification_notes', '').strip()
+        conclusion_answer = request.form.get('conclusion_answer', '').strip()
+
+        obs_score = 10.0 if len(think_answer) > 10 else 5.0
+        pred_score = 10.0 if prediction_answer else 6.0
+        ver_score = 10.0 if len(verification_notes) > 5 else 7.0
+        reas_score = 9.0 if len(conclusion_answer) > 10 else 6.0
+        con_score = 9.5 if len(conclusion_answer) > 15 else 7.0
+
+        overall_pct = round(((obs_score + pred_score + ver_score + reas_score + con_score) / 50.0) * 100, 1)
+
+        feedback = f"Great analytical approach! Your observation identified key anomalies in the dataset. Your reasoning aligns with core data analytics principles: {challenge.correct_reasoning}"
+
+        if existing:
+            existing.think_answer = think_answer
+            existing.prediction_answer = prediction_answer
+            existing.verification_notes = verification_notes
+            existing.conclusion_answer = conclusion_answer
+            existing.observation_score = obs_score
+            existing.reasoning_score = reas_score
+            existing.prediction_score = pred_score
+            existing.verification_score = ver_score
+            existing.conclusion_score = con_score
+            existing.thinking_score_pct = overall_pct
+            existing.feedback = feedback
+            existing.status = 'completed'
+            existing.submitted_at = datetime.utcnow()
+            sub = existing
+        else:
+            sub = BrainLabSubmission(
+                challenge_id=challenge_id,
+                student_id=student_id,
+                think_answer=think_answer,
+                prediction_answer=prediction_answer,
+                verification_notes=verification_notes,
+                conclusion_answer=conclusion_answer,
+                observation_score=obs_score,
+                reasoning_score=reas_score,
+                prediction_score=pred_score,
+                verification_score=ver_score,
+                conclusion_score=con_score,
+                thinking_score_pct=overall_pct,
+                feedback=feedback,
+                status='completed',
+                submitted_at=datetime.utcnow()
+            )
+            db.session.add(sub)
+
+        db.session.commit()
+        flash(f'🎉 Case Solved! Thinking Score: {overall_pct}%', 'success')
+        return redirect(url_for('brain_lab_result', submission_id=sub.id))
+
+    return render_template('take_brain_lab.html', challenge=challenge, dataset=dataset, predict_options=predict_options, existing=existing, student=student)
+
+
+@app.route('/student/brain-lab/result/<int:submission_id>')
+def brain_lab_result(submission_id):
+    """Case Solved celebration and Thinking Score breakdown"""
+    if 'student_id' not in session:
+        return redirect(url_for('login'))
+
+    submission = BrainLabSubmission.query.get_or_404(submission_id)
+    if submission.student_id != session['student_id']:
+        return redirect(url_for('student_brain_labs'))
+
+    challenge = submission.challenge
+    return render_template('brain_lab_result.html', submission=submission, challenge=challenge)
+
+
+# ============================================
+# ADMIN BRAIN LAB ROUTES
+# ============================================
+
+@app.route('/admin/brain-labs')
+def admin_brain_labs():
+    """Admin management view for Brain Lab challenges"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+
+    challenges = BrainLabChallenge.query.order_by(BrainLabChallenge.challenge_number).all()
+    submissions = BrainLabSubmission.query.all()
+    return render_template('admin_brain_labs.html', challenges=challenges, submissions=submissions)
+
+
+@app.route('/admin/brain-labs/create', methods=['GET', 'POST'])
+def create_brain_lab():
+    """Create a new Brain Lab challenge"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        title = request.form.get('title')
+        challenge_number = int(request.form.get('challenge_number', 1))
+        scenario = request.form.get('scenario')
+        think_prompt = request.form.get('think_prompt')
+        verify_instructions = request.form.get('verify_instructions')
+        final_question = request.form.get('final_question')
+        correct_reasoning = request.form.get('correct_reasoning')
+        xp = int(request.form.get('xp', 100))
+        no_hint_mode = True if request.form.get('no_hint_mode') == 'on' else False
+
+        dataset_json = json.dumps([
+            {"Item": "Sample A", "Value": "100"},
+            {"Item": "Sample B", "Value": "5000"}
+        ])
+
+        predict_options_json = json.dumps([
+            {"id": "a", "text": "Option 1 description"},
+            {"id": "b", "text": "Option 2 description"}
+        ])
+
+        challenge = BrainLabChallenge(
+            challenge_number=challenge_number,
+            title=title,
+            scenario=scenario,
+            dataset_json=dataset_json,
+            think_prompt=think_prompt,
+            predict_options_json=predict_options_json,
+            verify_instructions=verify_instructions,
+            final_question=final_question,
+            correct_reasoning=correct_reasoning,
+            xp=xp,
+            no_hint_mode=no_hint_mode,
+            is_active=True
+        )
+        db.session.add(challenge)
+        db.session.commit()
+        flash('✅ Brain Lab challenge created successfully!', 'success')
+        return redirect(url_for('admin_brain_labs'))
+
+    return render_template('create_brain_lab.html')
+
+
+@app.route('/admin/brain-labs/<int:challenge_id>/submissions')
+def brain_lab_submissions(challenge_id):
+    """View student attempts and thinking scores for a challenge"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+
+    challenge = BrainLabChallenge.query.get_or_404(challenge_id)
+    submissions = BrainLabSubmission.query.filter_by(challenge_id=challenge_id).all()
+    return render_template('brain_lab_submissions.html', challenge=challenge, submissions=submissions)
+
+
+@app.route('/admin/brain-labs/<int:challenge_id>/toggle')
+def toggle_brain_lab(challenge_id):
+    """Toggle challenge active state"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+
+    challenge = BrainLabChallenge.query.get_or_404(challenge_id)
+    challenge.is_active = not challenge.is_active
+    db.session.commit()
+    flash('✅ Challenge status updated!', 'success')
+    return redirect(url_for('admin_brain_labs'))
 
 # Run initialization ONLY if running directly (not via gunicorn)
 @app.route('/reviews')

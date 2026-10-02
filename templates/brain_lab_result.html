@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Case Solved Report - {{ challenge.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-5 text-white">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="text-center mb-4">
+                <span class="badge bg-success text-white px-3 py-2 rounded-pill mb-2 fs-6">🏆 CASE SUCCESSFULLY SOLVED</span>
+                <h1 class="display-5 fw-bold text-white">{{ challenge.title }}</h1>
+                <p class="text-light opacity-75">Multi-Dimensional Thinking Score & Analytical Evaluation Report</p>
+            </div>
+
+            <!-- Overall Score Card -->
+            <div class="card border-0 bg-gradient shadow-lg mb-4 text-center p-4 text-white" style="background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%); border: 1px solid rgba(16, 185, 129, 0.4) !important; border-radius: 16px;">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-light opacity-75 letter-spacing-1 mb-2">Overall Thinking Score</h6>
+                    <h1 class="display-2 fw-bold text-success mb-2">{{ submission.thinking_score_pct }}%</h1>
+                    <p class="text-warning mb-0"><i class="fas fa-bolt me-1"></i> Earned {{ challenge.xp }} XP for DataCraft Brain Lab Level</p>
+                </div>
+            </div>
+
+            <!-- Thinking Score Breakdown -->
+            <div class="card border-secondary bg-card shadow-sm mb-4 text-white" style="border-radius: 14px;">
+                <div class="card-header bg-darker text-white py-3">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-chart-bar text-info me-2"></i> Thinking Score Breakdown</h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-4">
+                        <div class="col-md-4 text-center">
+                            <div class="p-3 border border-secondary rounded-3 bg-dark text-white">
+                                <small class="text-light opacity-75 d-block mb-1">👀 Observation</small>
+                                <h3 class="text-white fw-bold mb-0">{{ submission.observation_score }}/10</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="p-3 border border-secondary rounded-3 bg-dark text-white">
+                                <small class="text-light opacity-75 d-block mb-1">🧠 Reasoning</small>
+                                <h3 class="text-white fw-bold mb-0">{{ submission.reasoning_score }}/10</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="p-3 border border-secondary rounded-3 bg-dark text-white">
+                                <small class="text-light opacity-75 d-block mb-1">🎯 Prediction</small>
+                                <h3 class="text-white fw-bold mb-0">{{ submission.prediction_score }}/10</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-center">
+                            <div class="p-3 border border-secondary rounded-3 bg-dark text-white">
+                                <small class="text-light opacity-75 d-block mb-1">📊 Verification</small>
+                                <h3 class="text-white fw-bold mb-0">{{ submission.verification_score }}/10</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-center">
+                            <div class="p-3 border border-secondary rounded-3 bg-dark text-white">
+                                <small class="text-light opacity-75 d-block mb-1">💡 Conclusion</small>
+                                <h3 class="text-white fw-bold mb-0">{{ submission.conclusion_score }}/10</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instructor & AI Feedback -->
+            <div class="card border-secondary bg-card shadow-sm mb-4 text-white" style="border-radius: 14px;">
+                <div class="card-header bg-darker text-white py-3">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-lightbulb text-warning me-2"></i> Analytical Evaluation Feedback</h5>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-light lead fs-6 mb-3">{{ submission.feedback }}</p>
+                    <div class="p-3 bg-dark rounded-3 border border-secondary text-white">
+                        <strong class="text-success"><i class="fas fa-check-circle me-1"></i> Core Takeaway:</strong>
+                        <p class="text-light opacity-75 mb-0 mt-1">{{ challenge.correct_reasoning }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <a href="{{ url_for('student_brain_labs') }}" class="btn btn-primary btn-lg px-5 fw-bold text-white">
+                    <i class="fas fa-arrow-left me-2"></i> Back to Brain Lab Challenges
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

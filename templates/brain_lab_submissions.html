@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Submissions - {{ challenge.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        {% include 'sidebar.html' %}
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>📊 Submissions for: {{ challenge.title }}</h2>
+                <a href="{{ url_for('admin_brain_labs') }}" class="btn btn-secondary btn-sm">Back to Challenges</a>
+            </div>
+
+            <div class="card bg-card border-secondary shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0 align-middle">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Student ID</th>
+                                    <th>Thinking Score</th>
+                                    <th>Observation</th>
+                                    <th>Reasoning</th>
+                                    <th>Prediction</th>
+                                    <th>Submitted At</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for s in submissions %}
+                                <tr>
+                                    <td class="ps-4 fw-bold">{{ s.student_id }}</td>
+                                    <td><span class="badge bg-success">{{ s.thinking_score_pct }}%</span></td>
+                                    <td>{{ s.observation_score }}/10</td>
+                                    <td>{{ s.reasoning_score }}/10</td>
+                                    <td>{{ s.prediction_score }}/10</td>
+                                    <td>{{ s.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">No student submissions found for this challenge yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}
