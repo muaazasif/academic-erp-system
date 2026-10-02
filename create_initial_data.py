@@ -1,6 +1,6 @@
 import os
 import json
-from app import app, db, Admin, Student, ExcelSkillsAssignment, SQLSkillsAssignment, MidTerm
+from app import app, db, Admin, Student, ExcelSkillsAssignment, SQLSkillsAssignment, MidTerm, BrainLabChallenge
 from werkzeug.security import generate_password_hash
 from datetime import datetime, timedelta
 from sql_grader import get_sql_assignment_questions
@@ -165,6 +165,188 @@ def create_initial_data():
             print("✅ Randomized Midterm Exam created!")
         
         db.session.commit()
+
+        # 7. Seed Brain Lab Challenges
+        seed_brain_labs()
+
+def seed_brain_labs():
+    """Seed or update default Brain Lab challenges"""
+    challenges = [
+        {
+            "challenge_number": 1,
+            "title": "The Suspicious Salary",
+            "scenario": "The manager says:\n‘The average salary of Karachi employees is extremely high.’\n\nBut something may be wrong.\n\nDON’T CALCULATE YET.\n\nWhat looks suspicious?",
+            "dataset_json": json.dumps([
+                {"Employee": "Ali", "City": "Karachi", "Salary": "45,000"},
+                {"Employee": "Ahmed", "City": "Lahore", "Salary": "52,000"},
+                {"Employee": "Sara", "City": "Karachi", "Salary": "48,000"},
+                {"Employee": "Hamza", "City": "Karachi", "Salary": "450,000"},
+                {"Employee": "Zain", "City": "Lahore", "Salary": "55,000"}
+            ]),
+            "think_prompt": "Examine the salary figures for Karachi employees. Which entry stands out as abnormal before doing any math?",
+            "predict_options_json": json.dumps([
+                {"id": "a", "text": "Ali's salary is too low"},
+                {"id": "b", "text": "Hamza's salary of 450,000 is an extreme outlier / data entry error"},
+                {"id": "c", "text": "All Karachi salaries are incorrect"},
+                {"id": "d", "text": "Zain is assigned to the wrong city"}
+            ]),
+            "verify_instructions": "Now unlock Excel. Use `=AVERAGE()` to calculate the average salary with Hamza included, then calculate it excluding Hamza. Notice the massive difference.",
+            "final_question": "What caused the unusual average reported by the manager, and how does it prove why data observation matters?",
+            "correct_reasoning": "Hamza's salary of 450,000 is an extreme outlier that disproportionately skews the arithmetic mean. In data analytics, you must always check for outliers before trusting summary statistics.",
+            "xp": 100
+        },
+        {
+            "challenge_number": 2,
+            "title": "The Double Total",
+            "scenario": "A regional sales report shows individual store sales, but the Grand Total at the bottom is displayed as 950,000.\n\nBefore opening Excel, what would you investigate first?",
+            "dataset_json": json.dumps([
+                {"Store": "North", "Manager": "Bilal", "Month": "Jan", "Sales": "120,000"},
+                {"Store": "South", "Manager": "Ayesha", "Month": "Jan", "Sales": "95,000"},
+                {"Store": "East", "Manager": "Fahad", "Month": "Jan", "Sales": "150,000"},
+                {"Store": "West", "Manager": "Sana", "Month": "Jan", "Sales": "110,000"},
+                {"Store": "Grand Total", "Manager": "All", "Month": "Jan", "Sales": "950,000"}
+            ]),
+            "think_prompt": "Look closely at the individual store sales (120k + 95k + 150k + 110k = 475k) and compare it with the displayed Grand Total of 950,000.",
+            "predict_options_json": json.dumps([
+                {"id": "a", "text": "The Grand Total of 950,000 is exactly double the sum of the four stores (475,000), indicating double-counting"},
+                {"id": "b", "text": "Sales are too high overall across all regions"},
+                {"id": "c", "text": "Manager names are misspelled in the North region"},
+                {"id": "d", "text": "The month column has formatting errors"}
+            ]),
+            "verify_instructions": "Now unlock Excel. Use `=SUM()` on individual store sales. Notice how the actual sum is 475,000, while the report states 950,000 (475,000 × 2).",
+            "final_question": "Why did the grand total appear as 950,000 instead of 475,000?",
+            "correct_reasoning": "The individual store sales correctly add up to 475,000. The reported Grand Total of 950,000 is exactly double (475,000 × 2), creating a double-counting mystery.",
+            "xp": 100
+        },
+        {
+            "challenge_number": 3,
+            "title": "Find the Impossible Record",
+            "scenario": "HR provided an employee roster for analysis.\n\nBefore calculating departmental averages or tenure, scan the data for logical impossibilities.",
+            "dataset_json": json.dumps([
+                {"ID": "101", "Name": "Usman", "Age": "28", "Salary": "60,000", "Joining Date": "2021-05-12"},
+                {"ID": "102", "Name": "Mariam", "Age": "150", "Salary": "75,000", "Joining Date": "2019-03-01"},
+                {"ID": "103", "Name": "Bilal", "Age": "32", "Salary": "-20,000", "Joining Date": "2022-01-15"},
+                {"ID": "104", "Name": "Hira", "Age": "25", "Salary": "45,000", "Joining Date": "2028-09-10"}
+            ]),
+            "think_prompt": "Which employee records contain values that defy physical or logical reality?",
+            "predict_options_json": json.dumps([
+                {"id": "a", "text": "Mariam (Age 150), Bilal (Negative salary), and Hira (Future joining date 2028)"},
+                {"id": "b", "text": "All employees have completely realistic records"},
+                {"id": "c", "text": "Usman joined too early in 2021"},
+                {"id": "d", "text": "Only salary values are incorrect"}
+            ]),
+            "verify_instructions": "Now unlock Excel. Use conditional formatting (e.g., Highlight Cell Rules < 0 or > 100) to flag invalid numbers.",
+            "final_question": "What types of data quality issues must be cleaned before performing descriptive statistics?",
+            "correct_reasoning": "Data entry errors such as impossible ages (150), negative salaries (-20,000), and future joining dates (2028) severely distort calculations like AVERAGE and COUNT.",
+            "xp": 120
+        },
+        {
+            "challenge_number": 4,
+            "title": "Who Is Actually #1?",
+            "scenario": "Two sales representatives are claiming to be the top performer:\n\n* **Rep A = Kamran** — highest total sales volume\n* **Rep B = Nida** — highest average deal size\n\nThe sales manager asks:\n\n> **‘Who should we consider the top performer?’**\n\nBefore calculating anything, **what should leadership investigate first?**",
+            "dataset_json": json.dumps([
+                {"Rep": "Kamran (Rep A)", "Total Sales": "2,500,000", "Deals Closed": "50", "Avg Deal Size": "50,000"},
+                {"Rep": "Nida (Rep B)", "Total Sales": "1,800,000", "Deals Closed": "15", "Avg Deal Size": "120,000"},
+                {"Rep": "Zubair", "Total Sales": "2,100,000", "Deals Closed": "35", "Avg Deal Size": "60,000"}
+            ]),
+            "think_prompt": "Don't choose based only on the biggest number.\n\nThink about **what ‘top performer’ actually means** and which metric would be relevant to the business goal.",
+            "predict_options_json": json.dumps([
+                {"id": "a", "text": "Rep A has higher total sales, while Rep B has a higher average deal size."},
+                {"id": "b", "text": "Rep B has both the highest total sales and highest average deal size."},
+                {"id": "c", "text": "Zubair has the highest performance on every metric."},
+                {"id": "d", "text": "All three representatives have almost identical performance."}
+            ]),
+            "verify_instructions": "Now unlock Excel. Sort the table by Total Sales, then sort by Avg Deal Size. Observe how rankings change.",
+            "final_question": "How should leadership define '#1 performer' in this context?",
+            "correct_reasoning": "Performance metrics depend on business strategy. Kamran drives aggregate revenue, whereas Nida secures high-value clients with greater efficiency and less deal friction.",
+            "xp": 120
+        },
+        {
+            "challenge_number": 5,
+            "title": "The Duplicate",
+            "scenario": "A customer feedback dataset shows satisfaction scores. You notice customer names spelled slightly differently.\n\nHow does this affect unique customer counts?",
+            "dataset_json": json.dumps([
+                {"Customer": "Muhammad Ali", "City": "Lahore", "Score": "9"},
+                {"Customer": "Mohammad Ali", "City": "Lahore", "Score": "8"},
+                {"Customer": "Fatima Noor", "City": "Karachi", "Score": "10"},
+                {"Customer": "Ahmed Raza", "City": "Islamabad", "Score": "7"}
+            ]),
+            "think_prompt": "What problem do 'Muhammad Ali' and 'Mohammad Ali' present when calculating unique customers?",
+            "predict_options_json": json.dumps([
+                {"id": "a", "text": "They are duplicate records with minor spelling variations that inflate unique customer counts"},
+                {"id": "b", "text": "They are completely independent customers"},
+                {"id": "c", "text": "Their feedback scores will cancel each other out"},
+                {"id": "d", "text": "No data discrepancy exists"}
+            ]),
+            "verify_instructions": "Now unlock Excel. Use Find & Replace or sorting to check for spelling consistency.",
+            "final_question": "Why is text standardization crucial before performing unique entity counts?",
+            "correct_reasoning": "Spelling variations cause automated systems to treat the same person as two distinct individuals, skewing customer retention and satisfaction metrics.",
+            "xp": 110
+        },
+        {
+            "challenge_number": 6,
+            "title": "The Date Mystery",
+            "scenario": "Monthly transaction reports are combined, but quarterly revenue formulas return #VALUE! errors.\n\nBefore running formulas, what do you notice about date formats?",
+            "dataset_json": json.dumps([
+                {"Transaction ID": "T101", "Date": "12/15/2025", "Amount": "15,000"},
+                {"Transaction ID": "T102", "Date": "2025-12-16", "Amount": "22,000"},
+                {"Transaction ID": "T103", "Date": "17-Dec-2025", "Amount": "18,000"},
+                {"Transaction ID": "T104", "Date": "Jan 12 2026", "Amount": "30,000"}
+            ]),
+            "think_prompt": "Are all transaction dates formatted consistently across the rows?",
+            "predict_options_json": json.dumps([
+                {"id": "a", "text": "Dates have mixed formats (MM/DD, YYYY-MM-DD, text month names), preventing Excel from recognizing them as serial numbers"},
+                {"id": "b", "text": "All dates are in standard serial number format"},
+                {"id": "c", "text": "The transaction amounts are negative"},
+                {"id": "d", "text": "Transaction IDs are duplicated"}
+            ]),
+            "verify_instructions": "Now unlock Excel. Try sorting by date or applying `=MONTH()` to see which cells fail with `#VALUE!`.",
+            "final_question": "Why did date aggregation and quarterly formulas fail?",
+            "correct_reasoning": "Excel stores dates as sequential numbers. Mixed text and date formats prevent chronological sorting and date-based aggregation formulas.",
+            "xp": 130
+        },
+        {
+            "challenge_number": 7,
+            "title": "The Salary Trap",
+            "scenario": "A department of 5 employees has 4 salaries around 50,000 and 1 CEO salary at 1,000,000.\n\nWill the Mean (Average) or Median better represent the typical salary?",
+            "dataset_json": json.dumps([
+                {"Employee": "Staff 1", "Salary": "48,000"},
+                {"Employee": "Staff 2", "Salary": "52,000"},
+                {"Employee": "Staff 3", "Salary": "50,000"},
+                {"Employee": "Staff 4", "Salary": "55,000"},
+                {"Employee": "CEO", "Salary": "1,000,000"}
+            ]),
+            "think_prompt": "How will the CEO's salary impact the arithmetic mean versus the median?",
+            "predict_options_json": json.dumps([
+                {"id": "a", "text": "Mean will be pulled very high by the outlier, whereas Median will remain representative of the 4 staff"},
+                {"id": "b", "text": "Median will be higher than Mean"},
+                {"id": "c", "text": "Both statistical measures will be identical"},
+                {"id": "d", "text": "Neither formula will work in Excel"}
+            ]),
+            "verify_instructions": "Now unlock Excel. Use `=AVERAGE()` and `=MEDIAN()` to compare both results.",
+            "final_question": "When should an analyst choose Median over Average?",
+            "correct_reasoning": "When data contains extreme outliers or skewed distributions, the median provides a true reflection of the typical central tendency without being distorted by extremes.",
+            "xp": 130
+        }
+    ]
+
+    for c_data in challenges:
+        existing = BrainLabChallenge.query.filter_by(challenge_number=c_data["challenge_number"]).first()
+        if existing:
+            existing.title = c_data["title"]
+            existing.scenario = c_data["scenario"]
+            existing.dataset_json = c_data["dataset_json"]
+            existing.think_prompt = c_data["think_prompt"]
+            existing.predict_options_json = c_data["predict_options_json"]
+            existing.verify_instructions = c_data["verify_instructions"]
+            existing.final_question = c_data["final_question"]
+            existing.correct_reasoning = c_data["correct_reasoning"]
+            existing.xp = c_data["xp"]
+        else:
+            challenge = BrainLabChallenge(**c_data)
+            db.session.add(challenge)
+    db.session.commit()
+    print("✅ Brain Lab challenges seeded & updated successfully!")
 
 if __name__ == '__main__':
     create_initial_data()
