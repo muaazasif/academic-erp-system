@@ -2598,6 +2598,27 @@ def assign_excel_to_students(assignment_id):
     
     if request.method == 'POST':
         assign_to_all = request.form.get('assign_to_all')
+        upload_action = request.form.get('upload_action', 'no')
+        student_file = request.files.get('student_file')
+        pasted_ids = request.form.get('pasted_ids', '')
+        
+        target_student_ids = set()
+        if student_file and student_file.filename:
+            filename = student_file.filename.lower()
+            try:
+                content = student_file.read().decode('utf-8', errors='ignore')
+                for line in content.splitlines():
+                    sid = line.strip().split(',')[0].strip()
+                    if sid:
+                        target_student_ids.add(sid)
+            except Exception:
+                pass
+        
+        if pasted_ids.strip():
+            for line in pasted_ids.splitlines():
+                sid = line.strip()
+                if sid:
+                    target_student_ids.add(sid)
         
         # Clear existing assignments for this Excel assignment
         ExcelAssignment.query.filter_by(assignment_id=assignment_id).delete()
@@ -2607,6 +2628,21 @@ def assign_excel_to_students(assignment_id):
                 excel_assign = ExcelAssignment(assignment_id=assignment_id, student_id=student.student_id)
                 db.session.add(excel_assign)
             flash('✅ Excel assignment assigned to all students!')
+        elif target_student_ids:
+            assigned_count = 0
+            for student in students:
+                is_in_target = student.student_id in target_student_ids
+                if upload_action == 'no':
+                    should_assign = not is_in_target
+                else:
+                    should_assign = is_in_target
+                
+                if should_assign:
+                    excel_assign = ExcelAssignment(assignment_id=assignment_id, student_id=student.student_id)
+                    db.session.add(excel_assign)
+                    assigned_count += 1
+            action_desc = "Restricted (set to No)" if upload_action == 'no' else "Allowed (set to Yes)"
+            flash(f'✅ Bulk student access updated ({action_desc}): applied to {assigned_count} students.')
         else:
             assigned_count = 0
             for student in students:

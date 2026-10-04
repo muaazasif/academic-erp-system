@@ -16,7 +16,32 @@
 
             <div class="row">
                 <div class="col-md-8">
-                    <form method="POST">
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="card mb-4 bg-light shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title text-primary">📁 Bulk Upload / Paste Student IDs</h5>
+                                <p class="text-muted small mb-2">Upload a CSV/TXT file containing Student IDs (one per line) or paste them below to set access in bulk without manual clicking.</p>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-7">
+                                        <label for="studentFile" class="form-label fw-bold small">Upload CSV / TXT File</label>
+                                        <input class="form-control form-control-sm" type="file" id="studentFile" name="student_file" accept=".csv,.txt">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label for="uploadAction" class="form-label fw-bold small">Bulk Action</label>
+                                        <select class="form-select form-select-sm" name="upload_action" id="uploadAction">
+                                            <option value="no" selected>Set to NO (Restrict Access)</option>
+                                            <option value="yes">Set to YES (Allow Access)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="pastedIds" class="form-label fw-bold small">Or Paste Student IDs (One per line):</label>
+                                    <textarea class="form-control form-control-sm" id="pastedIds" name="pasted_ids" rows="3" placeholder="STU001&#10;STU002&#10;STU003"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <h5>Student Access Control (Yes / No)</h5>
                             <p class="text-muted">Select <strong>Yes</strong> to allow the student to attempt this Excel skill assignment, or <strong>No</strong> to restrict access.</p>
