@@ -436,9 +436,13 @@ def normalize_formula(value):
     if value is None:
         return ""
     s = str(value).strip().upper()
-    s = re.sub(r"\s+", "", s)
     if s.startswith("="):
         s = s[1:]
+    def repl_space(match):
+        return match.group(0).replace(" ", "___SPACE___")
+    s = re.sub(r'"[^"]*"', repl_space, s)
+    s = re.sub(r"\s+", "", s)
+    s = s.replace("___SPACE___", " ")
     s = s.replace("$", "")
     s = s.replace(r"\:", ":").replace("\\:", ":")
     return s
@@ -911,8 +915,8 @@ def check_q11_s1(f): return check_text_formula_s1(f, [r'LEFT\(A4,3\)'], "Ahm")
 def check_q12_s1(f): return check_text_formula_s1(f, [r'RIGHT\(B4,7\)'], "1234567")
 def check_q13_s1(f): return check_text_formula_s1(f, [r'LEFT\(C4,FIND\("@",C4\)-1\)'], "ahmed.ali")
 def check_q14_s1(f): return check_text_formula_s1(f, [r'MID\(D4,5,4\)'], "2024")
-def check_q15_s1(f): return check_text_formula_s1(f, [r'RIGHT\(C5,LEN\(C5\)-FIND\("@",C5\)\)', r'MID\(C5,FIND\("@",C5\)+1,LEN\(C5\)\)'], "hotmail.com")
-def check_q16_s1(f): return check_text_formula_s1(f, [r'RIGHT\(A5,LEN\(A5\)-FIND\(" ",A5\)\)', r'MID\(A5,FIND\(" ",A5\)+1,LEN\(A5\)\)'], "Fatima")
+def check_q15_s1(f): return check_text_formula_s1(f, [r'RIGHT\(C5,LEN\(C5\)-FIND\("@",C5\)\)', r'MID\(C5,FIND\("@",C5\)\+1,LEN\(C5\)\)'], "hotmail.com")
+def check_q16_s1(f): return check_text_formula_s1(f, [r'RIGHT\(A5,LEN\(A5\)-FIND\(" ",A5\)\)', r'MID\(A5,FIND\(" ",A5\)\+1,LEN\(A5\)\)'], "Fatima")
 
 def check_q17_s1(f): return check_text_formula_s1(f, [r'D4\*E4', r'E4\*D4'], "1020000")
 def check_q18_s1(f): return check_text_formula_s1(f, [r'RIGHT\(A4,3\)', r'MID\(A4,9,3\)'], "LAP")
@@ -2118,9 +2122,9 @@ def check_s6_q6(f):
     if not isinstance(f, str) or not f.upper().startswith("=YEAR("):
         res["issues"].append("YEAR required in C113"); return res
     s = f.upper().replace(" ", "")
-    if "F4" in s or "DATE" in s or "J4" in s or "C112" in s:
+    if "DATE" in s or "C112" in s:
         res["status"] = "CORRECT"; res["marks"] = 0.25
-    else: res["issues"].append("Expected: =YEAR(DATE(F4, G4, H4))")
+    else: res["issues"].append("Expected: =YEAR(C112) or =YEAR(DATE(F4, G4, H4))")
     return res
 
 def check_s6_q7(f):
@@ -2128,9 +2132,9 @@ def check_s6_q7(f):
     if not isinstance(f, str) or not f.upper().startswith("=MONTH("):
         res["issues"].append("MONTH required in C114"); return res
     s = f.upper().replace(" ", "")
-    if "G4" in s or "DATE" in s or "C112" in s:
+    if "DATE" in s or "C112" in s:
         res["status"] = "CORRECT"; res["marks"] = 0.25
-    else: res["issues"].append("Expected: =MONTH(DATE(F4, G4, H4))")
+    else: res["issues"].append("Expected: =MONTH(C112) or =MONTH(DATE(F4, G4, H4))")
     return res
 
 def check_s6_q8(f):
@@ -2138,9 +2142,9 @@ def check_s6_q8(f):
     if not isinstance(f, str) or not f.upper().startswith("=DAY("):
         res["issues"].append("DAY required in C115"); return res
     s = f.upper().replace(" ", "")
-    if "H4" in s or "DATE" in s or "C112" in s:
+    if "DATE" in s or "C112" in s:
         res["status"] = "CORRECT"; res["marks"] = 0.25
-    else: res["issues"].append("Expected: =DAY(DATE(F4, G4, H4))")
+    else: res["issues"].append("Expected: =DAY(C112) or =DAY(DATE(F4, G4, H4))")
     return res
 
 def check_s6_q9(f):
@@ -2158,9 +2162,9 @@ def check_s6_q10(f):
     if not isinstance(f, str) or not f.upper().startswith("=TEXT("):
         res["issues"].append("TEXT required in C117"); return res
     s = f.upper().replace(" ", "")
-    if ("DATE" in s or "F4" in s or "C112" in s) and ("YYYY" in s or "MM" in s or "DD" in s):
+    if ("DATE" in s or "C112" in s) and ("YYYY" in s or "MM" in s or "DD" in s):
         res["status"] = "CORRECT"; res["marks"] = 0.25
-    else: res["issues"].append("Expected: =TEXT(DATE(F4, G4, H4), \"yyyy-mm-dd\")")
+    else: res["issues"].append("Expected: =TEXT(C112, \"yyyy-mm-dd\")")
     return res
 
 def check_s6_q11(f):
@@ -2168,9 +2172,9 @@ def check_s6_q11(f):
     if not isinstance(f, str) or not f.upper().startswith("=TEXT("):
         res["issues"].append("TEXT required in C118"); return res
     s = f.upper().replace(" ", "")
-    if ("MMMM" in s) and ("DATE" in s or "F4" in s or "G4" in s or "C112" in s):
+    if ("MMMM" in s) and ("DATE" in s or "C112" in s):
         res["status"] = "CORRECT"; res["marks"] = 0.25
-    else: res["issues"].append("Expected: =TEXT(DATE(F4, G4, H4), \"mmmm\")")
+    else: res["issues"].append("Expected: =TEXT(C112, \"mmmm\")")
     return res
 
 def check_s6_q12(f):

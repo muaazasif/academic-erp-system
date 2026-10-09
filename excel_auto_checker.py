@@ -81,7 +81,7 @@ def normalize_formula(value):
         =VLOOKUP(...)     -> VLOOKUP(...)
         $A$4:$C$13       -> A4:C13
         a4:c13           -> A4:C13
-        spaces removed
+        spaces removed (except inside quotes)
     """
 
     if value is None:
@@ -89,12 +89,19 @@ def normalize_formula(value):
 
     s = str(value).strip().upper()
 
-    # Remove spaces
-    s = re.sub(r"\s+", "", s)
-
     # Remove leading =
     if s.startswith("="):
         s = s[1:]
+
+    def repl_space(match):
+        return match.group(0).replace(" ", "___SPACE___")
+
+    s = re.sub(r'"[^"]*"', repl_space, s)
+
+    # Remove spaces
+    s = re.sub(r"\s+", "", s)
+
+    s = s.replace("___SPACE___", " ")
 
     # Remove absolute reference $
     s = s.replace("$", "")
@@ -1096,7 +1103,7 @@ def check_q15(f):
 
     patterns = [
         r'RIGHT\(C5,LEN\(C5\)-FIND\("@",C5\)\)',
-        r'MID\(C5,FIND\("@",C5\)+1,LEN\(C5\)\)',
+        r'MID\(C5,FIND\("@",C5\)\+1,LEN\(C5\)\)',
     ]
 
     return check_text_formula(
@@ -1110,7 +1117,7 @@ def check_q16(f):
 
     patterns = [
         r'RIGHT\(A5,LEN\(A5\)-FIND\(" ",A5\)\)',
-        r'MID\(A5,FIND\(" ",A5\)+1,LEN\(A5\)\)',
+        r'MID\(A5,FIND\(" ",A5\)\+1,LEN\(A5\)\)',
     ]
 
     return check_text_formula(
