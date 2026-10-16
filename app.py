@@ -306,7 +306,7 @@ class ExcelSubmission(db.Model):
     assignment_id = db.Column(db.Integer, db.ForeignKey('excel_skills_assignment.id'), nullable=False)
     student_id = db.Column(db.String(50), db.ForeignKey('student.student_id'), nullable=False)
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
-    score = db.Column(db.Float)  # Auto-graded score out of 10
+    score = db.Column(db.Float)  # Auto-graded score
     percentage = db.Column(db.Float)
     grade_details = db.Column(db.Text)  # JSON with detailed breakdown
     status = db.Column(db.String(20), default='submitted')  # submitted, graded
@@ -317,6 +317,21 @@ class ExcelSubmission(db.Model):
     # Relationships
     assignment = db.relationship('ExcelSkillsAssignment', backref=db.backref('submissions', lazy=True))
     student = db.relationship('Student', backref=db.backref('excel_submissions', lazy=True))
+
+    @property
+    def max_marks(self):
+        if self.assignment and self.assignment.max_marks is not None:
+            return self.assignment.max_marks
+        return 5 if (self.assignment and ('Skill 5' in self.assignment.title or 'Skill 6' in self.assignment.title)) else 10
+
+    @property
+    def computed_percentage(self):
+        if self.percentage is not None:
+            return self.percentage
+        m = self.max_marks
+        if m > 0 and self.score is not None:
+            return round((self.score / m) * 100, 1)
+        return 0.0
 
 
 class ExcelAssignment(db.Model):
@@ -586,6 +601,14 @@ def add_quiz_submission_to_sheet(student_id, name, quiz_title, score, total_ques
 def add_midterm_grade_to_sheet(student_id, name, midterm_title, grade, graded_at):
     """Backward compatible wrapper"""
     return sync_midterm(student_id, name, midterm_title, grade, graded_at)
+
+def auto_export_final_marks_safe():
+    """Safely trigger export_final_marks in real-time when assignments/quizzes/tests are attempted or submitted"""
+    try:
+        from final_marks_sync import export_final_marks
+        export_final_marks()
+    except Exception as e:
+        print(f"⚠️ Auto export final marks error: {e}")
 
 
 # ============================================
@@ -2098,6 +2121,7 @@ def submit_midterm(midterm_id):
                 flash('Mid-term submitted successfully!', 'success')
                 
             db.session.commit()
+            auto_export_final_marks_safe()
             return redirect(url_for('student_midterms'))
 
     return render_template('submit_midterm.html', midterm=midterm, assignment=assignment)
@@ -2265,6 +2289,7 @@ def take_quiz(quiz_id):
         else:
             flash(f'Quiz submitted successfully! You scored {correct_answers}/{total_questions}.', 'success')
 
+        auto_export_final_marks_safe()
         return redirect(url_for('view_quiz_result', quiz_id=quiz_id))
 
     return render_template('take_quiz.html', quiz=quiz, questions=questions)
@@ -2398,6 +2423,7 @@ def submit_assignment(assignment_id):
         else:
             flash('Assignment submitted successfully and synced to Google Sheets!', 'success')
 
+        auto_export_final_marks_safe()
         return redirect(url_for('student_assignments'))
 
     return render_template('submit_assignment.html', assignment=assignment, submission=submission)
@@ -2797,6 +2823,7 @@ def submit_excel_assignment(assignment_id):
             # Create or update submission
             if existing:
                 existing.score = score
+                existing.percentage = grading_result.get('percentage', 0)
                 existing.grade_details = grade_details_json
                 existing.submitted_at = datetime.now()
                 existing.allow_resubmit = False
@@ -2805,6 +2832,7 @@ def submit_excel_assignment(assignment_id):
                     assignment_id=assignment_id,
                     student_id=student_id,
                     score=score,
+                    percentage=grading_result.get('percentage', 0),
                     grade_details=grade_details_json,
                     submitted_at=datetime.now(),
                     allow_resubmit=False
@@ -2830,6 +2858,7 @@ def submit_excel_assignment(assignment_id):
                     print(f"⚠️ Google Sheets sync failed: {e}")
             
             flash(f'✅ Submitted! Score: {score}/5. Feedback: {feedback}')
+            auto_export_final_marks_safe()
             # Clean up temp file
             try:
                 os.remove(tmp.name)
@@ -2918,6 +2947,7 @@ def take_sql_assignment(assignment_id):
                 print(f"⚠️ Google Sheets SQL sync failed: {e}")
         
         flash(f'✅ SQL Assignment Submitted! Score: {result["score"]}/10 ({result["percentage"]}%)')
+        auto_export_final_marks_safe()
         return redirect(url_for('student_sql_assignments'))
 
     return render_template('take_sql_assignment.html', assignment=assignment, questions=questions, existing=existing)
@@ -3369,9 +3399,34 @@ def final_results():
     if 'admin_id' not in session and 'student_id' not in session:
         return redirect(url_for('login'))
 
-    from final_marks_sync import get_final_marks_from_sheet
+    from final_marks_sync import get_final_marks_from_sheet, get_student_fallback_record, export_final_marks
+    is_admin = 'admin_id' in session
+    
+    if is_admin:
+        try:
+            export_final_marks()
+        except Exception as e:
+            print(f"⚠️ Auto export final marks on admin page load error: {e}")
+
     marks_data = get_final_marks_from_sheet()
-    return render_template('final_results.html', marks=marks_data)
+    current_student_id = session.get('student_id')
+    
+    student_record = None
+    if current_student_id and not is_admin:
+        found = False
+        if marks_data and marks_data.get('data'):
+            for s in marks_data['data']:
+                if str(s.get('Student ID', '')).strip() == str(current_student_id).strip():
+                    student_record = s
+                    found = True
+                    break
+        if not found:
+            fallback_data = get_student_fallback_record(current_student_id)
+            if fallback_data and fallback_data.get('data'):
+                marks_data = fallback_data
+                student_record = fallback_data['data'][0]
+
+    return render_template('final_results.html', marks=marks_data, current_student_id=current_student_id, is_admin=is_admin, student_record=student_record)
 
 @app.route('/admin/export-final-marks')
 def admin_export_final_marks():
@@ -3466,6 +3521,7 @@ def init_app_data():
             new_skill1 = ExcelSkillsAssignment(
                 title="Excel Skill 1: Formulas & Basics",
                 description="Master the basics: 1. VLOOKUP (2 marks). 2. SUMIF & COUNTIF (2 marks). 3. Text Functions (LEFT, RIGHT, MID) (2 marks). 4. Nested IF (2 marks). 5. Complex Challenge (2 marks). Total 10 marks. AI will grade and provide instant feedback.",
+                max_marks=10,
                 created_at=datetime.now(),
                 deadline=datetime.now() + timedelta(days=14),
                 is_active=True
@@ -3537,6 +3593,7 @@ def init_app_data():
             new_skill2 = ExcelSkillsAssignment(
                 title="Excel Skill 2: Data Validation & Named Manager",
                 description="Master Workbook management: 1. Create Named Ranges (Name Manager). 2. Basic Dropdowns. 3. Advanced Dependent Dropdowns. 4. Data Validation (Numbers, Dates, Text). Total 10 marks. AI will provide instant feedback on mistakes.",
+                max_marks=10,
                 created_at=datetime.now(),
                 deadline=datetime.now() + timedelta(days=14),
                 is_active=True
@@ -3556,6 +3613,7 @@ def init_app_data():
             new_skill3 = ExcelSkillsAssignment(
                 title="Excel Skill 3: Data Cleaning & Power Query",
                 description="Master Data Preparation: 1. Cleaning Raw Data (Spaces, Case, Duplicates). 2. Text-to-Columns & Flash Fill. 3. Power Query Basics (Transforming & Loading). Total 10 marks. AI will check for clean data and proper transformations.",
+                max_marks=10,
                 created_at=datetime.now(),
                 deadline=datetime.now() + timedelta(days=14),
                 is_active=True
@@ -3575,6 +3633,7 @@ def init_app_data():
             new_skill4 = ExcelSkillsAssignment(
                 title="Excel Skill 4: Advanced LOOKUP & Aggregation",
                 description="Master Data Relationships: 1. LOOKUP Function (Vector/Array) (2.5 marks). 2. Advanced SUMIFS (2.5 marks). 3. COUNTIFS & Relationships (2.5 marks). 4. Integrated Challenge (2.5 marks). Total 10 marks. (Note: specifically NOT VLOOKUP/XLOOKUP)",
+                max_marks=10,
                 created_at=datetime.now(),
                 deadline=datetime.now() + timedelta(days=14),
                 is_active=True
@@ -3594,6 +3653,7 @@ def init_app_data():
             new_skill5 = ExcelSkillsAssignment(
                 title="Excel Skill 5: VLOOKUP, SUMIF, COUNTIF & IF Formula",
                 description="Complex Assignment: 1. VLOOKUP (Range/Exact), 2. SUMIF, 3. COUNTIF, 4. IF Formula. Total 5 marks. AI checks formula logic and data accuracy. Feedback provided on mistakes.",
+                max_marks=5,
                 created_at=datetime.now(),
                 deadline=datetime.now() + timedelta(days=14),
                 is_active=True
@@ -3613,9 +3673,9 @@ def init_app_data():
             new_skill6 = ExcelSkillsAssignment(
                 title="Excel Skill 6: IFERROR, DATE, TEXT, AND & OR",
                 description="Advanced Formulas & Logic: 1. IFERROR (1 mark). 2. DATE (1 mark). 3. TEXT (1 mark). 4. AND Condition (1 mark). 5. OR Condition (1 mark). Total 5 marks. AI checks formula logic and data accuracy.",
+                max_marks=5,
                 created_at=datetime.now(),
                 deadline=datetime.now() + timedelta(days=14),
-                max_marks=5,
                 is_active=True
             )
             db.session.add(new_skill6)
@@ -3933,6 +3993,7 @@ def take_brain_lab(challenge_id):
             db.session.add(sub)
 
         db.session.commit()
+        auto_export_final_marks_safe()
         flash(f'🎉 Case Solved! Thinking Score: {overall_pct}%', 'success')
         return redirect(url_for('brain_lab_result', submission_id=sub.id))
 

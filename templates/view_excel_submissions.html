@@ -32,7 +32,7 @@
                 <td>{{ sub.student.name }}</td>
                 <td>{{ sub.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
                 <td>
-                    <strong>{{ sub.score }}/10</strong> ({{ sub.percentage }}%)
+                    <strong>{{ sub.score }}/{{ sub.max_marks }}</strong> ({{ sub.computed_percentage }}%)
                 </td>
                 <td>{{ sub.status }}</td>
                 <td>

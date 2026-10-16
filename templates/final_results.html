@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Final Results & Rankings{% endblock %}
+{% block title %}Final Results & Academic Performance{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -13,106 +13,344 @@
         {% endif %}
 
         <!-- Main content -->
-        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 mt-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2>🏆 Student Leaderboard & Performance</h2>
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+            
+            <!-- Page Header -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-3 border-bottom border-secondary border-opacity-25">
+                <div>
+                    <h2 class="text-white fw-bold mb-1">
+                        <i class="bi bi-award-fill text-warning me-2"></i> 
+                        {% if current_student_id and not session.admin_id %}My Academic Scorecard{% else %}Student Leaderboard & Performance{% endif %}
+                    </h2>
+                    <p class="text-light small mb-0 opacity-75">
+                        <i class="bi bi-cloud-check-fill text-success me-1"></i> Synchronized in real-time with Google Sheets &bull; Dynamic Columns Enabled
+                    </p>
+                </div>
+                {% if session.admin_id %}
+                <div class="mt-3 mt-md-0">
+                    <a href="{{ url_for('admin_export_final_marks') }}" class="btn btn-outline-success btn-sm shadow-sm">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Sync & Export to Sheets
+                    </a>
+                </div>
+                {% endif %}
             </div>
 
             {% if marks is none %}
-            <div class="alert alert-warning">
-                <i class="bi bi-exclamation-triangle"></i> Google Sheets is not configured or the 'Final Marks' sheet is missing. 
-            </div>
-            {% elif not marks.data %}
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle"></i> No results found yet.
-            </div>
-            {% else %}
-            
-            <div class="card shadow-sm border-0 overflow-hidden">
-                <div class="card-header bg-dark text-white p-3">
-                    <h5 class="mb-0"><i class="bi bi-award"></i> Academic Performance Ranking</h5>
-                </div>
-                <div class="card-body p-0 bg-darker">
-                    <div class="table-responsive">
-                        <table class="table table-hover table-dark mb-0 align-middle">
-                            <thead>
-                                <tr class="bg-secondary bg-opacity-10 text-uppercase small letter-spacing-1">
-                                    {% for header in marks.headers %}
-                                        <th class="{% if loop.first %}ps-4{% endif %} {% if loop.last %}pe-4{% endif %} {% if header not in ['Rank', 'Name', 'Student ID'] %}text-center{% endif %}">
-                                            {{ header }}
-                                        </th>
-                                    {% endfor %}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for student in marks.data %}
-                                    <tr>
-                                        {% for header in marks.headers %}
-                                            {% if header == 'Rank' %}
-                                                <td class="ps-4">
-                                                    {% if student.Rank == '1' %}
-                                                        <span class="badge bg-warning text-dark shadow-sm"><i class="bi bi-trophy-fill"></i> 1st</span>
-                                                    {% elif student.Rank == '2' %}
-                                                        <span class="badge bg-light text-dark">2nd</span>
-                                                    {% elif student.Rank == '3' %}
-                                                        <span class="badge bg-info text-dark">3rd</span>
-                                                    {% else %}
-                                                        <span class="text-secondary fw-bold ms-2">{{ student.Rank }}</span>
-                                                    {% endif %}
-                                                </td>
-                                            {% elif header == 'Student ID' %}
-                                                <td><code>{{ student['Student ID'] }}</code></td>
-                                            {% elif header == 'Name' %}
-                                                <td class="fw-bold">{{ student.Name }}</td>
-                                            {% elif header == 'Total Avg %' %}
-                                                <td class="text-center">
-                                                    {% set raw_val = student['Total Avg %']|string|replace('%', '') %}
-                                                    {% set pct_val = raw_val|float if raw_val|trim != '' and raw_val|trim != '-' else 0.0 %}
-                                                    <div class="d-flex align-items-center justify-content-center">
-                                                        <div class="progress w-100" style="height: 12px; max-width: 100px;">
-                                                            <div class="progress-bar {% if pct_val >= 80 %}bg-success{% elif pct_val >= 70 %}bg-primary{% else %}bg-danger{% endif %}" 
-                                                                 role="progressbar" style="width: {{ pct_val }}%;">
-                                                            </div>
-                                                        </div>
-                                                        <span class="ms-2 small fw-bold">{{ student['Total Avg %'] }}</span>
-                                                    </div>
-                                                </td>
-                                            {% elif header == 'Status' %}
-                                                <td class="text-center pe-4">
-                                                    {% if student.Status == 'PASS' %}
-                                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3">PASS</span>
-                                                    {% else %}
-                                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3">FAIL</span>
-                                                    {% endif %}
-                                                </td>
-                                            {% else %}
-                                                <td class="text-center">{{ student[header] }}</td>
-                                            {% endif %}
-                                        {% endfor %}
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+            <div class="alert alert-warning border-0 shadow-sm rounded-3 bg-dark text-warning p-4">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-exclamation-triangle-fill fs-3 me-3"></i>
+                    <div>
+                        <h5 class="alert-heading mb-1 fw-bold">Google Sheets Integration Notice</h5>
+                        <p class="mb-0">Google Sheets is not configured or the 'Final Marks' sheet is missing. Please contact the administrator.</p>
                     </div>
                 </div>
             </div>
-            
-            <div class="mt-4 p-3 bg-dark bg-opacity-50 rounded border border-secondary border-opacity-25">
-                <p class="mb-2 text-secondary small">
-                    <i class="bi bi-info-circle me-1"></i>
-                    <strong>Calculation Method:</strong> Total Average is computed as the mean of all Excel Skills, SQL Assignments, and Quiz scores. 
-                </p>
+            {% elif not marks.data %}
+            <div class="alert alert-info border-0 shadow-sm rounded-3 bg-dark text-info p-4">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-info-circle-fill fs-3 me-3"></i>
+                    <div>
+                        <h5 class="alert-heading mb-1 fw-bold">No Results Found</h5>
+                        <p class="mb-0">No performance records have been generated or synced yet.</p>
+                    </div>
+                </div>
             </div>
+            {% else %}
+
+                {% set student_record = student_record if student_record is defined else none %}
+                {% if not student_record and current_student_id and marks and marks.data %}
+                    {% set ns = namespace(record=none) %}
+                    {% for s in marks.data %}
+                        {% if s['Student ID']|string|trim == current_student_id|string|trim %}
+                            {% set ns.record = s %}
+                        {% endif %}
+                    {% endfor %}
+                    {% set student_record = ns.record %}
+                {% endif %}
+
+                <!-- ========================================== -->
+                <!-- STUDENT VIEW (Only their own marks & breakdown) -->
+                <!-- ========================================== -->
+                {% if current_student_id and not session.admin_id %}
+                    {% if student_record %}
+                        <!-- Top Summary Cards -->
+                        <div class="row g-3 mb-4">
+                            <!-- Rank Card -->
+                            <div class="col-xl-3 col-sm-6">
+                                <div class="card bg-dark border border-secondary border-opacity-25 shadow-sm rounded-3 p-3 h-100 position-relative overflow-hidden">
+                                    <div class="card-body">
+                                        <div class="text-info small text-uppercase fw-bold mb-1">Class Rank</div>
+                                        <div class="d-flex align-items-baseline">
+                                            <h2 class="text-warning fw-bold mb-0 display-6">
+                                                {% if student_record.Rank == '1' %}1st 🏆
+                                                {% elif student_record.Rank == '2' %}2nd 🥈
+                                                {% elif student_record.Rank == '3' %}3rd 🥉
+                                                {% else %}{{ student_record.Rank }}{% endif %}
+                                            </h2>
+                                            <span class="text-light ms-2 small opacity-75">out of {{ marks.data|length }} students</span>
+                                        </div>
+                                    </div>
+                                    <div class="position-absolute end-0 bottom-0 opacity-10 p-3">
+                                        <i class="bi bi-trophy display-3 text-warning"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Total Avg Card -->
+                            <div class="col-xl-3 col-sm-6">
+                                <div class="card bg-dark border border-secondary border-opacity-25 shadow-sm rounded-3 p-3 h-100 position-relative overflow-hidden">
+                                    <div class="card-body">
+                                        <div class="text-info small text-uppercase fw-bold mb-1">Total Average Score</div>
+                                        <div class="d-flex align-items-baseline">
+                                            <h2 class="text-success fw-bold mb-0 display-6">{{ student_record['Total Avg %'] }}</h2>
+                                        </div>
+                                        {% set raw_val = student_record['Total Avg %']|string|replace('%', '') %}
+                                        {% set pct_val = raw_val|float if raw_val|trim != '' and raw_val|trim != '-' else 0.0 %}
+                                        <div class="progress mt-2" style="height: 6px;">
+                                            <div class="progress-bar bg-success" style="width: {{ pct_val }}%;"></div>
+                                        </div>
+                                    </div>
+                                    <div class="position-absolute end-0 bottom-0 opacity-10 p-3">
+                                        <i class="bi bi-graph-up-arrow display-3 text-success"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Status Card -->
+                            <div class="col-xl-3 col-sm-6">
+                                <div class="card bg-dark border border-secondary border-opacity-25 shadow-sm rounded-3 p-3 h-100 position-relative overflow-hidden">
+                                    <div class="card-body">
+                                        <div class="text-info small text-uppercase fw-bold mb-1">Academic Status</div>
+                                        <div class="d-flex align-items-baseline mt-2">
+                                            {% if student_record.Status == 'PASS' %}
+                                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 fs-5 px-3 py-2">
+                                                    <i class="bi bi-check-circle-fill me-1"></i> PASS
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 fs-5 px-3 py-2">
+                                                    <i class="bi bi-x-circle-fill me-1"></i> FAIL
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="position-absolute end-0 bottom-0 opacity-10 p-3">
+                                        <i class="bi bi-shield-check display-3 text-info"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Student Info Card -->
+                            <div class="col-xl-3 col-sm-6">
+                                <div class="card bg-dark border border-secondary border-opacity-25 shadow-sm rounded-3 p-3 h-100 position-relative overflow-hidden">
+                                    <div class="card-body">
+                                        <div class="text-info small text-uppercase fw-bold mb-1">Student Details</div>
+                                        <h5 class="text-white fw-bold mb-1 text-truncate">{{ student_record.Name }}</h5>
+                                        <p class="text-light small mb-0 opacity-75"><i class="bi bi-person-badge me-1"></i> ID: <code>{{ student_record['Student ID'] }}</code></p>
+                                    </div>
+                                    <div class="position-absolute end-0 bottom-0 opacity-10 p-3">
+                                        <i class="bi bi-person-circle display-3 text-primary"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Detailed Subject / Skill Breakdown -->
+                        <div class="card bg-dark border border-secondary border-opacity-25 shadow-sm rounded-3 overflow-hidden mb-4">
+                            <div class="card-header bg-secondary bg-opacity-10 p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0 text-white fw-bold"><i class="bi bi-journal-check me-2 text-primary"></i> Subject-wise Detailed Performance Breakdown</h5>
+                                <span class="badge bg-primary bg-opacity-15 text-primary border border-primary border-opacity-25">Synced with Google Sheets</span>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-dark table-hover mb-0 align-middle">
+                                        <thead>
+                                            <tr class="text-uppercase text-light fw-bold small bg-secondary bg-opacity-25">
+                                                <th class="ps-4 py-3 text-light">Subject / Skill / Category</th>
+                                                <th class="text-center py-3 text-light">Score / Percentage</th>
+                                                <th class="pe-4 py-3 text-end text-light">Performance Meter</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for header in marks.headers %}
+                                                {% if header not in ['Rank', 'Student ID', 'Name', 'Status', 'Excel Avg %', 'SQL Avg %', 'Quizzes Avg %', 'Total Avg %'] %}
+                                                <tr>
+                                                    <td class="ps-4 fw-semibold text-white py-3">
+                                                        <i class="bi bi-check2-square text-success me-2"></i> {{ header }}
+                                                    </td>
+                                                    <td class="text-center fw-bold text-white py-3 fs-6">
+                                                        {% set score_val = student_record[header]|string %}
+                                                        {% if score_val != '-' and score_val %}
+                                                            {% if '/' in score_val %}
+                                                                {% set parts = score_val.split(' ') %}
+                                                                <div>
+                                                                    <span class="text-success fw-bold">{{ parts[0] }} Marks</span>
+                                                                    {% if parts|length > 1 %}
+                                                                        <br><small class="text-info fw-semibold">{{ parts[1] }}</small>
+                                                                    {% endif %}
+                                                                </div>
+                                                            {% else %}
+                                                                <span class="text-success fw-bold">{{ score_val }}</span>
+                                                            {% endif %}
+                                                        {% else %}
+                                                            <span class="text-warning small fst-italic">Not Submitted</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td class="pe-4 text-end py-3" style="width: 250px;">
+                                                        {% set score_str = student_record[header]|string %}
+                                                        {% if '(' in score_str %}
+                                                            {% set val_str = score_str.split('(')[1]|replace(')', '')|replace('%', '') %}
+                                                        {% else %}
+                                                            {% set val_str = score_str|replace('%', '') %}
+                                                        {% endif %}
+                                                        {% set val_num = val_str|float if val_str|trim != '' and val_str|trim != '-' else 0.0 %}
+                                                        <div class="d-flex align-items-center justify-content-end">
+                                                            <div class="progress w-100 me-2" style="height: 8px; background-color: rgba(255,255,255,0.15);">
+                                                                <div class="progress-bar {% if val_num >= 80 %}bg-success{% elif val_num >= 70 %}bg-primary{% else %}bg-warning{% endif %}" 
+                                                                     style="width: {{ val_num }}%;"></div>
+                                                            </div>
+                                                            <span class="small text-light fw-bold" style="min-width: 45px;">{{ val_num|round(1) }}%</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                    {% else %}
+                    <div class="alert alert-warning bg-dark text-warning border-0 p-4 shadow-sm rounded-3">
+                        <i class="bi bi-exclamation-triangle me-2"></i> No record found for Student ID: <strong>{{ current_student_id }}</strong> in Google Sheets. Please ensure your marks have been synced by the instructor.
+                    </div>
+                    {% endif %}
+
+                <!-- ========================================== -->
+                <!-- ADMIN VIEW (Full Leaderboard Table) -->
+                <!-- ========================================== -->
+                {% else %}
+                    <div class="card bg-dark border border-secondary border-opacity-25 shadow-sm rounded-3 overflow-hidden">
+                        <div class="card-header bg-secondary bg-opacity-10 p-3 border-bottom border-secondary border-opacity-25 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                            <h5 class="mb-0 text-white fw-bold"><i class="bi bi-trophy me-2 text-warning"></i> Academic Performance Ranking Leaderboard</h5>
+                            
+                            <!-- Search / Student ID Filter Input -->
+                            <div class="input-group input-group-sm" style="max-width: 300px;">
+                                <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-search"></i></span>
+                                <input type="text" id="leaderboardSearch" class="form-control bg-dark text-white border-secondary" placeholder="Filter by Student ID or Name...">
+                            </div>
+                        </div>
+                        
+                        <div class="card-body p-0 bg-darker">
+                            <div class="table-responsive">
+                                <table class="table table-hover table-dark mb-0 align-middle" id="leaderboardTable">
+                                    <thead>
+                                        <tr class="bg-secondary bg-opacity-10 text-uppercase small letter-spacing-1">
+                                            {% for header in marks.headers %}
+                                                <th class="py-3 {% if loop.first %}ps-4{% endif %} {% if loop.last %}pe-4{% endif %} {% if header not in ['Rank', 'Name', 'Student ID'] %}text-center{% endif %}">
+                                                    {{ header }}
+                                                </th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for student in marks.data %}
+                                            <tr>
+                                                {% for header in marks.headers %}
+                                                    {% if header == 'Rank' %}
+                                                        <td class="ps-4 fw-bold">
+                                                            {% if student.Rank == '1' %}
+                                                                <span class="badge bg-warning text-dark shadow-sm px-2 py-1"><i class="bi bi-trophy-fill"></i> 1st</span>
+                                                            {% elif student.Rank == '2' %}
+                                                                <span class="badge bg-light text-dark px-2 py-1">2nd</span>
+                                                            {% elif student.Rank == '3' %}
+                                                                <span class="badge bg-info text-dark px-2 py-1">3rd</span>
+                                                            {% else %}
+                                                                <span class="text-muted ms-2">{{ student.Rank }}</span>
+                                                            {% endif %}
+                                                        </td>
+                                                    {% elif header == 'Student ID' %}
+                                                        <td><code class="text-info fw-bold">{{ student['Student ID'] }}</code></td>
+                                                    {% elif header == 'Name' %}
+                                                        <td class="fw-bold text-white">{{ student.Name }}</td>
+                                                    {% elif header == 'Total Avg %' %}
+                                                        <td class="text-center">
+                                                            {% set raw_val = student['Total Avg %']|string|replace('%', '') %}
+                                                            {% set pct_val = raw_val|float if raw_val|trim != '' and raw_val|trim != '-' else 0.0 %}
+                                                            <div class="d-flex align-items-center justify-content-center">
+                                                                <div class="progress w-100 me-2" style="height: 10px; max-width: 90px; background-color: rgba(255,255,255,0.1);">
+                                                                    <div class="progress-bar {% if pct_val >= 80 %}bg-success{% elif pct_val >= 70 %}bg-primary{% else %}bg-danger{% endif %}" 
+                                                                         role="progressbar" style="width: {{ pct_val }}%;">
+                                                                    </div>
+                                                                </div>
+                                                                <span class="small fw-bold text-white">{{ student['Total Avg %'] }}</span>
+                                                            </div>
+                                                        </td>
+                                                    {% elif header == 'Status' %}
+                                                        <td class="text-center pe-4">
+                                                            {% if student.Status == 'PASS' %}
+                                                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-1">PASS</span>
+                                                            {% else %}
+                                                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3 py-1">FAIL</span>
+                                                            {% endif %}
+                                                        </td>
+                                                    {% else %}
+                                                        <td class="text-center text-light">{{ student[header] }}</td>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div class="card-footer bg-secondary bg-opacity-10 p-3 border-top border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+                            <p class="mb-0 text-muted small">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Total Average is computed as the mean of all active Excel Skills, SQL Assignments, and Quizzes.
+                            </p>
+                            <span class="text-muted small">Showing {{ marks.data|length }} students</span>
+                        </div>
+                    </div>
+                {% endif %}
+
             {% endif %}
         </main>
     </div>
 </div>
 
+<script>
+    // Live Search Filter for Leaderboard Table by Student ID or Name
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('leaderboardSearch');
+        if (searchInput) {
+            searchInput.addEventListener('keyup', function() {
+                const query = searchInput.value.toLowerCase().trim();
+                const table = document.getElementById('leaderboardTable');
+                if (!table) return;
+                const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+
+                for (let i = 0; i < rows.length; i++) {
+                    let rowText = rows[i].textContent.toLowerCase();
+                    if (rowText.includes(query)) {
+                        rows[i].style.display = '';
+                    } else {
+                        rows[i].style.display = 'none';
+                    }
+                }
+            });
+        }
+    });
+</script>
+
 <style>
     .bg-darker { background-color: #0b0e14; }
-    .letter-spacing-1 { letter-spacing: 1px; }
-    .table th { border: none; padding: 15px 10px; color: #6c757d; font-size: 0.75rem; }
-    .table td { border-color: rgba(255,255,255,0.05); padding: 15px 10px; }
-    .progress { background-color: rgba(255,255,255,0.1); }
+    .letter-spacing-1 { letter-spacing: 0.5px; }
+    .table th { border: none; padding: 14px 12px; color: #94a3b8; font-size: 0.75rem; font-weight: 600; }
+    .table td { border-color: rgba(255,255,255,0.05); padding: 14px 12px; vertical-align: middle; }
+    .card { background-color: #111827; }
+    .progress { background-color: rgba(255,255,255,0.08); border-radius: 10px; overflow: hidden; }
+    .table-hover tbody tr:hover { background-color: rgba(255, 255, 255, 0.03); }
 </style>
 {% endblock %}

@@ -428,7 +428,10 @@ def grade_excel_submission(file_path, assignment_title=""):
         score_s1, details_s1 = grade_excel_skill_1(wb)
         total_score = score_s1
         details['Excel Skill 1 (Q1-Q20)'] = {'score': score_s1, 'max': 10, 'details': details_s1}
-    return {'score': round(min(total_score, 10), 2), 'max': 10, 'percentage': round((min(total_score, 10) / 10) * 100, 1), 'cheating_detected': False, 'details': details}
+    max_m = 5 if ("Excel Skill 5" in assignment_title or "Excel Skill 6" in assignment_title or "IFERROR" in assignment_title or "DATE" in assignment_title) else 10
+    final_score = round(min(total_score, max_m), 2)
+    percentage = round((final_score / max_m) * 100, 1)
+    return {'score': final_score, 'max': max_m, 'percentage': percentage, 'cheating_detected': False, 'details': details}
 
 QUESTION_MARK = 0.5
 

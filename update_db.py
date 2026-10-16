@@ -1,8 +1,11 @@
-from app import app, db
+from app import app, db, ExcelSkillsAssignment
 
-# Create all tables within the application context
 with app.app_context():
-    # This will create the new CourseOutline table if it doesn't exist
-    # Note: This will not delete existing data
     db.create_all()
-    print("Database tables updated successfully! New CourseOutline table has been created.")
+    excel_skills = ExcelSkillsAssignment.query.all()
+    for es in excel_skills:
+        if "Excel Skill" in es.title:
+            es.max_marks = 5
+            print(f"Updated {es.title} max_marks to 5")
+    db.session.commit()
+    print("Database updated successfully: Excel skills max_marks set to 5.")

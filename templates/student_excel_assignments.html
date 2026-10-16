@@ -29,7 +29,7 @@
                                 {% set sub = submissions[a.id] %}
                                 <div class="alert alert-success py-2">
                                     ✅ Submitted<br>
-                                    <strong>Score: {{ sub.score }}/10</strong> ({{ sub.percentage }}%)
+                                    <strong>Score: {{ sub.score }}/{{ sub.max_marks }}</strong> ({{ sub.computed_percentage }}%)
                                 </div>
                             {% else %}
                                 <div class="alert alert-warning py-2">
