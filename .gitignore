@@ -43,6 +43,7 @@ env.bak/
 # Secrets and sensitive files
 credentials.json
 token.pickle
+classroom_token.json
 cookies.txt
 student_cookies.txt
 

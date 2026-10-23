@@ -129,6 +129,38 @@
                     </div>
 
                     <div class="card mt-3">
+                        <div class="card-header bg-success text-white">
+                            <h5><i class="fas fa-graduation-cap"></i> Google Classroom Attendance</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="small text-muted">Automatically post daily attendance reports to Google Classroom (Course BQ 5.0 Fall) on Saturdays & Sundays.</p>
+                            <div class="d-grid gap-2 mb-2">
+                                <a href="{{ url_for('classroom_auth') }}" class="btn btn-warning btn-sm fw-bold">
+                                    <i class="fab fa-google me-1"></i> Connect / Authorize Google Classroom
+                                </a>
+                            </div>
+                            <form action="{{ url_for('admin_post_classroom_attendance') }}" method="POST" class="d-grid gap-2">
+                                <input type="hidden" name="session_type" value="girls">
+                                <button type="submit" class="btn btn-outline-success btn-sm" onclick="return confirm('Post Girls Attendance (10:00 AM - 11:59 AM) to Google Classroom?')">
+                                    <i class="fas fa-venus"></i> Post Girls Attendance (10 AM)
+                                </button>
+                            </form>
+                            <form action="{{ url_for('admin_post_classroom_attendance') }}" method="POST" class="d-grid gap-2 mt-2">
+                                <input type="hidden" name="session_type" value="boys">
+                                <button type="submit" class="btn btn-outline-primary btn-sm" onclick="return confirm('Post Boys Attendance (12:00 PM - 2:00 PM) to Google Classroom?')">
+                                    <i class="fas fa-mars"></i> Post Boys Attendance (12 PM)
+                                </button>
+                            </form>
+                            <form action="{{ url_for('admin_post_classroom_attendance') }}" method="POST" class="d-grid gap-2 mt-2">
+                                <input type="hidden" name="session_type" value="all">
+                                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Post Combined BQ 5.0 Fall Attendance to Google Classroom?')">
+                                    <i class="fas fa-bullhorn"></i> Post All BQ 5.0 Fall Attendance
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card mt-3">
                         <div class="card-header bg-dark text-white">
                             <h5><i class="fas fa-sync-alt"></i> Automation Info</h5>
                         </div>

@@ -3,65 +3,184 @@
 {% block title %}Excel Submissions - {{ assignment.title }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2>📊 Submissions: {{ assignment.title }}</h2>
-        <a href="/admin/excel-assignments/{{ assignment.id }}/toggle-all-resubmits" class="btn {% if assignment.allow_all_resubmits %}btn-success{% else %}btn-outline-secondary{% endif %}">
-            {% if assignment.allow_all_resubmits %}🔓 All Resubmits: ON (Click to Disable){% else %}🔒 Allow All Students to Resubmit{% endif %}
-        </a>
-    </div>
-    
-    {% if submissions %}
-    <table class="table table-striped mt-3">
-        <thead>
-            <tr>
-                <th>Student ID</th>
-                <th>Name</th>
-                <th>Submitted At</th>
-                <th>Score</th>
-                <th>Status</th>
-                <th>Macros?</th>
-                <th>Cheating?</th>
-                <th>Resubmit Permission</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for sub in submissions %}
-            <tr>
-                <td>{{ sub.student.student_id }}</td>
-                <td>{{ sub.student.name }}</td>
-                <td>{{ sub.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                <td>
-                    <strong>{{ sub.score }}/{{ sub.max_marks }}</strong> ({{ sub.computed_percentage }}%)
-                </td>
-                <td>{{ sub.status }}</td>
-                <td>
-                    {% if sub.macros_disabled %}
-                        <span class="badge bg-danger">Disabled</span>
-                    {% else %}
-                        <span class="badge bg-success">Enabled</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if sub.is_cheating %}
-                        <span class="badge bg-danger">🚨 CHEATING!</span>
-                    {% else %}
-                        <span class="badge bg-success">Clean</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <a href="/admin/excel-submissions/{{ sub.id }}/toggle-resubmit" class="btn btn-sm {% if sub.allow_resubmit %}btn-success{% else %}btn-outline-danger{% endif %}">
-                        {% if sub.allow_resubmit %}🔓 Access: ON (Click to Revoke){% else %}🔒 Access: OFF (Click to Grant){% endif %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        {% include 'sidebar.html' %}
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4 text-white">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="fw-bold mb-1"><i class="bi bi-file-earmark-spreadsheet text-success me-2"></i> Submissions: {{ assignment.title }}</h2>
+                    <p class="text-light opacity-75 mb-0">Max Marks: <strong>{{ assignment.max_marks }}</strong></p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/admin/excel-assignments/{{ assignment.id }}/toggle-all-resubmits" class="btn {% if assignment.allow_all_resubmits %}btn-success{% else %}btn-outline-secondary{% endif %} btn-sm">
+                        {% if assignment.allow_all_resubmits %}🔓 All Resubmits: ON (Click to Disable){% else %}🔒 Allow All Students to Resubmit{% endif %}
                     </a>
-                </td>
-            </tr>
+                    <a href="/admin/excel-assignments" class="btn btn-outline-light btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i> Back to Assignments
+                    </a>
+                </div>
+            </div>
+
+            <!-- Batch Filter Bar -->
+            <form method="GET" action="{{ url_for('view_excel_submissions', assignment_id=assignment.id) }}" class="row g-3 align-items-center mb-4 bg-dark p-3 rounded border border-secondary shadow-sm">
+                <div class="col-auto">
+                    <label for="batchSelect" class="col-form-label fw-bold text-info"><i class="bi bi-filter-circle me-1"></i> Scope Submissions by Batch:</label>
+                </div>
+                <div class="col-auto flex-grow-1">
+                    <select name="batch" id="batchSelect" class="form-select bg-secondary text-white border-0 fw-bold" onchange="this.form.submit()">
+                        <option value="active" {% if selected_batch == 'active' %}selected{% endif %}>⚡ Active Ongoing Batches (Default)</option>
+                        <option value="all" {% if selected_batch == 'all' %}selected{% endif %}>🌐 All Batches (Complete)</option>
+                        {% for b in batches %}
+                        <option value="{{ b.name }}" {% if selected_batch == b.name %}selected{% endif %}>📂 {{ b.name }} {% if not b.is_active %}(Locked / Completed){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+            
+            {% if submissions %}
+            <div class="card bg-dark text-white border border-secondary border-opacity-25 shadow-sm rounded-3">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0 align-middle">
+                            <thead>
+                                <tr>
+                                    <th class="ps-3">Student ID</th>
+                                    <th>Name</th>
+                                    <th>Submitted At</th>
+                                    <th>Score</th>
+                                    <th>Status</th>
+                                    <th>Macros?</th>
+                                    <th>Cheating?</th>
+                                    <th class="text-end pe-3">Resubmit Permission</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sub in submissions %}
+                                <tr>
+                                    <td class="ps-3 fw-bold">{{ sub.student.student_id if sub.student else sub.student_id }}</td>
+                                    <td>{{ sub.student.name if sub.student else 'Unknown' }}</td>
+                                    <td>{{ sub.submitted_at.strftime('%Y-%m-%d %H:%M') if sub.submitted_at else 'N/A' }}</td>
+                                    <td>
+                                        <strong>{{ sub.score }}/{{ sub.max_marks }}</strong> ({{ sub.computed_percentage }}%)
+                                        {% if sub.grade_details %}
+                                        <button type="button" class="btn btn-sm btn-outline-info ms-2 py-0 px-2" data-bs-toggle="modal" data-bs-target="#feedbackModal{{ sub.id }}">
+                                            <i class="bi bi-file-earmark-text"></i> AI Report
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="badge bg-secondary">{{ sub.status }}</span></td>
+                                    <td>
+                                        {% if sub.macros_disabled %}
+                                            <span class="badge bg-danger">Disabled</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Enabled</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if sub.is_cheating %}
+                                            <span class="badge bg-danger">Yes ⚠️</span>
+                                        {% else %}
+                                            <span class="badge bg-success">No</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        {% if sub.allow_resubmit %}
+                                            <a href="/admin/excel-submission/{{ sub.id }}/toggle-resubmit" class="btn btn-sm btn-success">Allowed (Revoke)</a>
+                                        {% else %}
+                                            <a href="/admin/excel-submission/{{ sub.id }}/toggle-resubmit" class="btn btn-sm btn-outline-warning">Allow Resubmit</a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feedback Modals -->
+            {% for sub in submissions %}
+                {% if sub.grade_details %}
+                <div class="modal fade" id="feedbackModal{{ sub.id }}" tabindex="-1" aria-labelledby="feedbackModalLabel{{ sub.id }}" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                        <div class="modal-content bg-dark text-white border border-secondary">
+                            <div class="modal-header border-secondary">
+                                <h5 class="modal-title" id="feedbackModalLabel{{ sub.id }}">
+                                    🤖 AI Mistake Report - {{ sub.student.name if sub.student else sub.student_id }} (Score: {{ sub.score }}/{{ sub.max_marks }})
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                {% set parsed = sub.grade_details|from_json %}
+                                {% if parsed is mapping %}
+                                    {% set res_dict = parsed.get("Assignment Results", parsed) %}
+                                    {% set categories = res_dict.get("details", res_dict) %}
+                                {% else %}
+                                    {% set categories = parsed %}
+                                {% endif %}
+
+                                {% if categories is mapping %}
+                                    {% for cat_name, cat_val in categories.items() %}
+                                    <div class="card bg-dark text-white border border-secondary mb-3">
+                                        <div class="card-header bg-secondary bg-opacity-25 d-flex justify-content-between align-items-center">
+                                            <span class="fw-bold">{{ cat_name }}</span>
+                                            {% if cat_val is mapping and 'score' in cat_val %}
+                                            <span class="badge bg-info text-dark">Score: {{ cat_val.score }}/{{ cat_val.max }}</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="card-body p-0">
+                                            <ul class="list-group list-group-flush bg-dark">
+                                                {% set items = cat_val.details if (cat_val is mapping and cat_val.details is defined) else cat_val %}
+                                                {% set items_list = items.replace(' Q', '\nQ').split('\n') if (items is string) else ([items] if (items is mapping and not ('q' in items or 'correct' in items)) else (items if (items is iterable and items is not string) else [items])) %}
+                                                {% for item in items_list %}
+                                                <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between align-items-center py-2 {% if item is mapping and not item.correct %}bg-danger bg-opacity-10{% endif %}">
+                                                    <div>
+                                                        {% if item is string %}
+                                                            <span class="font-monospace small">{{ item }}</span>
+                                                        {% else %}
+                                                            {% if item.q %}<span class="badge bg-secondary me-2">{{ item.q }}</span>{% endif %}
+                                                            <strong>{{ item.task or 'Check' }}</strong>
+                                                            {% if item.error %}
+                                                            <div class="text-danger small mt-1 font-monospace">{{ item.error }}</div>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    </div>
+                                                    <div>
+                                                        {% if (item is string and 'Correct' in item and 'Incorrect' not in item) or (item is mapping and item.correct) %}
+                                                            <span class="badge bg-success bg-opacity-25 text-success border border-success">Correct ✅</span>
+                                                        {% else %}
+                                                            <span class="badge bg-danger bg-opacity-25 text-danger border border-danger">Incorrect ❌</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <pre class="text-light small">{{ sub.grade_details }}</pre>
+                                {% endif %}
+                            </div>
+                            <div class="modal-footer border-secondary">
+                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <div class="alert alert-info mt-3">No submissions yet for this assignment.</div>
-    {% endif %}
-    
-    <a href="/admin/excel-assignments" class="btn btn-secondary mt-3">Back to Assignments</a>
+            
+            {% else %}
+            <div class="alert alert-info bg-dark text-info border border-info border-opacity-25 shadow-sm rounded-3 p-4">
+                <i class="bi bi-info-circle me-2"></i> No submissions yet for this assignment.
+            </div>
+            {% endif %}
+        </main>
+    </div>
 </div>
 {% endblock %}

@@ -127,10 +127,10 @@ def export_final_marks():
         return False, "Google Sheets not configured"
         
     with app.app_context():
-        students = Student.query.all()
-        excel_assignments = ExcelSkillsAssignment.query.all()
-        sql_assignments = SQLSkillsAssignment.query.all()
-        quizzes = Quiz.query.all()
+        students = Student.query.filter_by(is_active=True).all()
+        excel_assignments = ExcelSkillsAssignment.query.filter_by(is_active=True).all()
+        sql_assignments = SQLSkillsAssignment.query.filter_by(is_active=True).all()
+        quizzes = Quiz.query.filter_by(is_active=True).all()
         
         # 0. FETCH DATA FROM "SQL Assignments" SHEET (Merge Logic)
         sql_sheet_marks = {} # {(student_id, assignment_title): percentage}
@@ -293,31 +293,164 @@ def export_final_marks():
             
     return True, "Export successful"
 
+_fallback_cache = {'result': None, 'timestamp': 0}
+
+def get_all_fallback_records(selected_batch='active'):
+    """Generate final marks records for active/selected students directly from local DB"""
+    global _fallback_cache
+    import time
+    now = time.time()
+    cache_key = f"fallback_{selected_batch}"
+    if _fallback_cache.get(cache_key) and (now - _fallback_cache.get(f"{cache_key}_time", 0) < 120):
+        return _fallback_cache[cache_key]
+
+    from app import app, db, Student, ExcelSubmission, QuizSubmission, SQLSubmission, ExcelSkillsAssignment, Quiz, SQLSkillsAssignment, Batch
+    from sqlalchemy.orm import joinedload
+    
+    with app.app_context():
+        active_batch_names = [b.name for b in Batch.query.filter_by(is_active=True).all()]
+        
+        student_query = Student.query
+        if selected_batch == 'active':
+            student_query = student_query.filter(Student.batch.in_(active_batch_names), Student.is_active == True)
+        elif selected_batch == 'all':
+            student_query = student_query.filter(Student.is_active == True)
+        else:
+            student_query = student_query.filter(Student.batch == selected_batch, Student.is_active == True)
+            
+        students = student_query.all()
+        excel_assignments = ExcelSkillsAssignment.query.filter_by(is_active=True).all()
+        sql_assignments = SQLSkillsAssignment.query.filter_by(is_active=True).all()
+        quizzes = Quiz.query.options(joinedload(Quiz.questions)).filter_by(is_active=True).all()
+        
+        # Pre-fetch all submissions in bulk to avoid N+1 queries
+        excel_subs = ExcelSubmission.query.all()
+        sql_subs = SQLSubmission.query.all()
+        quiz_subs_all = QuizSubmission.query.options(joinedload(QuizSubmission.quiz)).all()
+        
+        # Map submissions for quick lookup: {(student_id, assignment_id): sub}
+        excel_map = {(s.student_id, s.assignment_id): s for s in excel_subs}
+        sql_map = {(s.student_id, s.assignment_id): s for s in sql_subs}
+        
+        # Map quiz submissions: {student_id: [subs]}
+        quiz_map = {}
+        for s in quiz_subs_all:
+            if s.student_id not in quiz_map:
+                quiz_map[s.student_id] = []
+            quiz_map[s.student_id].append(s)
+            
+        headers = ['Rank', 'Student ID', 'Name']
+        for ea in excel_assignments:
+            headers.append(ea.title)
+        for sa in sql_assignments:
+            headers.append(sa.title)
+        headers += ['Excel Avg %', 'SQL Avg %', 'Quizzes Avg %', 'Total Avg %', 'Status']
+        
+        data = []
+        for student in students:
+            sid_str = student.student_id
+            name = student.name
+            
+            row_dict = {
+                'Rank': '-',
+                'Student ID': sid_str,
+                'Name': name
+            }
+            
+            total_excel_pct = 0
+            for ea in excel_assignments:
+                sub = excel_map.get((sid_str, ea.id))
+                max_m = get_assignment_max_marks(ea.title)
+                
+                score = 0
+                pct = 0
+                if sub and sub.score is not None:
+                    score = float(sub.score)
+                    score = min(score, max_m)
+                    pct = round((score / max_m) * 100, 1) if max_m > 0 else 0
+                row_dict[ea.title] = f"{score}/{max_m} ({pct}%)"
+                total_excel_pct += pct
+            excel_avg = total_excel_pct / len(excel_assignments) if excel_assignments else 0
+            
+            total_sql_pct = 0
+            for sa in sql_assignments:
+                sub = sql_map.get((sid_str, sa.id))
+                score = sub.score if (sub and sub.score is not None) else 0
+                max_m = sa.max_marks if (sa and sa.max_marks is not None) else 10
+                pct = round((score / max_m) * 100, 1) if max_m > 0 else 0
+                row_dict[sa.title] = f"{score}/{max_m} ({pct}%)"
+                total_sql_pct += pct
+            sql_avg = total_sql_pct / len(sql_assignments) if sql_assignments else 0
+            
+            row_dict['Excel Avg %'] = f"{round(excel_avg, 1)}%"
+            row_dict['SQL Avg %'] = f"{round(sql_avg, 1)}%"
+            
+            student_quiz_subs = quiz_map.get(sid_str, [])
+            total_quiz_pct = 0
+            for sub in student_quiz_subs:
+                total_q = len(sub.quiz.questions) if sub.quiz and sub.quiz.questions else 0
+                score = sub.score if (sub and sub.score is not None) else 0
+                try: score = float(score)
+                except: score = 0
+                if total_q > 0:
+                    total_quiz_pct += (score / total_q) * 100
+            quiz_avg = total_quiz_pct / len(student_quiz_subs) if student_quiz_subs else 0
+            row_dict['Quizzes Avg %'] = f"{round(quiz_avg, 1)}%"
+            
+            categories = []
+            if excel_assignments: categories.append(excel_avg)
+            if sql_assignments: categories.append(sql_avg)
+            if quizzes: categories.append(quiz_avg)
+            total_avg = sum(categories) / len(categories) if categories else 0
+            row_dict['Total Avg %'] = f"{round(total_avg, 1)}%"
+            row_dict['Status'] = 'PASS' if total_avg >= 70 else 'FAIL'
+            
+            data.append((total_avg, row_dict))
+            
+        data.sort(key=lambda x: x[0], reverse=True)
+        sorted_data = []
+        for i, (avg, r) in enumerate(data, 1):
+            r['Rank'] = str(i)
+            sorted_data.append(r)
+            
+        res_dict = {
+            'headers': headers,
+            'data': sorted_data
+        }
+        _fallback_cache[cache_key] = res_dict
+        _fallback_cache[f"{cache_key}_time"] = time.time()
+        return res_dict
+
 def get_final_marks_from_sheet():
-    """Fetch the Final Marks data from 'Final Results' sheet (with fallback to 'Final Marks')"""
-    service, sheet_id = get_sheets_service()
-    if not service: return None
-    for sheet_name in ['Final Results', 'Final Marks']:
-        try:
-            result = service.spreadsheets().values().get(spreadsheetId=sheet_id, range=f"'{sheet_name}'!A:Z").execute()
-            rows = result.get('values', [])
-            if rows and len(rows) >= 2:
-                header_idx = 0
-                for idx, row in enumerate(rows[:5]):
-                    row_str = " ".join([str(c) for c in row]).lower()
-                    if 'student id' in row_str or 'name' in row_str or 'rank' in row_str:
-                        header_idx = idx
-                        break
-                        
-                headers = rows[header_idx]
-                data = []
-                for row in rows[header_idx+1:]:
-                    while len(row) < len(headers): row.append("-")
-                    data.append(dict(zip(headers, row)))
-                return {'headers': headers, 'data': data}
-        except Exception as e:
-            print(f"Error fetching from {sheet_name}: {e}")
-    return None
+    """Fetch the Final Marks data from 'Final Results' sheet (with fallback to local DB)"""
+    try:
+        service, sheet_id = get_sheets_service()
+        if service:
+            for sheet_name in ['Final Results', 'Final Marks']:
+                try:
+                    result = service.spreadsheets().values().get(spreadsheetId=sheet_id, range=f"'{sheet_name}'!A:Z").execute()
+                    rows = result.get('values', [])
+                    if rows and len(rows) >= 2:
+                        header_idx = 0
+                        for idx, row in enumerate(rows[:5]):
+                            row_str = " ".join([str(c) for c in row]).lower()
+                            if 'student id' in row_str or 'name' in row_str or 'rank' in row_str:
+                                header_idx = idx
+                                break
+                                
+                        headers = rows[header_idx]
+                        data = []
+                        for row in rows[header_idx+1:]:
+                            while len(row) < len(headers): row.append("-")
+                            data.append(dict(zip(headers, row)))
+                        return {'headers': headers, 'data': data}
+                except Exception as e:
+                    print(f"Error fetching from {sheet_name}: {e}")
+    except Exception as e:
+        print(f"Google Sheets service error in get_final_marks_from_sheet: {e}")
+    
+    # Fallback to local DB marks generation
+    return get_all_fallback_records()
 
 def get_student_fallback_record(target_student_id):
     """Generate final marks record directly from local DB for a single student if not in Google Sheets"""
@@ -330,9 +463,9 @@ def get_student_fallback_record(target_student_id):
         sid_str = str(target_student_id)
         name = student.name if student else f"Student {sid_str}"
         
-        excel_assignments = ExcelSkillsAssignment.query.all()
-        sql_assignments = SQLSkillsAssignment.query.all()
-        quizzes = Quiz.query.all()
+        excel_assignments = ExcelSkillsAssignment.query.filter_by(is_active=True).all()
+        sql_assignments = SQLSkillsAssignment.query.filter_by(is_active=True).all()
+        quizzes = Quiz.query.filter_by(is_active=True).all()
         
         headers = ['Rank', 'Student ID', 'Name']
         for ea in excel_assignments:

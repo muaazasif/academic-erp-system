@@ -1,78 +1,67 @@
 {% extends "base.html" %}
 
-{% block title %}Add Student - ERP System{% endblock %}
+{% block title %}Add Student - Admin{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="row">
         <!-- Sidebar -->
-        <nav class="col-md-3 col-lg-2 d-md-block sidebar">
-            <div class="position-sticky pt-3">
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin_dashboard') }}">
-                            Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active" href="{{ url_for('add_student') }}">
-                            Add Student
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('attendance_report') }}">
-                            Attendance Report
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('logout') }}">
-                            Logout
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </nav>
+        {% include 'sidebar.html' %}
 
         <!-- Main content -->
-        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                <h1 class="h2">Add New Student</h1>
-                <div class="btn-toolbar mb-2 mb-md-0">
-                    <div class="btn-group me-2">
-                        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-sm btn-outline-secondary">Back to Dashboard</a>
-                    </div>
-                </div>
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4 text-white">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="fw-bold"><i class="bi bi-person-plus text-success me-2"></i> Add New Student</h2>
+                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+                </a>
             </div>
 
             <div class="row">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body">
-                            {% with messages = get_flashed_messages() %}
-                                {% if messages %}
-                                    {% for message in messages %}
-                                        <div class="alert alert-danger">{{ message }}</div>
+                <div class="col-lg-6">
+                    <div class="card bg-dark text-white border border-secondary shadow-sm rounded-3 p-4">
+                        {% with messages = get_flashed_messages() %}
+                            {% if messages %}
+                                {% for message in messages %}
+                                    <div class="alert alert-danger">{{ message }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        {% endwith %}
+                        
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label for="student_id" class="form-label text-light fw-bold">Student ID *</label>
+                                <input type="text" class="form-control" id="student_id" name="student_id" required placeholder="e.g., 504625">
+                            </div>
+                            <div class="mb-3">
+                                <label for="name" class="form-label text-light fw-bold">Full Name *</label>
+                                <input type="text" class="form-control" id="name" name="name" required placeholder="e.g., John Doe">
+                            </div>
+                            <div class="mb-3">
+                                <label for="batch" class="form-label text-light fw-bold">Batch *</label>
+                                <select class="form-select bg-dark text-white border-secondary" id="batch" name="batch" required>
+                                    {% for b in batches %}
+                                        <option value="{{ b.name }}">{{ b.name }} {% if not b.is_active %}(Locked){% endif %}</option>
                                     {% endfor %}
-                                {% endif %}
-                            {% endwith %}
-                            
-                            <form method="POST" action="{{ url_for('add_student') }}">
-                                <div class="mb-3">
-                                    <label for="student_id" class="form-label">Student ID</label>
-                                    <input type="text" class="form-control" id="student_id" name="student_id" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="name" class="form-label">Name</label>
-                                    <input type="text" class="form-control" id="name" name="name" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="password" class="form-label">Password</label>
-                                    <input type="password" class="form-control" id="password" name="password" required>
-                                </div>
-                                <button type="submit" class="btn btn-primary">Add Student</button>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="campus" class="form-label text-light fw-bold">Campus</label>
+                                <input type="text" class="form-control" id="campus" name="campus" placeholder="e.g., Riphah International College">
+                            </div>
+                            <div class="mb-3">
+                                <label for="timings" class="form-label text-light fw-bold">Timings</label>
+                                <input type="text" class="form-control" id="timings" name="timings" placeholder="e.g., 2 to 4">
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label text-light fw-bold">Password *</label>
+                                <input type="password" class="form-control" id="password" name="password" required placeholder="••••••••">
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i> Add Student</button>
                                 <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Cancel</a>
-                            </form>
-                        </div>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>

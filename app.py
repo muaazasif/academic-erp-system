@@ -1,8 +1,10 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file, after_this_request
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import joinedload
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
 import os
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 import json
 from dotenv import load_dotenv
 import pickle
@@ -55,8 +57,28 @@ def from_json_filter(s):
     try:
         return json.loads(s)
     except (json.JSONDecodeError, TypeError):
-        # If it's a string that isn't JSON, wrap it as a simple detail
-        return {"Assignment Results": {"score": 0, "max": 10, "details": [{"task": str(s), "correct": False}]}}
+        # If it's a string that isn't JSON, parse it row by row if possible
+        s_str = str(s).strip()
+        parts = []
+        if 'Q1' in s_str or 'Q2' in s_str or '|' in s_str or 'Q' in s_str:
+            import re
+            raw_parts = re.split(r'(?=Q\d+[:\s])|\|', s_str)
+            for p in raw_parts:
+                p_clean = p.strip()
+                if p_clean:
+                    is_correct = 'correct' in p_clean.lower() and 'incorrect' not in p_clean.lower()
+                    q_match = re.search(r'^(Q\d+)', p_clean)
+                    q_num = q_match.group(1) if q_match else 'Task'
+                    parts.append({
+                        'q': q_num,
+                        'task': p_clean,
+                        'correct': is_correct,
+                        'error': p_clean if not is_correct else ''
+                    })
+        if not parts:
+            parts = [{'q': 'Task', 'task': s_str, 'correct': 'correct' in s_str.lower() and 'incorrect' not in s_str.lower(), 'error': s_str}]
+            
+        return {"Assignment Results": {"score": 0, "max": 10, "details": parts}}
 
 # Load SECRET_KEY from environment variable (Railway/production)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'fallback-dev-secret-key-change-in-production')
@@ -80,22 +102,20 @@ import os
 
 # Use PostgreSQL if DATABASE_URL is set (for production), else fallback to SQLite (for development)
 DATABASE_URL = os.environ.get('DATABASE_URL')
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+}
 if DATABASE_URL:
     # Railway and other platforms use postgres://, SQLAlchemy needs postgresql://
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-        app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
-        print(f"✅ Using PostgreSQL database")
-    else:
-        app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
-        print(f"✅ Using database from environment: {DATABASE_URL[:50]}...")
+    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+    print(f"✅ Using PostgreSQL database with connection pooling")
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///erp_system.db'
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'connect_args': {'timeout': 30},
-        'pool_pre_ping': True
-    }
-    print("✅ Using SQLite database (development mode) with 30s timeout")
+    app.config['SQLALCHEMY_ENGINE_OPTIONS']['connect_args'] = {'timeout': 30}
+    print("✅ Using SQLite database (development mode) with 30s timeout and connection pooling")
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -142,7 +162,7 @@ with app.app_context():
 
 class Admin(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(100), unique=True, nullable=False)
+    username = db.Column(db.String(100), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(200), nullable=False)
     
     def set_password(self, password):
@@ -152,11 +172,53 @@ class Admin(db.Model):
         return check_password_hash(self.password_hash, password)
 
 
+class Batch(db.Model):
+    __tablename__ = 'batch'
+    __table_args__ = {'extend_existing': True}
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), unique=True, nullable=False)
+    is_active = db.Column(db.Boolean, default=True) # True for ongoing (e.g. 5.0 Fall), False for locked/completed
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class Assessment(db.Model):
+    __tablename__ = 'assessment'
+    __table_args__ = {'extend_existing': True}
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.String(100))
+    email_address = db.Column(db.String(150))
+    name = db.Column(db.String(150))
+    campus = db.Column(db.String(250))
+    batch = db.Column(db.String(150))
+    register_mobile_number = db.Column(db.String(100))
+    timings = db.Column(db.String(100))
+    student_id = db.Column(db.String(50), index=True)
+    biggest_dream_or_goal = db.Column(db.Text)
+    gender = db.Column(db.String(50))
+    age = db.Column(db.String(50))
+    last_qualification = db.Column(db.String(100))
+    five_year_vision = db.Column(db.Text)
+    favorite_hobbies = db.Column(db.Text)
+    favorite_food = db.Column(db.Text)
+    favorite_tv_show = db.Column(db.Text)
+    unique_talent = db.Column(db.Text)
+    dream_country = db.Column(db.Text)
+    favorite_excuse = db.Column(db.Text)
+    secret_superpower = db.Column(db.Text)
+    study_session_with = db.Column(db.Text)
+    favorite_way_to_learn = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 class Student(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    student_id = db.Column(db.String(50), unique=True, nullable=False)
+    student_id = db.Column(db.String(50), unique=True, nullable=False, index=True)
     name = db.Column(db.String(100), nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
+    batch = db.Column(db.String(150), default='Bano Qabil 5.0 Fall')
+    campus = db.Column(db.String(250))
+    timings = db.Column(db.String(100))
+    is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def set_password(self, password):
@@ -320,9 +382,15 @@ class ExcelSubmission(db.Model):
 
     @property
     def max_marks(self):
+        if self.assignment and self.assignment.title:
+            t = self.assignment.title.lower()
+            if 'skill 5' in t or 'skill 6' in t or 'iferror' in t or 'vlookup, sumif' in t:
+                return 5
+            if 'skill 1' in t or 'skill 2' in t or 'skill 3' in t or 'skill 4' in t:
+                return 10
         if self.assignment and self.assignment.max_marks is not None:
             return self.assignment.max_marks
-        return 5 if (self.assignment and ('Skill 5' in self.assignment.title or 'Skill 6' in self.assignment.title)) else 10
+        return 10
 
     @property
     def computed_percentage(self):
@@ -344,6 +412,18 @@ class ExcelAssignment(db.Model):
     
     assignment = db.relationship('ExcelSkillsAssignment', backref=db.backref('excel_assignments', lazy=True, cascade='all, delete-orphan'))
     student = db.relationship('Student', backref=db.backref('excel_assignments', lazy=True, cascade='all, delete-orphan'))
+
+
+class SQLAssignment(db.Model):
+    """Link table to assign SQL skills assignments to students"""
+    id = db.Column(db.Integer, primary_key=True)
+    assignment_id = db.Column(db.Integer, db.ForeignKey('sql_skills_assignment.id'), nullable=False)
+    student_id = db.Column(db.String(50), db.ForeignKey('student.student_id'), nullable=False)
+    assigned_at = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default='assigned')  # assigned, submitted, graded
+
+    assignment = db.relationship('SQLSkillsAssignment', backref=db.backref('sql_assignments', lazy=True, cascade='all, delete-orphan'))
+    student = db.relationship('Student', backref=db.backref('sql_assignments', lazy=True, cascade='all, delete-orphan'))
 
 
 class SQLSkillsAssignment(db.Model):
@@ -521,7 +601,8 @@ def sync_excel_grade(student_id, name, assignment_title, score, percentage, subm
         # Prepare data
         from datetime import datetime
         now_str = str(datetime.now())
-        values = [[student_id, name, assignment_title, f"{score}/10", f"{percentage}%", status, str(submitted_at), now_str]]
+        max_m = 5 if (assignment_title and ('skill 5' in assignment_title.lower() or 'skill 6' in assignment_title.lower() or 'iferror' in assignment_title.lower() or 'vlookup, sumif' in assignment_title.lower())) else 10
+        values = [[student_id, name, assignment_title, f"{score}/{max_m}", f"{percentage}%", status, str(submitted_at), now_str]]
         
         # Check if student already has a row for this assignment
         try:
@@ -658,23 +739,44 @@ def admin_dashboard():
     if 'admin_id' not in session:
         return redirect(url_for('login'))
 
-    students = Student.query.all()
-    total_students = len(students)
+    batches = Batch.query.order_by(Batch.created_at.desc()).all()
+    selected_batch = request.args.get('batch', 'active')
 
-    # Get today's attendance
+    active_batch_names = [b.name for b in Batch.query.filter_by(is_active=True).all()]
+
+    student_query = Student.query
+    if selected_batch == 'active':
+        student_query = student_query.filter(Student.batch.in_(active_batch_names))
+    elif selected_batch == 'all':
+        pass
+    else:
+        student_query = student_query.filter_by(batch=selected_batch)
+
+    total_students = student_query.count()
+    students = student_query.order_by(Student.created_at.desc()).limit(100).all()
+
+    # Get today's attendance for these students
     today = datetime.today().date()
+    all_filtered_students = student_query.all()
+    student_ids = [s.student_id for s in all_filtered_students]
+    
     present_count = Attendance.query.filter(
         Attendance.date == today,
-        Attendance.status == 'present'
-    ).count()
+        Attendance.status == 'present',
+        Attendance.student_id.in_(student_ids)
+    ).count() if student_ids else 0
 
-    sql_submission_count = SQLSubmission.query.count()
+    sql_submission_count = SQLSubmission.query.filter(
+        SQLSubmission.student_id.in_(student_ids)
+    ).count() if student_ids else 0
 
     return render_template('admin_dashboard.html',
                           students=students,
                           total_students=total_students,
                           present_count=present_count,
-                          sql_submission_count=sql_submission_count)
+                          sql_submission_count=sql_submission_count,
+                          batches=batches,
+                          selected_batch=selected_batch)
 
 
 @app.route('/admin/sync-users')
@@ -829,71 +931,84 @@ def add_student():
     if 'admin_id' not in session:
         return redirect(url_for('login'))
     
+    batches = Batch.query.all()
     if request.method == 'POST':
         student_id = request.form['student_id']
         name = request.form['name']
         password = request.form['password']
+        batch = request.form.get('batch', 'Bano Qabil 5.0 Fall')
+        campus = request.form.get('campus', '')
+        timings = request.form.get('timings', '')
         
         # Check if student ID already exists
         existing_student = Student.query.filter_by(student_id=student_id).first()
         if existing_student:
             flash('Student ID already exists')
-            return render_template('add_student.html')
+            return render_template('add_student.html', batches=batches)
         
         # Create new student
-        student = Student(student_id=student_id, name=name)
+        student = Student(student_id=student_id, name=name, batch=batch, campus=campus, timings=timings)
         student.set_password(password)
         db.session.add(student)
         db.session.commit()
 
-        # Sync to Google Sheets
-        try:
-            from google.oauth2.service_account import Credentials
-            from googleapiclient.discovery import build
-            
-            SPREADSHEET_ID = os.getenv('GOOGLE_SHEET_ID')
-            creds_json = os.getenv('GOOGLE_SHEETS_CREDENTIALS_JSON')
-            
-            if SPREADSHEET_ID and creds_json:
-                creds_dict = json.loads(creds_json)
-                SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-                creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
-                service = build('sheets', 'v4', credentials=creds)
-                
-                # Create/get Students sheet
-                sheet_name = 'Students'
-                spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
-                sheet_exists = any(s['properties']['title'] == sheet_name for s in spreadsheet.get('sheets', []))
-                
-                if not sheet_exists:
-                    service.spreadsheets().batchUpdate(
-                        spreadsheetId=SPREADSHEET_ID,
-                        body={'requests': [{'addSheet': {'properties': {'title': sheet_name}}}]}
-                    ).execute()
-                    # Add headers
-                    service.spreadsheets().values().update(
-                        spreadsheetId=SPREADSHEET_ID,
-                        range='Students!A1',
-                        valueInputOption='RAW',
-                        body={'values': [['Student ID', 'Name', 'Created At']]}
-                    ).execute()
-                
-                # Append student data
-                service.spreadsheets().values().append(
-                    spreadsheetId=SPREADSHEET_ID,
-                    range='Students!A2',
-                    valueInputOption='RAW',
-                    body={'values': [[student_id, name, str(datetime.now())]]}
-                ).execute()
-                
-                print(f"✅ Student synced to Google Sheets: {student_id}")
-        except Exception as e:
-            print(f"❌ Google Sheets sync error: {e}")
-
-        flash('Student added successfully and synced to Google Sheets')
+        flash('✅ Student added successfully!', 'success')
         return redirect(url_for('admin_dashboard'))
-    
-    return render_template('add_student.html')
+
+    return render_template('add_student.html', batches=batches)
+
+
+@app.route('/admin/batches')
+def admin_batches():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    batches = Batch.query.order_by(Batch.created_at.desc()).all()
+    batch_stats = {}
+    for b in batches:
+        student_count = Student.query.filter_by(batch=b.name, is_active=True).count()
+        batch_stats[b.name] = student_count
+    return render_template('admin_batches.html', batches=batches, batch_stats=batch_stats)
+
+
+@app.route('/admin/batches/create', methods=['POST'])
+def create_batch():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    name = request.form.get('name')
+    is_active = True if request.form.get('is_active') == 'on' else False
+    if name:
+        existing = Batch.query.filter_by(name=name).first()
+        if not existing:
+            new_batch = Batch(name=name, is_active=is_active)
+            db.session.add(new_batch)
+            db.session.commit()
+            flash(f'✅ Batch "{name}" created successfully!', 'success')
+        else:
+            flash('Batch already exists', 'danger')
+    return redirect(url_for('admin_batches'))
+
+
+@app.route('/admin/batches/<int:batch_id>/toggle')
+def toggle_batch(batch_id):
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    b = Batch.query.get_or_404(batch_id)
+    b.is_active = not b.is_active
+    db.session.commit()
+    flash(f'✅ Batch "{b.name}" status updated!', 'success')
+    return redirect(url_for('admin_batches'))
+
+
+@app.route('/admin/students/<int:student_id>/toggle-status')
+def toggle_student_status(student_id):
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    student = Student.query.get_or_404(student_id)
+    student.is_active = not student.is_active
+    db.session.commit()
+    status_text = "Active" if student.is_active else "Inactive / Dropout"
+    flash(f'✅ Student "{student.name}" status updated to {status_text}!', 'success')
+    return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/admin/edit_student/<int:student_id>', methods=['GET', 'POST'])
@@ -902,18 +1017,23 @@ def edit_student(student_id):
         return redirect(url_for('login'))
     
     student = Student.query.get_or_404(student_id)
+    batches = Batch.query.all()
     
     if request.method == 'POST':
         student.name = request.form['name']
+        student.batch = request.form.get('batch', student.batch)
+        student.campus = request.form.get('campus', student.campus)
+        student.timings = request.form.get('timings', student.timings)
+        student.is_active = True if request.form.get('is_active') == 'on' else False
         new_password = request.form['password']
         if new_password:  # Only update password if provided
             student.set_password(new_password)
         
         db.session.commit()
-        flash('Student updated successfully')
+        flash('✅ Student updated successfully!', 'success')
         return redirect(url_for('admin_dashboard'))
     
-    return render_template('edit_student.html', student=student)
+    return render_template('edit_student.html', student=student, batches=batches)
 
 
 @app.route('/admin/delete_student/<int:student_id>')
@@ -934,7 +1054,7 @@ def attendance_report():
     if 'admin_id' not in session:
         return redirect(url_for('login'))
     
-    attendances = Attendance.query.join(Student).order_by(Attendance.date.desc()).all()
+    attendances = Attendance.query.options(joinedload(Attendance.student)).order_by(Attendance.date.desc()).limit(500).all()
     return render_template('attendance_report.html', attendances=attendances)
 
 
@@ -1027,13 +1147,12 @@ def attendance_action():
 
     db.session.commit()
 
-    # Get student info for Google Sheets
+    # Get student info for optional Google Sheets sync
     student = Student.query.filter_by(student_id=student_id).first()
 
     if student:
         try:
-            # Add to Google Sheets
-            success = add_attendance_to_sheet(
+            add_attendance_to_sheet(
                 student_id=student.student_id,
                 name=student.name,
                 date=attendance.date,
@@ -1043,18 +1162,10 @@ def attendance_action():
                 check_in_location=attendance.check_in_location,
                 check_out_location=attendance.check_out_location
             )
-
-            if not success:
-                flash('Attendance recorded locally but failed to sync to Google Sheets')
-            else:
-                flash(f'Successfully {action.replace("_", " ")}d and synced to Google Sheets')
         except Exception as e:
-            # Even if Google Sheets sync throws an exception, still confirm local recording
-            print(f"Exception during Google Sheets sync: {e}")
-            flash('Attendance recorded locally but failed to sync to Google Sheets due to an error')
-    else:
-        flash('Attendance recorded locally but student info not found for Google Sheets sync')
+            print(f"Optional Google Sheets attendance sync failed: {e}")
 
+    flash(f'✅ Successfully {action.replace("_", " ")}ed!', 'success')
     return redirect(url_for('student_dashboard'))
 
 
@@ -2265,9 +2376,9 @@ def take_quiz(quiz_id):
                 'is_correct': is_correct
             })
 
-        # Save detailed answers to Google Sheets
+        # Save detailed answers to Google Sheets optionally
         try:
-            detailed_success = add_detailed_quiz_answers_to_sheet(
+            add_detailed_quiz_answers_to_sheet(
                 student_id=student.student_id,
                 name=student.name,
                 quiz_title=quiz.title,
@@ -2275,19 +2386,9 @@ def take_quiz(quiz_id):
                 submitted_at=submission.submitted_at
             )
         except Exception as e:
-            # Even if Google Sheets sync throws an exception, still confirm local recording
-            print(f"Exception during Google Sheets detailed quiz answers sync: {e}")
-            detailed_success = False
+            print(f"Optional Google Sheets detailed quiz answers sync failed: {e}")
 
-        if not success or not detailed_success:
-            if not success and not detailed_success:
-                flash('Quiz submitted locally but failed to sync to Google Sheets', 'warning')
-            elif not success:
-                flash('Quiz submitted but summary failed to sync to Google Sheets', 'warning')
-            else:
-                flash('Quiz submitted but detailed answers failed to sync to Google Sheets', 'warning')
-        else:
-            flash(f'Quiz submitted successfully! You scored {correct_answers}/{total_questions}.', 'success')
+        flash(f'✅ Quiz submitted successfully! You scored {correct_answers}/{total_questions}.', 'success')
 
         auto_export_final_marks_safe()
         return redirect(url_for('view_quiz_result', quiz_id=quiz_id))
@@ -2403,8 +2504,7 @@ def submit_assignment(assignment_id):
 
         if student:
             try:
-                # Add to Google Sheets
-                success = add_assignment_submission_to_sheet(
+                add_assignment_submission_to_sheet(
                     student_id=student.student_id,
                     name=student.name,
                     assignment_title=assignment.title,
@@ -2412,16 +2512,9 @@ def submit_assignment(assignment_id):
                     submitted_at=submission.submitted_at
                 )
             except Exception as e:
-                # Even if Google Sheets sync throws an exception, still confirm local recording
-                print(f"Exception during Google Sheets assignment sync: {e}")
-                success = False
-        else:
-            success = False  # Skip Google Sheets sync if student not found
+                print(f"Optional Google Sheets assignment sync failed: {e}")
 
-        if not success:
-            flash('Assignment submitted locally but failed to sync to Google Sheets', 'warning')
-        else:
-            flash('Assignment submitted successfully and synced to Google Sheets!', 'success')
+        flash('✅ Assignment submitted successfully!', 'success')
 
         auto_export_final_marks_safe()
         return redirect(url_for('student_assignments'))
@@ -2530,8 +2623,24 @@ def admin_excel_assignments():
     if 'admin_id' not in session:
         return redirect(url_for('login'))
     
+    batches = Batch.query.order_by(Batch.created_at.desc()).all()
+    selected_batch = request.args.get('batch', 'active')
+    active_batch_names = [b.name for b in Batch.query.filter_by(is_active=True).all()]
+
     assignments = ExcelSkillsAssignment.query.order_by(ExcelSkillsAssignment.created_at.desc()).all()
-    return render_template('admin_excel_assignments.html', assignments=assignments)
+    
+    submission_counts = {}
+    for a in assignments:
+        sub_query = ExcelSubmission.query.filter_by(assignment_id=a.id)
+        if selected_batch == 'active':
+            sub_query = sub_query.join(Student, ExcelSubmission.student_id == Student.student_id).filter(Student.batch.in_(active_batch_names))
+        elif selected_batch == 'all':
+            pass
+        else:
+            sub_query = sub_query.join(Student, ExcelSubmission.student_id == Student.student_id).filter(Student.batch == selected_batch)
+        submission_counts[a.id] = sub_query.count()
+
+    return render_template('admin_excel_assignments.html', assignments=assignments, batches=batches, selected_batch=selected_batch, submission_counts=submission_counts)
 
 
 @app.route('/admin/excel-assignments/<int:assignment_id>/toggle')
@@ -2539,11 +2648,17 @@ def toggle_excel_assignment(assignment_id):
     """Toggle the active status of an Excel assignment"""
     if 'admin_id' not in session:
         return redirect(url_for('login'))
-        
+
     assignment = ExcelSkillsAssignment.query.get_or_404(assignment_id)
     assignment.is_active = not assignment.is_active
     db.session.commit()
-    
+
+    try:
+        import final_marks_sync
+        final_marks_sync._fallback_cache.clear()
+    except Exception:
+        pass
+
     status = "activated" if assignment.is_active else "deactivated"
     flash(f"✅ Assignment '{assignment.title}' has been {status}.")
     return redirect(url_for('admin_excel_assignments'))
@@ -2586,9 +2701,22 @@ def view_excel_submissions(assignment_id):
         return redirect(url_for('login'))
     
     assignment = ExcelSkillsAssignment.query.get_or_404(assignment_id)
-    submissions = ExcelSubmission.query.filter_by(assignment_id=assignment_id).all()
+    batches = Batch.query.order_by(Batch.created_at.desc()).all()
+    selected_batch = request.args.get('batch', 'active')
     
-    return render_template('view_excel_submissions.html', assignment=assignment, submissions=submissions)
+    active_batch_names = [b.name for b in Batch.query.filter_by(is_active=True).all()]
+    
+    query = ExcelSubmission.query.options(joinedload(ExcelSubmission.student)).filter_by(assignment_id=assignment_id)
+    if selected_batch == 'active':
+        query = query.join(Student, ExcelSubmission.student_id == Student.student_id).filter(Student.batch.in_(active_batch_names))
+    elif selected_batch == 'all':
+        pass
+    else:
+        query = query.join(Student, ExcelSubmission.student_id == Student.student_id).filter(Student.batch == selected_batch)
+        
+    submissions = query.all()
+    
+    return render_template('view_excel_submissions.html', assignment=assignment, submissions=submissions, batches=batches, selected_batch=selected_batch)
 
 
 @app.route('/admin/excel-assignments/<int:assignment_id>/toggle-all-resubmits')
@@ -2955,14 +3083,167 @@ def take_sql_assignment(assignment_id):
 
 @app.route('/admin/sql-assignments')
 def admin_sql_assignments():
-    """Admin view of all SQL assignments and submissions"""
+    """Admin view of all SQL assignments and submissions with batch scoping"""
     if 'admin_id' not in session:
         return redirect(url_for('login'))
         
-    assignments = SQLSkillsAssignment.query.all()
-    submissions = SQLSubmission.query.all()
+    batches = Batch.query.order_by(Batch.created_at.desc()).all()
+    selected_batch = request.args.get('batch', 'active')
+    active_batch_names = [b.name for b in Batch.query.filter_by(is_active=True).all()]
+
+    assignments = SQLSkillsAssignment.query.order_by(SQLSkillsAssignment.created_at.desc()).all()
     
-    return render_template('admin_sql_assignments.html', assignments=assignments, submissions=submissions)
+    submission_counts = {}
+    for a in assignments:
+        sub_query = SQLSubmission.query.filter_by(assignment_id=a.id)
+        if selected_batch == 'active':
+            sub_query = sub_query.join(Student, SQLSubmission.student_id == Student.student_id).filter(Student.batch.in_(active_batch_names))
+        elif selected_batch == 'all':
+            pass
+        else:
+            sub_query = sub_query.join(Student, SQLSubmission.student_id == Student.student_id).filter(Student.batch == selected_batch)
+        submission_counts[a.id] = sub_query.count()
+
+    return render_template('admin_sql_assignments.html', assignments=assignments, batches=batches, selected_batch=selected_batch, submission_counts=submission_counts)
+
+
+@app.route('/admin/sql-assignments/<int:assignment_id>/submissions')
+def view_sql_submissions(assignment_id):
+    """View all SQL submissions for an assignment with batch filtering"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    assignment = SQLSkillsAssignment.query.get_or_404(assignment_id)
+    batches = Batch.query.order_by(Batch.created_at.desc()).all()
+    selected_batch = request.args.get('batch', 'active')
+    
+    active_batch_names = [b.name for b in Batch.query.filter_by(is_active=True).all()]
+    
+    query = SQLSubmission.query.options(joinedload(SQLSubmission.student)).filter_by(assignment_id=assignment_id)
+    if selected_batch == 'active':
+        query = query.join(Student, SQLSubmission.student_id == Student.student_id).filter(Student.batch.in_(active_batch_names))
+    elif selected_batch == 'all':
+        pass
+    else:
+        query = query.join(Student, SQLSubmission.student_id == Student.student_id).filter(Student.batch == selected_batch)
+        
+    submissions = query.all()
+    
+    return render_template('view_sql_submissions.html', assignment=assignment, submissions=submissions, batches=batches, selected_batch=selected_batch)
+
+
+@app.route('/admin/sql-assignments/<int:assignment_id>/toggle')
+def toggle_sql_assignment(assignment_id):
+    """Toggle the active status of a SQL assignment"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+
+    assignment = SQLSkillsAssignment.query.get_or_404(assignment_id)
+    assignment.is_active = not assignment.is_active
+    db.session.commit()
+    
+    try:
+        import final_marks_sync
+        final_marks_sync._fallback_cache.clear()
+    except Exception:
+        pass
+
+    status = "activated" if assignment.is_active else "deactivated"
+    flash(f"✅ SQL Assignment '{assignment.title}' has been {status}.", "success")
+    return redirect(url_for('admin_sql_assignments'))
+
+
+@app.route('/admin/sql-assignments/<int:assignment_id>/assign', methods=['GET', 'POST'])
+def assign_sql_to_students(assignment_id):
+    """Assign SQL assignment to all students or selected students with Yes/No access"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    assignment = SQLSkillsAssignment.query.get_or_404(assignment_id)
+    students = Student.query.all()
+    
+    if request.method == 'POST':
+        assign_to_all = request.form.get('assign_to_all')
+        upload_action = request.form.get('upload_action', 'no')
+        student_file = request.files.get('student_file')
+        pasted_ids = request.form.get('pasted_ids', '')
+        
+        target_student_ids = set()
+        if student_file and student_file.filename:
+            try:
+                content = student_file.read().decode('utf-8', errors='ignore')
+                for line in content.splitlines():
+                    sid = line.strip().split(',')[0].strip()
+                    if sid:
+                        target_student_ids.add(sid)
+            except Exception:
+                pass
+        
+        if pasted_ids.strip():
+            for line in pasted_ids.splitlines():
+                sid = line.strip()
+                if sid:
+                    target_student_ids.add(sid)
+        
+        SQLAssignment.query.filter_by(assignment_id=assignment_id).delete()
+        
+        if assign_to_all == 'on':
+            for student in students:
+                sql_assign = SQLAssignment(assignment_id=assignment_id, student_id=student.student_id)
+                db.session.add(sql_assign)
+            flash('✅ SQL assignment assigned to all students!')
+        elif target_student_ids:
+            assigned_count = 0
+            for student in students:
+                is_in_target = student.student_id in target_student_ids
+                if upload_action == 'no':
+                    should_assign = not is_in_target
+                else:
+                    should_assign = is_in_target
+                
+                if should_assign:
+                    sql_assign = SQLAssignment(assignment_id=assignment_id, student_id=student.student_id)
+                    db.session.add(sql_assign)
+                    assigned_count += 1
+            action_desc = "Restricted (set to No)" if upload_action == 'no' else "Allowed (set to Yes)"
+            flash(f'✅ Bulk student access updated ({action_desc}): applied to {assigned_count} students.')
+        else:
+            assigned_count = 0
+            for student in students:
+                access = request.form.get(f'access_{student.student_id}')
+                if access == 'yes':
+                    sql_assign = SQLAssignment(assignment_id=assignment_id, student_id=student.student_id)
+                    db.session.add(sql_assign)
+                    assigned_count += 1
+            flash(f'✅ SQL assignment access updated: assigned to {assigned_count} students.')
+            
+        db.session.commit()
+        return redirect(url_for('admin_sql_assignments'))
+    
+    assigned_student_ids = {sa.student_id for sa in SQLAssignment.query.filter_by(assignment_id=assignment_id).all()}
+    return render_template('assign_sql.html', assignment=assignment, students=students, assigned_student_ids=assigned_student_ids)
+
+
+@app.route('/admin/sql-assignments/<int:assignment_id>/toggle-all-resubmits')
+def admin_sql_toggle_all_resubmits(assignment_id):
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    assignment = SQLSkillsAssignment.query.get_or_404(assignment_id)
+    assignment.allow_all_resubmits = not assignment.allow_all_resubmits
+    db.session.commit()
+    flash(f"✅ All resubmits for '{assignment.title}' set to: {assignment.allow_all_resubmits}", "success")
+    return redirect(url_for('view_sql_submissions', assignment_id=assignment_id))
+
+
+@app.route('/admin/sql-submissions/<int:submission_id>/toggle-resubmit')
+def admin_sql_toggle_resubmit(submission_id):
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    sub = SQLSubmission.query.get_or_404(submission_id)
+    sub.allow_resubmit = not sub.allow_resubmit
+    db.session.commit()
+    flash(f"✅ Resubmit permission for student {sub.student_id} set to: {sub.allow_resubmit}", "success")
+    return redirect(url_for('view_sql_submissions', assignment_id=sub.assignment_id))
 
 
 @app.route('/admin/sql/init-data')
@@ -3390,25 +3671,114 @@ def admin_scheduler_run():
 
 
 
-# ============================================
-# APP STARTUP
-# ============================================
+@app.route('/admin/classroom/post-attendance', methods=['POST'])
+def admin_post_classroom_attendance():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    session_type = request.form.get('session_type', 'all')
+    try:
+        from google_classroom_attendance_bot import post_attendance_announcement
+        success, msg = post_attendance_announcement(session_type)
+        if success:
+            flash(f"✅ Google Classroom attendance report ({session_type}) posted successfully!", "success")
+        else:
+            flash(f"⚠️ Attendance report triggered. Status: {msg}", "info")
+    except Exception as e:
+        flash(f"❌ Error posting to Google Classroom: {e}", "danger")
+        
+    return redirect(url_for('admin_scheduler'))
+
+
+@app.route('/admin/classroom/auth')
+def classroom_auth():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    from google_classroom_attendance_bot import CREDENTIALS_DATA, SCOPES
+    import json
+    from google_auth_oauthlib.flow import Flow
+    
+    creds_json_path = 'temp_client_secret.json'
+    with open(creds_json_path, 'w') as f:
+        json.dump(CREDENTIALS_DATA, f)
+        
+    flow = Flow.from_client_secrets_file(
+        creds_json_path,
+        scopes=SCOPES,
+        redirect_uri=url_for('classroom_oauth2callback', _external=True)
+    )
+    
+    authorization_url, state = flow.authorization_url(
+        access_type='offline',
+        include_granted_scopes='true',
+        prompt='consent'
+    )
+    session['oauth_state'] = state
+    if os.path.exists(creds_json_path):
+        os.remove(creds_json_path)
+        
+    return redirect(authorization_url)
+
+
+@app.route('/oauth2callback')
+def classroom_oauth2callback():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+        
+    from google_classroom_attendance_bot import CREDENTIALS_DATA, SCOPES, TOKEN_FILE
+    import json
+    from google_auth_oauthlib.flow import Flow
+    
+    creds_json_path = 'temp_client_secret.json'
+    with open(creds_json_path, 'w') as f:
+        json.dump(CREDENTIALS_DATA, f)
+        
+    state = session.get('oauth_state')
+    try:
+        flow = Flow.from_client_secrets_file(
+            creds_json_path,
+            scopes=SCOPES,
+            state=state,
+            redirect_uri=url_for('classroom_oauth2callback', _external=True)
+        )
+        flow.fetch_token(authorization_response=request.url)
+        credentials = flow.credentials
+        
+        with open(TOKEN_FILE, 'w') as token:
+            token.write(credentials.to_json())
+            
+        flash("✅ Google Classroom authenticated and connected successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Google Classroom authentication failed: {e}", "danger")
+    finally:
+        if os.path.exists(creds_json_path):
+            os.remove(creds_json_path)
+            
+    return redirect(url_for('admin_scheduler'))
 
 @app.route('/final-results')
 def final_results():
     if 'admin_id' not in session and 'student_id' not in session:
         return redirect(url_for('login'))
 
-    from final_marks_sync import get_final_marks_from_sheet, get_student_fallback_record, export_final_marks
+    from final_marks_sync import get_final_marks_from_sheet, get_student_fallback_record, get_all_fallback_records
     is_admin = 'admin_id' in session
+    batches = Batch.query.order_by(Batch.created_at.desc()).all() if is_admin else []
+    selected_batch = request.args.get('batch', 'active') if is_admin else 'active'
     
-    if is_admin:
-        try:
-            export_final_marks()
-        except Exception as e:
-            print(f"⚠️ Auto export final marks on admin page load error: {e}")
+    try:
+        # For admin, load instantly from local DB fallback with batch filtering
+        if is_admin:
+            marks_data = get_all_fallback_records(selected_batch=selected_batch)
+        else:
+            marks_data = get_final_marks_from_sheet()
+            if not marks_data or not marks_data.get('data'):
+                marks_data = get_all_fallback_records(selected_batch='active')
+    except Exception as e:
+        print(f"Error loading final marks: {e}")
+        marks_data = {'headers': ['Rank', 'Student ID', 'Name', 'Excel Avg %', 'SQL Avg %', 'Quizzes Avg %', 'Total Avg %', 'Status'], 'data': []}
 
-    marks_data = get_final_marks_from_sheet()
     current_student_id = session.get('student_id')
     
     student_record = None
@@ -3421,12 +3791,15 @@ def final_results():
                     found = True
                     break
         if not found:
-            fallback_data = get_student_fallback_record(current_student_id)
-            if fallback_data and fallback_data.get('data'):
-                marks_data = fallback_data
-                student_record = fallback_data['data'][0]
+            try:
+                fallback_data = get_student_fallback_record(current_student_id)
+                if fallback_data and fallback_data.get('data'):
+                    marks_data = fallback_data
+                    student_record = fallback_data['data'][0]
+            except Exception as e:
+                print(f"Error loading student fallback record: {e}")
 
-    return render_template('final_results.html', marks=marks_data, current_student_id=current_student_id, is_admin=is_admin, student_record=student_record)
+    return render_template('final_results.html', marks=marks_data, current_student_id=current_student_id, is_admin=is_admin, student_record=student_record, batches=batches, selected_batch=selected_batch)
 
 @app.route('/admin/export-final-marks')
 def admin_export_final_marks():
@@ -4138,6 +4511,14 @@ if __name__ == '__main__':
         print("Background sync worker started")
     except Exception as e:
         print(f"Could not start background sync worker: {e}")
+
+    # Start Google Classroom attendance scheduler
+    try:
+        from google_classroom_attendance_bot import run_classroom_attendance_scheduler
+        run_classroom_attendance_scheduler()
+        print("Google Classroom attendance scheduler started")
+    except Exception as e:
+        print(f"Could not start Google Classroom attendance scheduler: {e}")
 
     # Use port from environment or default to 5000
     port = int(os.environ.get('PORT', 5000))

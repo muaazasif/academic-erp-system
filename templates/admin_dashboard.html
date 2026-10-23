@@ -31,6 +31,22 @@
                 </div>
             </div>
 
+            <!-- Batch Filter Bar -->
+            <form method="GET" action="{{ url_for('admin_dashboard') }}" class="row g-3 align-items-center mb-4 bg-dark p-3 rounded border border-secondary shadow-sm">
+                <div class="col-auto">
+                    <label for="batchSelect" class="col-form-label fw-bold text-info"><i class="bi bi-filter-circle me-1"></i> Scope View by Batch:</label>
+                </div>
+                <div class="col-auto flex-grow-1">
+                    <select name="batch" id="batchSelect" class="form-select bg-secondary text-white border-0 fw-bold" onchange="this.form.submit()">
+                        <option value="active" {% if selected_batch == 'active' %}selected{% endif %}>⚡ Active Ongoing Batches (Default)</option>
+                        <option value="all" {% if selected_batch == 'all' %}selected{% endif %}>🌐 All Batches (Complete)</option>
+                        {% for b in batches %}
+                        <option value="{{ b.name }}" {% if selected_batch == b.name %}selected{% endif %}>📂 {{ b.name }} {% if not b.is_active %}(Locked / Completed){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+
             <!-- Summary Cards -->
             <div class="row">
                 <div class="col-md-3">
@@ -120,11 +136,13 @@
                     {% endwith %}
 
                     <div class="table-responsive">
-                        <table class="table table-striped">
+                        <table class="table table-striped align-middle">
                             <thead>
                                 <tr>
                                     <th>ID</th>
                                     <th>Name</th>
+                                    <th>Batch</th>
+                                    <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -133,6 +151,14 @@
                                 <tr>
                                     <td>{{ student.student_id }}</td>
                                     <td>{{ student.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ student.batch or 'N/A' }}</span></td>
+                                    <td>
+                                        {% if student.is_active is not defined or student.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inactive / Dropout</span>
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         <a href="{{ url_for('edit_student', student_id=student.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
                                         <a href="{{ url_for('delete_student', student_id=student.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure?')">Delete</a>

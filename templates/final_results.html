@@ -35,6 +35,24 @@
                 {% endif %}
             </div>
 
+            {% if session.admin_id and batches %}
+            <!-- Batch Filter Bar -->
+            <form method="GET" action="{{ url_for('final_results') }}" class="row g-3 align-items-center mb-4 bg-dark p-3 rounded border border-secondary shadow-sm">
+                <div class="col-auto">
+                    <label for="batchSelect" class="col-form-label fw-bold text-info"><i class="bi bi-filter-circle me-1"></i> Scope Leaderboard by Batch:</label>
+                </div>
+                <div class="col-auto flex-grow-1">
+                    <select name="batch" id="batchSelect" class="form-select bg-secondary text-white border-0 fw-bold" onchange="this.form.submit()">
+                        <option value="active" {% if selected_batch == 'active' %}selected{% endif %}>⚡ Active Ongoing Batches (Default)</option>
+                        <option value="all" {% if selected_batch == 'all' %}selected{% endif %}>🌐 All Batches (Complete)</option>
+                        {% for b in batches %}
+                        <option value="{{ b.name }}" {% if selected_batch == b.name %}selected{% endif %}>📂 {{ b.name }} {% if not b.is_active %}(Locked / Completed){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+            {% endif %}
+
             {% if marks is none %}
             <div class="alert alert-warning border-0 shadow-sm rounded-3 bg-dark text-warning p-4">
                 <div class="d-flex align-items-center">

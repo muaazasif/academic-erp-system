@@ -1,25 +1,37 @@
 {% extends 'base.html' %}
 {% block title %}Student Reviews{% endblock %}
 {% block content %}
-<div class="container mt-4">
-    <h2 class="mb-4">Student Reviews</h2>
+<div class="container-fluid">
     <div class="row">
-        {% for name, message, rating, school in reviews %}
-        <div class="col-md-6 mb-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">{{ name }}</h5>
-                    <h6 class="card-subtitle mb-2 text-muted">{{ school }}</h6>
-                    <p class="card-text">{{ message }}</p>
-                    <div class="rating">
-                        {% for i in range(rating | int) %}
-                            <i class="fas fa-star text-warning"></i>
-                        {% endfor %}
+        <!-- Sidebar -->
+        {% if session.admin_id %}
+            {% include 'sidebar.html' %}
+        {% else %}
+            {% include 'student_sidebar.html' %}
+        {% endif %}
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4 text-white">
+            <h2 class="mb-4 fw-bold"><i class="bi bi-star-fill text-warning me-2"></i> Student Reviews</h2>
+            <div class="row">
+                {% for name, message, rating, school in reviews %}
+                <div class="col-md-6 mb-4">
+                    <div class="card bg-dark text-white border border-secondary h-100 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title text-info fw-bold">{{ name }}</h5>
+                            <h6 class="card-subtitle mb-2 text-muted small">{{ school }}</h6>
+                            <p class="card-text text-light">{{ message }}</p>
+                            <div class="rating">
+                                {% for i in range(rating | int) %}
+                                    <i class="fas fa-star text-warning"></i>
+                                {% endfor %}
+                            </div>
+                        </div>
                     </div>
                 </div>
+                {% endfor %}
             </div>
-        </div>
-        {% endfor %}
+        </main>
     </div>
 </div>
 {% endblock %}

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Assign SQL Assignment - ERP System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        {% include 'sidebar.html' %}
+        
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4 text-white">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2 text-white">Assign SQL Assignment: {{ assignment.title }}</h1>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="card mb-4 bg-dark text-white border border-secondary shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title text-info">📁 Bulk Upload / Paste Student IDs</h5>
+                                <p class="text-light small mb-2 opacity-75">Upload a CSV/TXT file containing Student IDs (one per line) or paste them below to set access in bulk without manual clicking.</p>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-7">
+                                        <label for="studentFile" class="form-label fw-bold small text-light">Upload CSV / TXT File</label>
+                                        <input class="form-control form-control-sm bg-secondary text-white border-0" type="file" id="studentFile" name="student_file" accept=".csv,.txt">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label for="uploadAction" class="form-label fw-bold small text-light">Bulk Action</label>
+                                        <select class="form-select form-select-sm bg-secondary text-white border-0" name="upload_action" id="uploadAction">
+                                            <option value="no" selected>Set to NO (Restrict Access)</option>
+                                            <option value="yes">Set to YES (Allow Access)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="pastedIds" class="form-label fw-bold small text-light">Or Paste Student IDs (One per line):</label>
+                                    <textarea class="form-control form-control-sm bg-secondary text-white border-0" id="pastedIds" name="pasted_ids" rows="3" placeholder="STU001&#10;STU002&#10;STU003"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <h5 class="text-white">Student Access Control (Yes / No)</h5>
+                            <p class="text-light opacity-75">Select <strong>Yes</strong> to allow the student to attempt this SQL skill assignment, or <strong>No</strong> to restrict access.</p>
+                            
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="assignToAll" name="assign_to_all" onchange="toggleStudentSelection()">
+                                <label class="form-check-label fw-bold text-white" for="assignToAll">
+                                    Assign to All Students (Set all to Yes)
+                                </label>
+                            </div>
+                            
+                            <div id="studentSelection" class="table-responsive">
+                                <table class="table table-dark table-hover table-bordered align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>Student ID</th>
+                                            <th>Student Name</th>
+                                            <th class="text-center">Can Attempt? (SQL Skill Access)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for student in students %}
+                                        <tr>
+                                            <td>{{ student.student_id }}</td>
+                                            <td>{{ student.name }}</td>
+                                            <td class="text-center">
+                                                <div class="btn-group" role="group" aria-label="Access for {{ student.name }}">
+                                                    <input type="radio" class="btn-check" name="access_{{ student.student_id }}" id="yes_{{ student.student_id }}" value="yes" {% if student.student_id in assigned_student_ids %}checked{% endif %}>
+                                                    <label class="btn btn-outline-success btn-sm" for="yes_{{ student.student_id }}">Yes</label>
+
+                                                    <input type="radio" class="btn-check" name="access_{{ student.student_id }}" id="no_{{ student.student_id }}" value="no" {% if student.student_id not in assigned_student_ids %}checked{% endif %}>
+                                                    <label class="btn btn-outline-danger btn-sm" for="no_{{ student.student_id }}">No</label>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary fw-bold">Save Access Settings</button>
+                        <a href="{{ url_for('admin_sql_assignments') }}" class="btn btn-secondary fw-bold">Cancel</a>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+function toggleStudentSelection() {
+    const assignToAllCheckbox = document.getElementById('assignToAll');
+    const studentSelectionDiv = document.getElementById('studentSelection');
+    const radios = studentSelectionDiv.querySelectorAll('input[type="radio"]');
+    radios.forEach(radio => {
+        if (assignToAllCheckbox.checked) {
+            if (radio.value === 'yes') radio.checked = true;
+        } else {
+            if (radio.value === 'no') radio.checked = true;
+        }
+    });
+}
+</script>
+{% endblock %}

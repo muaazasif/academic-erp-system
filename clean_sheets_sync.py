@@ -57,8 +57,6 @@ def get_sheets_service():
         from googleapiclient.discovery import build
         
         info = json.loads(creds_json)
-        if "private_key" in info:
-            info["private_key"] = info["private_key"].replace("\\n", "\n")
         
         creds = Credentials.from_service_account_info(info, scopes=['https://www.googleapis.com/auth/spreadsheets'])
         service = build('sheets', 'v4', credentials=creds)

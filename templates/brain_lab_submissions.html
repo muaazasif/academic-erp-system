@@ -34,7 +34,7 @@
                                     <td>{{ s.observation_score }}/10</td>
                                     <td>{{ s.reasoning_score }}/10</td>
                                     <td>{{ s.prediction_score }}/10</td>
-                                    <td>{{ s.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>{{ s.submitted_at.strftime('%Y-%m-%d %H:%M') if s.submitted_at else 'N/A' }}</td>
                                 </tr>
                                 {% else %}
                                 <tr>
