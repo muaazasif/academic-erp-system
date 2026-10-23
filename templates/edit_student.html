@@ -66,6 +66,26 @@
                                     <input type="text" class="form-control" id="name" name="name" value="{{ student.name }}" required>
                                 </div>
                                 <div class="mb-3">
+                                    <label for="batch" class="form-label">Batch</label>
+                                    <select class="form-select" id="batch" name="batch">
+                                        {% for b in batches %}
+                                        <option value="{{ b.name }}" {% if student.batch == b.name %}selected{% endif %}>{{ b.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="campus" class="form-label">Campus</label>
+                                    <input type="text" class="form-control" id="campus" name="campus" value="{{ student.campus or '' }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="timings" class="form-label">Timings</label>
+                                    <input type="text" class="form-control" id="timings" name="timings" value="{{ student.timings or '' }}">
+                                </div>
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="is_active" name="is_active" {% if student.is_active %}checked{% endif %}>
+                                    <label class="form-check-label" for="is_active">Active Student (Uncheck for Dropout / Inactive)</label>
+                                </div>
+                                <div class="mb-3">
                                     <label for="password" class="form-label">New Password (leave blank to keep current)</label>
                                     <input type="password" class="form-control" id="password" name="password">
                                 </div>

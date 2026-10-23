@@ -57,6 +57,11 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'admin_batches' %}active{% endif %}" href="{{ url_for('admin_batches') }}">
+                    <i class="fas fa-layer-group"></i> Batches Management
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" href="{{ url_for('logout') }}">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </a>

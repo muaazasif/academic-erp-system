@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Batches - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        {% include 'sidebar.html' %}
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4 text-white">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="fw-bold"><i class="bi bi-collection text-info me-2"></i> Manage Batches</h2>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for cat, msg in messages %}
+                        <div class="alert alert-{{ cat if cat in ['success', 'danger', 'info'] else 'info' }} alert-dismissible fade show" role="alert">
+                            {{ msg }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="row g-4">
+                <!-- Create Batch Form -->
+                <div class="col-lg-4">
+                    <div class="card bg-dark text-white border border-secondary shadow-sm rounded-3 p-4">
+                        <h4 class="fw-bold mb-3"><i class="bi bi-plus-circle text-success me-2"></i> Create New Batch</h4>
+                        <form method="POST" action="{{ url_for('create_batch') }}">
+                            <div class="mb-3">
+                                <label class="form-label">Batch Name *</label>
+                                <input type="text" name="name" class="form-control" required placeholder="e.g., Bano Qabil 6.0 Spring">
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" name="is_active" class="form-check-input" id="isActiveCheck" checked>
+                                <label class="form-check-label" for="isActiveCheck">Active / Ongoing (Unchecked = Locked)</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 fw-bold">Create Batch</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Batches Table -->
+                <div class="col-lg-8">
+                    <div class="card bg-dark text-white border border-secondary shadow-sm rounded-3">
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-dark table-hover mb-0 align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th class="ps-3">Batch Name</th>
+                                            <th>Status</th>
+                                            <th>Students Enrolled</th>
+                                            <th class="text-end pe-3">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for b in batches %}
+                                        <tr>
+                                            <td class="ps-3 fw-bold">{{ b.name }}</td>
+                                            <td>
+                                                {% if b.is_active %}
+                                                    <span class="badge bg-success">Active / Ongoing</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Locked / Completed</span>
+                                                {% endif %}
+                                            </td>
+                                            <td><span class="badge bg-info text-dark">{{ batch_stats.get(b.name, 0) }}</span></td>
+                                            <td class="text-end pe-3">
+                                                <a href="/admin/batches/{{ b.id }}/toggle" class="btn btn-sm {% if b.is_active %}btn-warning{% else %}btn-success{% endif %}">
+                                                    {% if b.is_active %}Lock Batch{% else %}Activate Batch{% endif %}
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}

@@ -3,59 +3,94 @@
 {% block title %}Excel Assignments - Admin{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between mb-3">
-        <h2>📊 Excel Skills Assignments</h2>
-        <a href="/admin/excel-assignments/create" class="btn btn-primary">+ Create New</a>
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        {% include 'sidebar.html' %}
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4 text-white">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="fw-bold"><i class="bi bi-file-earmark-excel text-success me-2"></i> Excel Skills Assignments</h2>
+                <a href="/admin/excel-assignments/create" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Create New</a>
+            </div>
+
+            <!-- Batch Filter Bar -->
+            <form method="GET" action="{{ url_for('admin_excel_assignments') }}" class="row g-3 align-items-center mb-4 bg-dark p-3 rounded border border-secondary shadow-sm">
+                <div class="col-auto">
+                    <label for="batchSelect" class="col-form-label fw-bold text-info"><i class="bi bi-filter-circle me-1"></i> Scope Submissions Count by Batch:</label>
+                </div>
+                <div class="col-auto flex-grow-1">
+                    <select name="batch" id="batchSelect" class="form-select bg-secondary text-white border-0 fw-bold" onchange="this.form.submit()">
+                        <option value="active" {% if selected_batch == 'active' %}selected{% endif %}>⚡ Active Ongoing Batches (Default)</option>
+                        <option value="all" {% if selected_batch == 'all' %}selected{% endif %}>🌐 All Batches (Complete)</option>
+                        {% for b in batches %}
+                        <option value="{{ b.name }}" {% if selected_batch == b.name %}selected{% endif %}>📂 {{ b.name }} {% if not b.is_active %}(Locked / Completed){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for msg in messages %}
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            {{ msg }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            {% if assignments %}
+            <div class="card bg-dark text-white border border-secondary border-opacity-25 shadow-sm rounded-3">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0 align-middle">
+                            <thead>
+                                <tr>
+                                    <th class="ps-3">Title</th>
+                                    <th>Created</th>
+                                    <th>Deadline</th>
+                                    <th>Status</th>
+                                    <th>Submissions</th>
+                                    <th class="text-end pe-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for a in assignments %}
+                                <tr>
+                                    <td class="ps-3 fw-bold">{{ a.title }}</td>
+                                    <td>{{ a.created_at.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ a.deadline.strftime('%Y-%m-%d %H:%M') if a.deadline else 'No deadline' }}</td>
+                                    <td>
+                                        {% if a.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="badge bg-info text-dark">{{ submission_counts.get(a.id, 0) }}</span></td>
+                                    <td class="text-end pe-3">
+                                        <a href="/admin/excel-assignments/{{ a.id }}/assign" class="btn btn-sm btn-primary">Assign</a>
+                                        <a href="/admin/excel-assignments/{{ a.id }}/submissions" class="btn btn-sm btn-info text-dark">Submissions</a>
+                                        <a href="/admin/excel-assignments/{{ a.id }}/toggle" class="btn btn-sm {% if a.is_active %}btn-warning{% else %}btn-success{% endif %}">
+                                            {% if a.is_active %}Disable{% else %}Enable{% endif %}
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info bg-dark text-info border border-info border-opacity-25 shadow-sm rounded-3 p-4">
+                <i class="bi bi-info-circle me-2"></i> No Excel assignments created yet. Click "Create New" to start!
+            </div>
+            {% endif %}
+        </main>
     </div>
-
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            {% for msg in messages %}
-                <div class="alert alert-success">{{ msg }}</div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-
-    {% if assignments %}
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Title</th>
-                <th>Created</th>
-                <th>Deadline</th>
-                <th>Status</th>
-                <th>Submissions</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for a in assignments %}
-            <tr>
-                <td>{{ a.title }}</td>
-                <td>{{ a.created_at.strftime('%Y-%m-%d') }}</td>
-                <td>{{ a.deadline.strftime('%Y-%m-%d %H:%M') if a.deadline else 'No deadline' }}</td>
-                <td>
-                    {% if a.is_active %}
-                        <span class="badge bg-success">Active</span>
-                    {% else %}
-                        <span class="badge bg-secondary">Inactive</span>
-                    {% endif %}
-                </td>
-                <td>{{ a.submissions|length }}</td>
-                <td>
-                    <a href="/admin/excel-assignments/{{ a.id }}/assign" class="btn btn-sm btn-primary">Assign / Access</a>
-                    <a href="/admin/excel-assignments/{{ a.id }}/submissions" class="btn btn-sm btn-info">View Submissions</a>
-                    <a href="/admin/excel-assignments/{{ a.id }}/toggle" class="btn btn-sm {% if a.is_active %}btn-warning{% else %}btn-success{% endif %}">
-                        {% if a.is_active %}Disable{% else %}Enable{% endif %}
-                    </a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <div class="alert alert-info">No Excel assignments created yet. Click "Create New" to start!</div>
-    {% endif %}
 </div>
 {% endblock %}

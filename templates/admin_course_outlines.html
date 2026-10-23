@@ -39,7 +39,7 @@
                             <td>{{ outline.title }}</td>
                             <td>{{ outline.description[:50] }}{% if outline.description|length > 50 %}...{% endif %}</td>
                             <td>{{ outline.created_by }}</td>
-                            <td>{{ outline.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ outline.created_at.strftime('%Y-%m-%d') if outline.created_at else 'N/A' }}</td>
                             <td>
                                 <span class="badge
                                     {% if outline.is_active %}bg-success{% else %}bg-secondary{% endif %}">

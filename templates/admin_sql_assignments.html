@@ -1,100 +1,100 @@
 {% extends "base.html" %}
 
-{% block title %}SQL Submissions - Admin{% endblock %}
+{% block title %}SQL Assignments - Admin{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="row">
+        <!-- Sidebar -->
         {% include 'sidebar.html' %}
 
-        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                <h1 class="h2">💾 SQL Skills Management</h1>
-                <div class="btn-toolbar mb-2 mb-md-0 gap-2">
-                    <a href="{{ url_for('download_sql_sample') }}" class="btn btn-outline-primary">
-                        📊 Download Sample Tables
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4 text-white">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="fw-bold"><i class="bi bi-database text-info me-2"></i> SQL Skills Management</h2>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('download_sql_sample') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-bar-chart me-1"></i> Sample Tables
                     </a>
-                    <a href="/admin/sql/init-data" class="btn btn-warning" onclick="return confirm('Ensure default SQL assignments are created?')">
-                        <i class="bi bi-gear"></i> Reset/Initialize SQL Data
+                    <a href="/admin/sql/init-data" class="btn btn-warning btn-sm" onclick="return confirm('Ensure default SQL assignments are created?')">
+                        <i class="bi bi-gear me-1"></i> Reset / Initialize
                     </a>
                 </div>
             </div>
 
-            <div class="card mb-4">
-                <div class="card-header bg-dark text-white">
-                    <h5>Current SQL Assignments</h5>
+            <!-- Batch Filter Bar -->
+            <form method="GET" action="{{ url_for('admin_sql_assignments') }}" class="row g-3 align-items-center mb-4 bg-dark p-3 rounded border border-secondary shadow-sm">
+                <div class="col-auto">
+                    <label for="batchSelect" class="col-form-label fw-bold text-info"><i class="bi bi-filter-circle me-1"></i> Scope Submissions Count by Batch:</label>
                 </div>
-                <div class="card-body">
-                    {% if assignments %}
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Title</th>
-                                <th>Deadline</th>
-                                <th>Status</th>
-                                <th>Submissions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for a in assignments %}
-                            <tr>
-                                <td>{{ a.title }}</td>
-                                <td>{{ a.deadline.strftime('%Y-%m-%d') if a.deadline else 'None' }}</td>
-                                <td>
-                                    {% if a.is_active %}
-                                        <span class="badge bg-success">Active</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">Inactive</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ a.submissions|length }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    {% else %}
-                    <div class="alert alert-warning">No SQL assignments found in database. Click "Reset/Initialize SQL Data" above.</div>
-                    {% endif %}
+                <div class="col-auto flex-grow-1">
+                    <select name="batch" id="batchSelect" class="form-select bg-secondary text-white border-0 fw-bold" onchange="this.form.submit()">
+                        <option value="active" {% if selected_batch == 'active' %}selected{% endif %}>⚡ Active Ongoing Batches (Default)</option>
+                        <option value="all" {% if selected_batch == 'all' %}selected{% endif %}>🌐 All Batches (Complete)</option>
+                        {% for b in batches %}
+                        <option value="{{ b.name }}" {% if selected_batch == b.name %}selected{% endif %}>📂 {{ b.name }} {% if not b.is_active %}(Locked / Completed){% endif %}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-            </div>
+            </form>
 
-            <div class="card">
-                <div class="card-header">
-                    <h5>All Student Submissions</h5>
-                </div>
-                <div class="card-body">
-                    {% if submissions %}
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for cat, msg in messages %}
+                        <div class="alert alert-{{ cat if cat in ['success', 'danger', 'info', 'warning'] else 'info' }} alert-dismissible fade show" role="alert">
+                            {{ msg }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            {% if assignments %}
+            <div class="card bg-dark text-white border border-secondary border-opacity-25 shadow-sm rounded-3">
+                <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover">
+                        <table class="table table-dark table-hover mb-0 align-middle">
                             <thead>
                                 <tr>
-                                    <th>Student ID</th>
-                                    <th>Name</th>
-                                    <th>Assignment</th>
-                                    <th>Score</th>
-                                    <th>Percentage</th>
-                                    <th>Submitted At</th>
+                                    <th class="ps-3">Title</th>
+                                    <th>Deadline</th>
+                                    <th>Status</th>
+                                    <th>Submissions</th>
+                                    <th class="text-end pe-3">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for sub in submissions %}
+                                {% for a in assignments %}
                                 <tr>
-                                    <td>{{ sub.student.student_id }}</td>
-                                    <td>{{ sub.student.name }}</td>
-                                    <td>{{ sub.assignment.title }}</td>
-                                    <td><strong>{{ sub.score }}/10</strong></td>
-                                    <td>{{ sub.percentage }}%</td>
-                                    <td>{{ sub.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td class="ps-3 fw-bold">{{ a.title }}</td>
+                                    <td>{{ a.deadline.strftime('%Y-%m-%d %H:%M') if a.deadline else 'No deadline' }}</td>
+                                    <td>
+                                        {% if a.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="badge bg-info text-dark">{{ submission_counts.get(a.id, 0) }}</span></td>
+                                    <td class="text-end pe-3">
+                                        <a href="/admin/sql-assignments/{{ a.id }}/assign" class="btn btn-sm btn-primary">Assign</a>
+                                        <a href="/admin/sql-assignments/{{ a.id }}/submissions" class="btn btn-sm btn-info text-dark">Submissions</a>
+                                        <a href="/admin/sql-assignments/{{ a.id }}/toggle" class="btn btn-sm {% if a.is_active %}btn-warning{% else %}btn-success{% endif %}">
+                                            {% if a.is_active %}Disable{% else %}Enable{% endif %}
+                                        </a>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
-                    {% else %}
-                    <div class="alert alert-info">No SQL submissions yet.</div>
-                    {% endif %}
                 </div>
             </div>
+            {% else %}
+            <div class="alert alert-info bg-dark text-info border border-info border-opacity-25 shadow-sm rounded-3 p-4">
+                <i class="bi bi-info-circle me-2"></i> No SQL assignments found. Click "Reset / Initialize" above.
+            </div>
+            {% endif %}
         </main>
     </div>
 </div>

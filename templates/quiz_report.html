@@ -66,13 +66,13 @@
                     <tbody>
                         {% for item in submissions %}
                         <tr>
-                            <td>{{ item.student.student_id }}</td>
-                            <td>{{ item.student.name }}</td>
+                            <td>{{ item.student.student_id if item.student else item.submission.student_id }}</td>
+                            <td>{{ item.student.name if item.student else 'Unknown' }}</td>
                             <td>{{ item.submission.score }}/{{ quiz.questions|length }}</td>
                             <td>{{ "%.2f"|format(item.percentage) }}%</td>
                             <td>{{ item.submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
                             <td>
-                                <a href="{{ url_for('view_quiz_result', quiz_id=quiz.id) }}?student_id={{ item.student.student_id }}" class="btn btn-info btn-sm">View Details</a>
+                                <a href="{{ url_for('view_quiz_result', quiz_id=quiz.id) }}?student_id={{ item.student.student_id if item.student else item.submission.student_id }}" class="btn btn-info btn-sm">View Details</a>
                             </td>
                         </tr>
                         {% endfor %}

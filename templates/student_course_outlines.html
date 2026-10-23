@@ -44,7 +44,7 @@
                         </div>
 
                         <small class="text-muted d-block mt-3">
-                            Uploaded on {{ outline.created_at.strftime('%Y-%m-%d') }}
+                            Uploaded on {{ outline.created_at.strftime('%Y-%m-%d') if outline.created_at else 'N/A' }}
                         </small>
                     </div>
                 </div>
