@@ -30,10 +30,10 @@ SUBMISSIONS_DIR = BASE_DIR / "submissions"
 RESULTS_DIR = BASE_DIR / "results"
 
 # Module marks
-NAMED_MANAGER_MARKS = 2.5
-BASIC_DROPDOWN_MARKS = 2.5
-ADVANCED_DROPDOWN_MARKS = 2.5
-DATA_VALIDATION_MARKS = 2.5
+NAMED_MANAGER_MARKS = 1.25
+BASIC_DROPDOWN_MARKS = 1.25
+ADVANCED_DROPDOWN_MARKS = 1.25
+DATA_VALIDATION_MARKS = 1.25
 
 
 # ============================================================
@@ -482,10 +482,21 @@ def check_named_range(
     except Exception:
         destinations = []
 
+    if not destinations and getattr(dn, 'attr_text', None):
+        attr = str(dn.attr_text)
+        m = re.match(r"(?:'([^']+)'|([^!]+))!(.*)", attr)
+        if m:
+            s_name = m.group(1) or m.group(2)
+            c_range = m.group(3)
+            destinations = [(s_name.strip(), c_range.strip())]
+        else:
+            destinations = [(expected_sheet, attr)]
+
     expected = expected_name_ref(
         expected_sheet,
         expected_range
     )
+    expected_clean = norm_ref(expected_range)
 
     actual_refs = set()
 
@@ -496,12 +507,22 @@ def check_named_range(
                 cell_range
             )
         )
+        actual_refs.add(norm_ref(cell_range))
+        actual_refs.add(norm_ref(f"{sheet_name}!{cell_range}"))
+
+    if getattr(dn, 'attr_text', None):
+        actual_refs.add(norm_ref(dn.attr_text))
 
     result["checks"]["name_exists"] = 1
 
-    result["checks"]["correct_reference"] = int(
-        expected in actual_refs
+    correct_ref = int(
+        expected in actual_refs or
+        expected_clean in actual_refs or
+        any(expected_clean in norm_ref(r) for r in actual_refs) or
+        any(norm_ref(expected_range) in norm_ref(r) for r in actual_refs)
     )
+
+    result["checks"]["correct_reference"] = correct_ref
 
     if result["checks"]["correct_reference"] == 0:
         result["issues"].append(
@@ -606,9 +627,13 @@ def check_basic_c7(ws, wb):
         dv.formula1
     )
 
-    result["checks"]["uses_ProductList"] = int(
-        formula == "PRODUCTLIST"
+    is_valid_formula = (
+        formula == "PRODUCTLIST" or
+        "PRODUCTLIST" in formula or
+        "INDIRECT" in formula
     )
+
+    result["checks"]["uses_ProductList"] = int(is_valid_formula)
 
     add_issue_for_failed_checks(result)
 

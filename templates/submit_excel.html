@@ -64,163 +64,55 @@
                 {% set raw_details = raw_obj %}
             {% endif %}
 
-            {% if raw_details is mapping and ('q' in raw_details or 'correct' in raw_details or 'error' in raw_details or not raw_details.values()|first is mapping) %}
+            {% if raw_details is mapping %}
                 {% set raw_details = [raw_details] %}
             {% endif %}
 
-            {% if raw_details is mapping %}
-                {% for cat_name, cat_val in raw_details.items() %}
-                    <div class="card bg-dark text-white border border-secondary border-opacity-25 mb-4 shadow-sm rounded-3">
-                        <div class="card-header bg-secondary bg-opacity-25 text-white d-flex justify-content-between align-items-center py-2">
-                            <span class="fw-bold"><i class="bi bi-folder2-open me-2"></i>{{ cat_name }}</span>
-                            {% if cat_val is mapping and 'score' in cat_val %}
-                            <span class="badge bg-info text-dark fw-bold">Score: {{ cat_val.score }}/{{ cat_val.max }}</span>
-                            {% endif %}
-                        </div>
-                        <div class="card-body p-0">
-                            <ul class="list-group list-group-flush rounded-bottom bg-dark">
-                                {% set cat_det = cat_val.details if (cat_val is mapping and cat_val.details is defined) else cat_val %}
-                                {% set items_list = cat_det.replace(' Q', '\nQ').split('\n') if (cat_det is string) else ([cat_det] if (cat_det is mapping and not ('q' in cat_det or 'correct' in cat_det)) else (cat_det if (cat_det is iterable and cat_det is not string) else [cat_det])) %}
-                                {% for item in items_list %}
-                                <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between align-items-center py-3 {% if not (item is mapping and item.correct) and not (item is string and 'Correct' in item and 'Incorrect' not in item) %}bg-danger bg-opacity-10{% endif %}">
-                                    <div class="me-3">
-                                        <div class="d-flex align-items-center mb-1">
-                                            {% if item is string %}
-                                                <strong class="text-light font-monospace small">{{ item }}</strong>
-                                            {% else %}
-                                                <span class="badge bg-secondary me-2">{% if item is mapping and item.q %}{{ item.q }}{% else %}{{ cat_name }}{% endif %}</span>
-                                                <strong class="text-white">{% if item is mapping and item.task %}{{ item.task }}{% elif item is mapping and item.error %}{{ item.error }}{% else %}Question Check{% endif %}</strong>
-                                                {% if item is mapping and not item.correct and item.error %}
-                                                <div class="text-danger small mt-2 font-monospace bg-dark p-2 rounded border border-danger border-opacity-25 shadow-sm">
-                                                    <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ item.error }}
-                                                </div>
-                                                {% endif %}
-                                            {% endif %}
-                                        </div>
+            <div class="card bg-dark text-white border border-secondary border-opacity-25 mb-4 shadow-sm rounded-3">
+                <div class="card-header bg-secondary bg-opacity-25 text-white d-flex justify-content-between align-items-center py-2">
+                    <span class="fw-bold"><i class="bi bi-list-check me-2"></i>Detailed Question Breakdown</span>
+                    <span class="badge bg-primary">Total: {{ raw_details|length }} Questions</span>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush rounded-bottom bg-dark">
+                        {% for item in raw_details %}
+                            {% set is_correct = item.correct if (item is mapping and item.correct is defined) else ('Correct' in item.task and 'Incorrect' not in item.task if item is mapping else 'Correct' in item and 'Incorrect' not in item) %}
+                            {% set q_label = item.q if (item is mapping and item.q is defined) else ('Q' ~ loop.index) %}
+                            {% set q_text = item.task if (item is mapping and item.task is defined) else item %}
+                            <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between align-items-center py-3 {% if not is_correct %}bg-danger bg-opacity-10{% endif %}">
+                                <div class="me-3">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <span class="badge bg-secondary me-2 font-monospace">{{ q_label }}</span>
+                                        <strong class="text-white">{{ q_text }}</strong>
                                     </div>
-                                    <div>
-                                        {% if (item is string and 'Correct' in item and 'Incorrect' not in item) or (item is mapping and item.correct) %}
-                                            <span class="badge bg-success bg-opacity-25 text-success border border-success px-2 py-1">
-                                                Correct ✅
-                                            </span>
-                                        {% else %}
-                                            <span class="badge bg-danger bg-opacity-25 text-danger border border-danger px-2 py-1">
-                                                Incorrect ❌
-                                            </span>
-                                        {% endif %}
+                                    {% if item is mapping and item.error and item.error != item.task %}
+                                    <div class="text-danger small mt-2 font-monospace bg-dark p-2 rounded border border-danger border-opacity-25 shadow-sm">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ item.error }}
                                     </div>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    </div>
-                {% endfor %}
-            {% elif raw_details is iterable and raw_details is not string %}
-                <div class="card bg-dark text-white border border-secondary border-opacity-25 mb-4 shadow-sm rounded-3">
-                    <div class="card-header bg-secondary bg-opacity-25 text-white d-flex justify-content-between align-items-center py-2">
-                        <span class="fw-bold"><i class="bi bi-list-check me-2"></i>Detailed Question Breakdown</span>
-                        {% set actual_items = raw_details[0].replace(' Q', '\nQ').split('\n') if (raw_details|length == 1 and raw_details[0] is string) else raw_details %}
-                        <span class="badge bg-primary">Total: {{ actual_items|length }} Questions</span>
-                    </div>
-                    <div class="card-body p-0">
-                        <ul class="list-group list-group-flush rounded-bottom bg-dark">
-                            {% for item in actual_items %}
-                                {% if item is string %}
-                                    {% set clean_line = item.strip() %}
-                                    {% if clean_line %}
-                                    <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between align-items-center py-3 {% if not ('Correct' in clean_line and 'Incorrect' not in clean_line) %}bg-danger bg-opacity-10{% endif %}">
-                                        <div class="me-3">
-                                            <div class="d-flex align-items-center mb-1">
-                                                <strong class="text-light font-monospace small">{{ clean_line }}</strong>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            {% if 'Correct' in clean_line and 'Incorrect' not in clean_line %}
-                                                <span class="badge bg-success bg-opacity-25 text-success border border-success px-2 py-1">
-                                                    Correct ✅
-                                                </span>
-                                            {% else %}
-                                                <span class="badge bg-danger bg-opacity-25 text-danger border border-danger px-2 py-1">
-                                                    Incorrect ❌
-                                                </span>
-                                            {% endif %}
-                                        </div>
-                                    </li>
                                     {% endif %}
-                                {% else %}
-                                <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between align-items-center py-3 {% if not (item is mapping and item.correct) %}bg-danger bg-opacity-10{% endif %}">
-                                    <div class="me-3">
-                                        <div class="d-flex align-items-center mb-1">
-                                            <span class="badge bg-secondary me-2">{% if item is mapping and item.q %}{{ item.q }}{% else %}Q{{ loop.index }}{% endif %}</span>
-                                            <strong class="text-white">{% if item is mapping and item.task %}{{ item.task }}{% else %}{{ item }}{% endif %}</strong>
-                                        </div>
-                                        {% if item is mapping and not item.correct and item.error %}
-                                        <div class="text-danger small mt-2 font-monospace bg-dark p-2 rounded border border-danger border-opacity-25 shadow-sm">
-                                            <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ item.error }}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                    <div>
-                                        {% if item is mapping and item.correct %}
-                                            <span class="badge bg-success bg-opacity-25 text-success border border-success px-2 py-1">
-                                                Correct ✅
-                                            </span>
-                                        {% else %}
-                                            <span class="badge bg-danger bg-opacity-25 text-danger border border-danger px-2 py-1">
-                                                Incorrect ❌
-                                            </span>
-                                        {% endif %}
-                                    </div>
-                                </li>
-                                {% endif %}
-                            {% endfor %}
-                        </ul>
-                    </div>
+                                </div>
+                                <div>
+                                    {% if is_correct %}
+                                        <span class="badge bg-success bg-opacity-25 text-success border border-success px-2 py-1">
+                                            Correct ✅
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-danger bg-opacity-25 text-danger border border-danger px-2 py-1">
+                                            Incorrect ❌
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
                 </div>
-            {% elif raw_details is string %}
-                <div class="card bg-dark text-white border border-secondary border-opacity-25 mb-4 shadow-sm rounded-3">
-                    <div class="card-header bg-secondary bg-opacity-25 text-white d-flex justify-content-between align-items-center py-2">
-                        <span class="fw-bold"><i class="bi bi-list-check me-2"></i>Detailed Question Breakdown</span>
-                        <span class="badge bg-primary">Total: {{ raw_details.split('\n')|length }} Questions</span>
-                    </div>
-                    <div class="card-body p-0">
-                        <ul class="list-group list-group-flush rounded-bottom bg-dark">
-                            {% for line in raw_details.split('\n') %}
-                                {% if line.strip() %}
-                                <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between align-items-center py-3 {% if not ('Correct' in line and 'Incorrect' not in line) %}bg-danger bg-opacity-10{% endif %}">
-                                    <div class="me-3">
-                                        <div class="d-flex align-items-center mb-1">
-                                            <strong class="text-light font-monospace small">{{ line }}</strong>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        {% if 'Correct' in line and 'Incorrect' not in line %}
-                                            <span class="badge bg-success bg-opacity-25 text-success border border-success px-2 py-1">
-                                                Correct ✅
-                                            </span>
-                                        {% else %}
-                                            <span class="badge bg-danger bg-opacity-25 text-danger border border-danger px-2 py-1">
-                                                Incorrect ❌
-                                            </span>
-                                        {% endif %}
-                                    </div>
-                                </li>
-                                {% endif %}
-                            {% endfor %}
-                        </ul>
-                    </div>
-                </div>
-            {% else %}
-                <div class="alert alert-secondary bg-dark text-light border border-secondary">{{ raw_details }}</div>
-            {% endif %}
+            </div>
             
             <div class="alert alert-info bg-info bg-opacity-10 text-info border border-info border-opacity-25 mt-3 rounded-3">
                 <i class="bi bi-lightbulb me-1"></i> <strong>Tip:</strong> Re-download the template and re-submit below to improve your score!
             </div>
         </div>
     </div>
-    {% else %}
-        <p class="text-muted">No detailed feedback available yet.</p>
     {% endif %}
     {% endif %}
 

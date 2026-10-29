@@ -65,8 +65,22 @@
                                     <td>{{ attendance.student.student_id if attendance.student else attendance.student_id }}</td>
                                     <td>{{ attendance.student.name if attendance.student else 'Unknown' }}</td>
                                     <td>{{ attendance.date.strftime('%Y-%m-%d') if attendance.date else 'N/A' }}</td>
-                                    <td>{{ attendance.check_in_time.strftime('%H:%M:%S') if attendance.check_in_time else 'N/A' }}</td>
-                                    <td>{{ attendance.check_out_time.strftime('%H:%M:%S') if attendance.check_out_time else 'N/A' }}</td>
+                                    <td>
+                                        {{ attendance.check_in_time.strftime('%H:%M:%S') if attendance.check_in_time else 'N/A' }}
+                                        {% if attendance.check_in_address %}
+                                            <br><small class="text-muted" dir="auto"><i class="fas fa-map-marker-alt text-danger"></i> {{ attendance.check_in_address }}</small>
+                                        {% elif attendance.check_in_location %}
+                                            <br><small class="text-muted"><i class="fas fa-map-pin text-secondary"></i> {{ attendance.check_in_location }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ attendance.check_out_time.strftime('%H:%M:%S') if attendance.check_out_time else 'N/A' }}
+                                        {% if attendance.check_out_address %}
+                                            <br><small class="text-muted" dir="auto"><i class="fas fa-map-marker-alt text-danger"></i> {{ attendance.check_out_address }}</small>
+                                        {% elif attendance.check_out_location %}
+                                            <br><small class="text-muted"><i class="fas fa-map-pin text-secondary"></i> {{ attendance.check_out_location }}</small>
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         <span class="badge 
                                             {% if attendance.status == 'present' %}bg-success

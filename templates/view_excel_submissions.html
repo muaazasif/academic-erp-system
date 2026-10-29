@@ -124,47 +124,40 @@
                                 {% endif %}
 
                                 {% if categories is mapping %}
-                                    {% for cat_name, cat_val in categories.items() %}
-                                    <div class="card bg-dark text-white border border-secondary mb-3">
-                                        <div class="card-header bg-secondary bg-opacity-25 d-flex justify-content-between align-items-center">
-                                            <span class="fw-bold">{{ cat_name }}</span>
-                                            {% if cat_val is mapping and 'score' in cat_val %}
-                                            <span class="badge bg-info text-dark">Score: {{ cat_val.score }}/{{ cat_val.max }}</span>
-                                            {% endif %}
-                                        </div>
-                                        <div class="card-body p-0">
-                                            <ul class="list-group list-group-flush bg-dark">
-                                                {% set items = cat_val.details if (cat_val is mapping and cat_val.details is defined) else cat_val %}
-                                                {% set items_list = items.replace(' Q', '\nQ').split('\n') if (items is string) else ([items] if (items is mapping and not ('q' in items or 'correct' in items)) else (items if (items is iterable and items is not string) else [items])) %}
-                                                {% for item in items_list %}
-                                                <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between align-items-center py-2 {% if item is mapping and not item.correct %}bg-danger bg-opacity-10{% endif %}">
+                                    {% set categories = [categories] %}
+                                {% endif %}
+
+                                <div class="card bg-dark text-white border border-secondary mb-3">
+                                    <div class="card-header bg-secondary bg-opacity-25 d-flex justify-content-between align-items-center">
+                                        <span class="fw-bold"><i class="bi bi-list-check me-2"></i>Detailed Question Breakdown</span>
+                                        <span class="badge bg-primary">Total: {{ categories|length }} Questions</span>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <ul class="list-group list-group-flush bg-dark">
+                                            {% for item in categories %}
+                                                {% set is_correct = item.correct if (item is mapping and item.correct is defined) else ('Correct' in item.task and 'Incorrect' not in item.task if item is mapping else 'Correct' in item and 'Incorrect' not in item) %}
+                                                {% set q_label = item.q if (item is mapping and item.q is defined) else ('Q' ~ loop.index) %}
+                                                {% set q_text = item.task if (item is mapping and item.task is defined) else item %}
+                                                <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between align-items-center py-2 {% if not is_correct %}bg-danger bg-opacity-10{% endif %}">
                                                     <div>
-                                                        {% if item is string %}
-                                                            <span class="font-monospace small">{{ item }}</span>
-                                                        {% else %}
-                                                            {% if item.q %}<span class="badge bg-secondary me-2">{{ item.q }}</span>{% endif %}
-                                                            <strong>{{ item.task or 'Check' }}</strong>
-                                                            {% if item.error %}
-                                                            <div class="text-danger small mt-1 font-monospace">{{ item.error }}</div>
-                                                            {% endif %}
+                                                        <span class="badge bg-secondary me-2 font-monospace">{{ q_label }}</span>
+                                                        <strong class="text-white">{{ q_text }}</strong>
+                                                        {% if item is mapping and item.error and item.error != item.task %}
+                                                        <div class="text-danger small mt-1 font-monospace">{{ item.error }}</div>
                                                         {% endif %}
                                                     </div>
                                                     <div>
-                                                        {% if (item is string and 'Correct' in item and 'Incorrect' not in item) or (item is mapping and item.correct) %}
+                                                        {% if is_correct %}
                                                             <span class="badge bg-success bg-opacity-25 text-success border border-success">Correct ✅</span>
                                                         {% else %}
                                                             <span class="badge bg-danger bg-opacity-25 text-danger border border-danger">Incorrect ❌</span>
                                                         {% endif %}
                                                     </div>
                                                 </li>
-                                                {% endfor %}
-                                            </ul>
-                                        </div>
+                                            {% endfor %}
+                                        </ul>
                                     </div>
-                                    {% endfor %}
-                                {% else %}
-                                    <pre class="text-light small">{{ sub.grade_details }}</pre>
-                                {% endif %}
+                                </div>
                             </div>
                             <div class="modal-footer border-secondary">
                                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>

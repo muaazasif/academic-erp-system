@@ -14,9 +14,10 @@ from googleapiclient.discovery import build
 
 SCOPES = [
     'https://www.googleapis.com/auth/classroom.announcements',
+    'https://www.googleapis.com/auth/classroom.courses.readonly',
     'https://www.googleapis.com/auth/youtube.force-ssl'
 ]
-COURSE_ID = 'ODg0Njk2MjE4NTcy'
+COURSE_ID = '884696218572'
 
 CREDENTIALS_DATA = {
     "web": {
@@ -50,29 +51,49 @@ def get_classroom_service():
     print("⚠️ Classroom credentials not valid or missing token file.")
     return None
 
-def calculate_attendance_stats(session_type='all'):
-    """Calculate attendance stats for Bano Qabil 5.0 Fall batch"""
-    from app import app, db, Student, Attendance, Assessment
+def calculate_attendance_stats(session_type='all', selected_batch='active'):
+    """Calculate attendance stats dynamically based on batch scope, gender, and active students"""
+    from app import app, db, Student, Attendance, Batch, Assessment
     with app.app_context():
         today = datetime.today().date()
         
-        # Get BQ 5.0 Fall active students
-        student_query = Student.query.filter_by(batch='Bano Qabil 5.0 Fall', is_active=True)
+        active_batch_names = [b.name for b in Batch.query.filter_by(is_active=True).all()]
         
-        if session_type == 'girls':
-            # Girls timing 10 to 12
-            student_query = student_query.filter(Student.timings.ilike('%10 to 12%'))
-        elif session_type == 'boys':
-            # Boys timing 12 to 2
-            student_query = student_query.filter(Student.timings.ilike('%12 to 2%'))
+        student_query = Student.query.filter(Student.is_active == True)
+        if selected_batch == 'active':
+            if active_batch_names:
+                student_query = student_query.filter(Student.batch.in_(active_batch_names))
+            else:
+                student_query = student_query.filter(Student.batch == 'Bano Qabil 5.0 Fall')
+        elif selected_batch == 'all':
+            pass
+        else:
+            student_query = student_query.filter(Student.batch == selected_batch)
             
         students = student_query.all()
-        total_students = len(students)
+        
+        filtered_students = []
+        for s in students:
+            assessment = Assessment.query.filter_by(student_id=str(s.student_id)).first()
+            if not assessment:
+                assessment = Assessment.query.filter_by(email_address=str(s.student_id)).first()
+            gender = assessment.gender.strip().lower() if assessment and assessment.gender else ''
+            
+            if session_type == 'girls':
+                if 'female' in gender:
+                    filtered_students.append(s)
+            elif session_type == 'boys':
+                if 'male' in gender and 'female' not in gender:
+                    filtered_students.append(s)
+            else:
+                filtered_students.append(s)
+                
+        total_students = len(filtered_students)
         
         if total_students == 0:
             return 0, 0, 0, 0.0
             
-        student_ids = [s.student_id for s in students]
+        student_ids = [s.student_id for s in filtered_students]
         
         present_count = Attendance.query.filter(
             Attendance.date == today,
@@ -87,9 +108,9 @@ def calculate_attendance_stats(session_type='all'):
         
         return total_students, present_count, absent_count, attendance_rate
 
-def post_attendance_announcement(session_type='all'):
+def post_attendance_announcement(session_type='all', selected_batch='active'):
     """Post Daily Attendance Report to Google Classroom"""
-    total, present, absent, rate = calculate_attendance_stats(session_type)
+    total, present, absent, rate = calculate_attendance_stats(session_type, selected_batch)
     
     session_label = ""
     if session_type == 'girls':
@@ -127,32 +148,44 @@ Please contact the instructor if you believe your attendance record is incorrect
         return False, "Not authenticated"
 
 def run_classroom_attendance_scheduler():
-    """Background scheduler checking Saturday and Sunday every 30 minutes"""
+    """Background scheduler checking Saturday and Sunday every 15 minutes and auto-posting attendance reports"""
     import threading
     def scheduler_loop():
-        print("🚀 Google Classroom Attendance Scheduler started (Sat/Sun every 30 mins)...")
+        print("🚀 Google Classroom Attendance Scheduler started (Sat/Sun auto-posting active)...")
+        last_posted_date_girls = None
+        last_posted_date_boys = None
+        
         while True:
             try:
                 pakistan_tz = pytz.timezone('Asia/Karachi')
                 now = datetime.now(pakistan_tz)
                 weekday = now.weekday() # 5 = Saturday, 6 = Sunday
+                today_date = now.date()
                 
                 # Check if Saturday (5) or Sunday (6)
                 if weekday in [5, 6]:
                     hour = now.hour
                     minute = now.minute
                     
-                    # Girls timing check: 10:00 AM to 11:59 AM
-                    if hour == 10 or hour == 11:
-                        # Post once around 10:00 or 10:30 if not already posted
-                        # For simplicity, we can trigger during the window
-                        pass
-                    # Boys timing check: 12:00 PM to 2:00 PM
-                    elif hour == 12 or (hour == 13 and minute <= 59):
-                        pass
+                    # Girls session: Class starts at 10:00 AM. Half an hour later is 10:30 AM.
+                    if hour == 10 and minute >= 30:
+                        if last_posted_date_girls != today_date:
+                            print("🤖 [Auto Scheduler] Posting Girls Attendance Report to Google Classroom...")
+                            success, msg = post_attendance_announcement('girls', selected_batch='active')
+                            if success:
+                                last_posted_date_girls = today_date
+                                
+                    # Boys session: Class starts at 12:00 PM. Half an hour later is 12:30 PM.
+                    elif hour == 12 and minute >= 30:
+                        if last_posted_date_boys != today_date:
+                            print("🤖 [Auto Scheduler] Posting Boys Attendance Report to Google Classroom...")
+                            success, msg = post_attendance_announcement('boys', selected_batch='active')
+                            if success:
+                                last_posted_date_boys = today_date
+                                
             except Exception as e:
                 print(f"⚠️ Classroom scheduler error: {e}")
-            time.sleep(1800) # Check every 30 minutes
+            time.sleep(900) # Check every 15 minutes
             
     t = threading.Thread(target=scheduler_loop, daemon=True)
     t.start()

@@ -62,6 +62,10 @@
                         <div class="card-body text-center">
                             <h5>Present Today</h5>
                             <h2>{{ present_count }}</h2>
+                            <div class="mt-2 small">
+                                <span class="badge bg-light text-dark me-1">👨 Male: {{ present_male_count }}</span>
+                                <span class="badge bg-light text-dark">👩 Female: {{ present_female_count }}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -85,36 +89,61 @@
 
             <!-- Add Student Form -->
             <div class="card mt-4" id="add-student-section">
-                <div class="card-header">
-                    <h5>Add New Student</h5>
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-user-plus me-1"></i> Add New Student</h5>
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('add_student') }}">
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="mb-3">
-                                    <label for="student_id" class="form-label">Student ID</label>
+                                    <label for="student_id" class="form-label fw-bold">Student ID</label>
                                     <input type="text" class="form-control" id="student_id" name="student_id" required>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="mb-3">
-                                    <label for="name" class="form-label">Name</label>
+                                    <label for="name" class="form-label fw-bold">Name</label>
                                     <input type="text" class="form-control" id="name" name="name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="password" class="form-label fw-bold">Password</label>
+                                    <input type="password" class="form-control" id="password" name="password" required>
                                 </div>
                             </div>
                         </div>
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="mb-3">
-                                    <label for="password" class="form-label">Password</label>
-                                    <input type="password" class="form-control" id="password" name="password" required>
+                                    <label for="batch" class="form-label fw-bold">Batch</label>
+                                    <select class="form-select" id="batch" name="batch">
+                                        {% for b in batches %}
+                                        <option value="{{ b.name }}">{{ b.name }}</option>
+                                        {% endfor %}
+                                    </select>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3 d-flex align-items-end">
-                                    <button type="submit" class="btn btn-primary">Add Student</button>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="gender" class="form-label fw-bold">Gender</label>
+                                    <select class="form-select" id="gender" name="gender">
+                                        <option value="Female">Female</option>
+                                        <option value="Male">Male</option>
+                                    </select>
                                 </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="timings" class="form-label fw-bold">Timings</label>
+                                    <input type="text" class="form-control" id="timings" name="timings" placeholder="e.g. 10 to 12 or 12 to 2">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12 text-end">
+                                <button type="submit" class="btn btn-primary fw-bold"><i class="fas fa-save me-1"></i> Add Student</button>
                             </div>
                         </div>
                     </form>

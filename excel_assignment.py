@@ -159,7 +159,7 @@ def create_instructions_dv(wb):
     ws['A2'] = "⚠️ IMPORTANT: YOU MUST ENABLE MACROS TO START"
     ws['A2'].font = Font(size=14, bold=True, color="FF0000"); ws.merge_cells('A2:F2')
     ws['A4'] = "🚀 STEPS TO START:"; ws['A5'] = "1. Enable Content/Macros to see all sheets."; ws['A6'] = "2. Complete all tasks in YELLOW cells."; ws['A7'] = "3. AI will grade your submission based on correct validation and named ranges."
-    ws['A9'] = "📋 ASSIGNMENT MODULES:"; ws['A10'] = "1. Named Manager (2.5 marks)"; ws['A11'] = "2. Dropdown Basic (2.5 marks)"; ws['A12'] = "3. Dropdown Advanced (2.5 marks)"; ws['A13'] = "4. Workbook Data Validation (2.5 marks)"
+    ws['A9'] = "📋 ASSIGNMENT MODULES (Total 5 Marks):"; ws['A10'] = "1. Named Manager (1.25 marks)"; ws['A11'] = "2. Dropdown Basic (1.25 marks)"; ws['A12'] = "3. Dropdown Advanced (1.25 marks)"; ws['A13'] = "4. Workbook Data Validation (1.25 marks)"
     ws.column_dimensions['A'].width = 55
 
 def create_named_manager_exercises(wb):

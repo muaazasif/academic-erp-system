@@ -23,6 +23,22 @@
                 </div>
             </div>
 
+            <!-- Batch Filter Bar -->
+            <form method="GET" action="{{ url_for('admin_scheduler') }}" class="row g-3 align-items-center mb-4 bg-dark p-3 rounded border border-secondary shadow-sm">
+                <div class="col-auto">
+                    <label for="batchSelect" class="col-form-label fw-bold text-info"><i class="fas fa-filter me-1"></i> Scope View by Batch:</label>
+                </div>
+                <div class="col-auto flex-grow-1">
+                    <select name="batch" id="batchSelect" class="form-select bg-secondary text-white border-0 fw-bold" onchange="this.form.submit()">
+                        <option value="active" {% if selected_batch == 'active' %}selected{% endif %}>⚡ Active Ongoing Batches (Default)</option>
+                        <option value="all" {% if selected_batch == 'all' %}selected{% endif %}>🌐 All Batches (Complete)</option>
+                        {% for b in batches %}
+                        <option value="{{ b.name }}" {% if selected_batch == b.name %}selected{% endif %}>📂 {{ b.name }} {% if not b.is_active %}(Locked / Completed){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+
             <div class="row">
                 <div class="col-md-8">
                     <div class="card mt-4">
@@ -138,23 +154,29 @@
                                 <a href="{{ url_for('classroom_auth') }}" class="btn btn-warning btn-sm fw-bold">
                                     <i class="fab fa-google me-1"></i> Connect / Authorize Google Classroom
                                 </a>
+                                <a href="{{ url_for('classroom_list_courses') }}" class="btn btn-info btn-sm fw-bold text-white">
+                                    <i class="fas fa-search me-1"></i> 🔍 Find My Correct Course ID
+                                </a>
                             </div>
                             <form action="{{ url_for('admin_post_classroom_attendance') }}" method="POST" class="d-grid gap-2">
                                 <input type="hidden" name="session_type" value="girls">
-                                <button type="submit" class="btn btn-outline-success btn-sm" onclick="return confirm('Post Girls Attendance (10:00 AM - 11:59 AM) to Google Classroom?')">
+                                <input type="hidden" name="batch" value="{{ selected_batch }}">
+                                <button type="submit" class="btn btn-outline-success btn-sm" onclick="return confirm('Post Girls Attendance (10:00 AM - 11:59 AM) for batch scope {{ selected_batch }} to Google Classroom?')">
                                     <i class="fas fa-venus"></i> Post Girls Attendance (10 AM)
                                 </button>
                             </form>
                             <form action="{{ url_for('admin_post_classroom_attendance') }}" method="POST" class="d-grid gap-2 mt-2">
                                 <input type="hidden" name="session_type" value="boys">
-                                <button type="submit" class="btn btn-outline-primary btn-sm" onclick="return confirm('Post Boys Attendance (12:00 PM - 2:00 PM) to Google Classroom?')">
+                                <input type="hidden" name="batch" value="{{ selected_batch }}">
+                                <button type="submit" class="btn btn-outline-primary btn-sm" onclick="return confirm('Post Boys Attendance (12:00 PM - 2:00 PM) for batch scope {{ selected_batch }} to Google Classroom?')">
                                     <i class="fas fa-mars"></i> Post Boys Attendance (12 PM)
                                 </button>
                             </form>
                             <form action="{{ url_for('admin_post_classroom_attendance') }}" method="POST" class="d-grid gap-2 mt-2">
                                 <input type="hidden" name="session_type" value="all">
-                                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Post Combined BQ 5.0 Fall Attendance to Google Classroom?')">
-                                    <i class="fas fa-bullhorn"></i> Post All BQ 5.0 Fall Attendance
+                                <input type="hidden" name="batch" value="{{ selected_batch }}">
+                                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Post Combined Attendance for batch scope {{ selected_batch }} to Google Classroom?')">
+                                    <i class="fas fa-bullhorn"></i> Post All Attendance Report
                                 </button>
                             </form>
                         </div>

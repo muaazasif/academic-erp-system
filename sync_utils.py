@@ -224,37 +224,15 @@ def cleanup_old_failed_syncs(days_to_keep=30):
 
 def background_sync_worker():
     """
-    Background worker to periodically retry failed syncs and sync new users and attendance
+    Background sync worker disabled since Supabase handles data storage directly.
     """
-    from import_attendance_from_sheets import import_attendance_from_sheet
+    print("ℹ️ Google Sheets background sync worker disabled (Supabase active).")
+    return
     while True:
         try:
-            # Run the existing retry failed syncs logic
-            successful_retries = retry_failed_syncs()
-            if successful_retries > 0:
-                print(f"Background sync worker: Successfully retried {successful_retries} syncs")
-            
-            # Periodically sync users from Google Sheet
-            print("Background sync worker: Checking for new users from Google Sheet...")
-            from app import app
-            from sync_google_form_users import sync_users_from_sheet
-            with app.app_context(): # Ensure Flask app context is available
-                sync_users_from_sheet()
-            
-            # Periodically import attendance from Google Sheet
-            print("Background sync worker: Importing attendance records from Google Sheet...")
-            with app.app_context():
-                import_attendance_from_sheet()
-            
-            # Clean up old failed syncs occasionally
-            if int(time.time()) % 3600 < 60:  # Every hour check for cleanup
-                cleanup_old_failed_syncs()
-            
-            # Wait 5 minutes before next check (300 seconds)
-            time.sleep(300)
+            time.sleep(3600)
         except Exception as e:
-            print(f"Error in background sync worker: {e}")
-            time.sleep(60)  # Wait 1 minute before retrying
+            time.sleep(60)
 
 
 def start_background_sync():

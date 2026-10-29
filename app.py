@@ -51,34 +51,78 @@ app = Flask(__name__)
 @app.template_filter('from_json')
 def from_json_filter(s):
     if not s:
-        return {}
-    if isinstance(s, (dict, list)):
-        return s
-    try:
-        return json.loads(s)
-    except (json.JSONDecodeError, TypeError):
-        # If it's a string that isn't JSON, parse it row by row if possible
-        s_str = str(s).strip()
-        parts = []
-        if 'Q1' in s_str or 'Q2' in s_str or '|' in s_str or 'Q' in s_str:
-            import re
-            raw_parts = re.split(r'(?=Q\d+[:\s])|\|', s_str)
-            for p in raw_parts:
-                p_clean = p.strip()
-                if p_clean:
-                    is_correct = 'correct' in p_clean.lower() and 'incorrect' not in p_clean.lower()
-                    q_match = re.search(r'^(Q\d+)', p_clean)
-                    q_num = q_match.group(1) if q_match else 'Task'
-                    parts.append({
-                        'q': q_num,
-                        'task': p_clean,
-                        'correct': is_correct,
-                        'error': p_clean if not is_correct else ''
-                    })
-        if not parts:
-            parts = [{'q': 'Task', 'task': s_str, 'correct': 'correct' in s_str.lower() and 'incorrect' not in s_str.lower(), 'error': s_str}]
+        return {"Assignment Results": {"score": 0, "max": 10, "details": []}}
+    if isinstance(s, str):
+        s_str = s.strip()
+        if s_str.startswith('"') and s_str.endswith('"'):
+            s_str = s_str[1:-1]
+        if s_str.startswith("'") and s_str.endswith("'"):
+            s_str = s_str[1:-1]
+        try:
+            s = json.loads(s_str)
+        except (json.JSONDecodeError, TypeError):
+            try:
+                import ast
+                s = ast.literal_eval(s_str)
+            except Exception:
+                pass
+
+    if isinstance(s, dict):
+        if "Assignment Results" in s:
+            res = s["Assignment Results"]
+            details = res.get("details", [])
+        else:
+            flattened_details = []
+            for cat_name, cat_data in s.items():
+                if isinstance(cat_data, dict) and "details" in cat_data:
+                    for task_item in cat_data["details"]:
+                        if isinstance(task_item, dict):
+                            flattened_details.append({
+                                'q': f"{cat_name} - {task_item.get('task', 'Check')}",
+                                'task': task_item.get('task', 'Check'),
+                                'correct': task_item.get('correct', False),
+                                'error': task_item.get('error', '')
+                            })
+                elif isinstance(cat_data, dict):
+                    for sub_k, sub_v in cat_data.items():
+                        flattened_details.append({
+                            'q': f"{cat_name} - {sub_k}",
+                            'task': str(sub_k),
+                            'correct': bool(sub_v),
+                            'error': str(sub_v) if not sub_v else ''
+                        })
+            return {"Assignment Results": {"score": 0, "max": 10, "details": flattened_details}}
+
+        if isinstance(details, dict):
+            return from_json_filter(details)
+        elif isinstance(details, list):
+            return s
             
-        return {"Assignment Results": {"score": 0, "max": 10, "details": parts}}
+    if isinstance(s, list):
+        return {"Assignment Results": {"score": 0, "max": 10, "details": s}}
+
+    s_str = str(s).strip()
+    lines = s_str.replace('\\n', '\n').split('\n')
+    details = []
+    for line in lines:
+        line_clean = line.strip()
+        if not line_clean:
+            continue
+        if line_clean.startswith('Q') and ':' not in line_clean and len(line_clean) < 5:
+            continue
+            
+        is_correct = 'correct' in line_clean.lower() and 'incorrect' not in line_clean.lower()
+        q_match = re.search(r'^(Q\d+)', line_clean)
+        q_num = q_match.group(1) if q_match else 'Question'
+        
+        details.append({
+            'q': q_num,
+            'task': line_clean,
+            'correct': is_correct,
+            'error': line_clean if not is_correct else ''
+        })
+
+    return {"Assignment Results": {"score": 0, "max": 10, "details": details}}
 
 # Load SECRET_KEY from environment variable (Railway/production)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'fallback-dev-secret-key-change-in-production')
@@ -105,6 +149,8 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_pre_ping': True,
     'pool_recycle': 300,
+    'pool_size': 10,
+    'max_overflow': 20,
 }
 if DATABASE_URL:
     # Railway and other platforms use postgres://, SQLAlchemy needs postgresql://
@@ -218,6 +264,7 @@ class Student(db.Model):
     batch = db.Column(db.String(150), default='Bano Qabil 5.0 Fall')
     campus = db.Column(db.String(250))
     timings = db.Column(db.String(100))
+    gender = db.Column(db.String(50), default='Female')
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -236,6 +283,8 @@ class Attendance(db.Model):
     check_out_time = db.Column(db.Time)
     check_in_location = db.Column(db.String(100))  # Latitude,Longitude for check-in
     check_out_location = db.Column(db.String(100))  # Latitude,Longitude for check-out
+    check_in_address = db.Column(db.Text)          # Human readable / Urdu address for check-in
+    check_out_address = db.Column(db.Text)         # Human readable / Urdu address for check-out
     status = db.Column(db.String(20), default='absent')  # present, absent, late
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -655,6 +704,25 @@ def sync_excel_grade(student_id, name, assignment_title, score, percentage, subm
         print(f"❌ Excel grade sync FAILED: {e}")
         return False
 
+def get_address_from_coordinates(lat, lng):
+    """Convert GPS coordinates to human-readable address in Urdu/English using OpenStreetMap API"""
+    try:
+        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lng}&addressdetails=1"
+        headers = {
+            'User-Agent': 'ERP-System-Attendance-Tracker/1.0',
+            'Accept-Language': 'ur,en;q=0.9'
+        }
+        response = requests.get(url, headers=headers, timeout=5)
+        
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('display_name', f"Coordinates: {lat}, {lng}")
+        return f"Coordinates: {lat}, {lng}"
+    except Exception as e:
+        print(f"⚠️ Reverse geocoding error: {e}")
+        return f"Coordinates: {lat}, {lng}"
+
+
 # Backward compatibility - keep old function names
 def add_attendance_to_sheet(student_id, name, date, check_in, check_out, status, check_in_location=None, check_out_location=None):
     """Backward compatible wrapper - extracts address from coordinates"""
@@ -740,9 +808,23 @@ def admin_dashboard():
         return redirect(url_for('login'))
 
     batches = Batch.query.order_by(Batch.created_at.desc()).all()
+    if not batches:
+        # Auto-seed batches from existing students if batch table is empty
+        distinct_batches = db.session.query(Student.batch).distinct().all()
+        for b_row in distinct_batches:
+            b_name = b_row[0]
+            if b_name:
+                is_active = True if '5.0 Fall' in b_name else False
+                new_b = Batch(name=b_name, is_active=is_active)
+                db.session.add(new_b)
+        db.session.commit()
+        batches = Batch.query.order_by(Batch.created_at.desc()).all()
+
     selected_batch = request.args.get('batch', 'active')
 
     active_batch_names = [b.name for b in Batch.query.filter_by(is_active=True).all()]
+    if not active_batch_names:
+        active_batch_names = [b.name for b in batches]
 
     student_query = Student.query
     if selected_batch == 'active':
@@ -760,11 +842,31 @@ def admin_dashboard():
     all_filtered_students = student_query.all()
     student_ids = [s.student_id for s in all_filtered_students]
     
-    present_count = Attendance.query.filter(
+    present_attendances = Attendance.query.filter(
         Attendance.date == today,
         Attendance.status == 'present',
         Attendance.student_id.in_(student_ids)
-    ).count() if student_ids else 0
+    ).all() if student_ids else []
+
+    present_count = len(present_attendances)
+    present_male_count = 0
+    present_female_count = 0
+
+    for att in present_attendances:
+        student_obj = Student.query.filter_by(student_id=str(att.student_id)).first()
+        gender = student_obj.gender if student_obj and student_obj.gender else ''
+        if not gender:
+            assessment = Assessment.query.filter_by(student_id=str(att.student_id)).first()
+            if not assessment:
+                assessment = Assessment.query.filter_by(email_address=str(att.student_id)).first()
+            gender = assessment.gender if assessment else ''
+            
+        if gender:
+            g_lower = gender.strip().lower()
+            if 'male' in g_lower and 'female' not in g_lower:
+                present_male_count += 1
+            elif 'female' in g_lower:
+                present_female_count += 1
 
     sql_submission_count = SQLSubmission.query.filter(
         SQLSubmission.student_id.in_(student_ids)
@@ -774,6 +876,8 @@ def admin_dashboard():
                           students=students,
                           total_students=total_students,
                           present_count=present_count,
+                          present_male_count=present_male_count,
+                          present_female_count=present_female_count,
                           sql_submission_count=sql_submission_count,
                           batches=batches,
                           selected_batch=selected_batch)
@@ -839,6 +943,10 @@ def export_to_sheets():
             return redirect(url_for('admin_dashboard'))
         
         creds_dict = json.loads(creds_json)
+        if "private_key" in creds_dict:
+            private_key = creds_dict["private_key"]
+            private_key = private_key.replace("\\n", "\n").replace("\\r", "\r")
+            creds_dict["private_key"] = private_key
         SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
         creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
         service = build('sheets', 'v4', credentials=creds)
@@ -939,15 +1047,16 @@ def add_student():
         batch = request.form.get('batch', 'Bano Qabil 5.0 Fall')
         campus = request.form.get('campus', '')
         timings = request.form.get('timings', '')
+        gender = request.form.get('gender', 'Female')
         
         # Check if student ID already exists
         existing_student = Student.query.filter_by(student_id=student_id).first()
         if existing_student:
             flash('Student ID already exists')
-            return render_template('add_student.html', batches=batches)
+            return render_template('admin_dashboard.html', batches=batches)
         
         # Create new student
-        student = Student(student_id=student_id, name=name, batch=batch, campus=campus, timings=timings)
+        student = Student(student_id=student_id, name=name, batch=batch, campus=campus, timings=timings, gender=gender)
         student.set_password(password)
         db.session.add(student)
         db.session.commit()
@@ -955,7 +1064,7 @@ def add_student():
         flash('✅ Student added successfully!', 'success')
         return redirect(url_for('admin_dashboard'))
 
-    return render_template('add_student.html', batches=batches)
+    return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/admin/batches')
@@ -1024,6 +1133,7 @@ def edit_student(student_id):
         student.batch = request.form.get('batch', student.batch)
         student.campus = request.form.get('campus', student.campus)
         student.timings = request.form.get('timings', student.timings)
+        student.gender = request.form.get('gender', student.gender)
         student.is_active = True if request.form.get('is_active') == 'on' else False
         new_password = request.form['password']
         if new_password:  # Only update password if provided
@@ -1132,6 +1242,13 @@ def attendance_action():
             attendance.check_in_time = current_datetime.time()
             attendance.check_in_location = check_in_location
             attendance.status = 'present'
+            if check_in_location:
+                try:
+                    parts = str(check_in_location).split(',')
+                    if len(parts) >= 2:
+                        attendance.check_in_address = get_address_from_coordinates(parts[0].strip(), parts[1].strip())
+                except Exception as e:
+                    print(f"⚠️ Check-in address error: {e}")
         else:
             flash('Already checked in today')
             return redirect(url_for('student_dashboard'))
@@ -1141,6 +1258,13 @@ def attendance_action():
             current_datetime = get_current_time()
             attendance.check_out_time = current_datetime.time()
             attendance.check_out_location = check_out_location
+            if check_out_location:
+                try:
+                    parts = str(check_out_location).split(',')
+                    if len(parts) >= 2:
+                        attendance.check_out_address = get_address_from_coordinates(parts[0].strip(), parts[1].strip())
+                except Exception as e:
+                    print(f"⚠️ Check-out address error: {e}")
         else:
             flash('Check in first or already checked out')
             return redirect(url_for('student_dashboard'))
@@ -3464,11 +3588,17 @@ def admin_scheduler():
     if 'admin_id' not in session:
         return redirect(url_for('login'))
 
+    batches = Batch.query.order_by(Batch.created_at.desc()).all()
+    selected_batch = request.args.get('batch', 'active')
+
     students, error = get_students_needing_email()
     if error:
         flash(error)
 
-    return render_template('admin_scheduler.html', students_needing_email=students)
+    return render_template('admin_scheduler.html', 
+                          students_needing_email=students,
+                          batches=batches,
+                          selected_batch=selected_batch)
 
 @app.route('/admin/scheduler/run', methods=['POST'])
 def admin_scheduler_run():
@@ -3677,23 +3807,30 @@ def admin_post_classroom_attendance():
         return redirect(url_for('login'))
     
     session_type = request.form.get('session_type', 'all')
+    selected_batch = request.form.get('batch', 'active')
     try:
         from google_classroom_attendance_bot import post_attendance_announcement
-        success, msg = post_attendance_announcement(session_type)
+        success, msg = post_attendance_announcement(session_type, selected_batch=selected_batch)
         if success:
-            flash(f"✅ Google Classroom attendance report ({session_type}) posted successfully!", "success")
+            flash(f"✅ Google Classroom attendance report ({session_type} - Batch: {selected_batch}) posted successfully!", "success")
         else:
             flash(f"⚠️ Attendance report triggered. Status: {msg}", "info")
     except Exception as e:
         flash(f"❌ Error posting to Google Classroom: {e}", "danger")
         
-    return redirect(url_for('admin_scheduler'))
+    return redirect(url_for('admin_scheduler', batch=selected_batch))
 
 
 @app.route('/admin/classroom/auth')
 def classroom_auth():
     if 'admin_id' not in session:
         return redirect(url_for('login'))
+    
+    client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    if not client_id or not client_secret:
+        flash("⚠️ Google OAuth Client ID and Client Secret are not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file or environment variables.", "warning")
+        return redirect(url_for('admin_scheduler'))
     
     from google_classroom_attendance_bot import CREDENTIALS_DATA, SCOPES
     import json
@@ -3719,6 +3856,29 @@ def classroom_auth():
         os.remove(creds_json_path)
         
     return redirect(authorization_url)
+
+
+@app.route('/admin/classroom/list-courses')
+def classroom_list_courses():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    try:
+        from google_classroom_attendance_bot import get_classroom_service
+        service = get_classroom_service()
+        if not service:
+            flash("❌ Google Classroom not authenticated. Please connect first.", "warning")
+            return redirect(url_for('admin_scheduler'))
+        
+        results = service.courses().list(pageSize=20).execute()
+        courses = results.get('courses', [])
+        if not courses:
+            flash("⚠️ No Google Classroom courses found for this account.", "info")
+        else:
+            course_list_str = " | ".join([f"<b>{c.get('name')}</b> (ID: <code>{c.get('id')}</code>)" for c in courses])
+            flash(f"✅ Your Google Classroom Courses: {course_list_str}", "success")
+    except Exception as e:
+        flash(f"❌ Error fetching courses: {e}", "danger")
+    return redirect(url_for('admin_scheduler'))
 
 
 @app.route('/oauth2callback')
@@ -3757,32 +3917,45 @@ def classroom_oauth2callback():
             
     return redirect(url_for('admin_scheduler'))
 
-@app.route('/final-results')
-def final_results():
-    if 'admin_id' not in session and 'student_id' not in session:
+@app.route('/admin/final-results')
+def admin_final_results():
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+
+    from final_marks_sync import get_all_fallback_records
+    is_admin = True
+    batches = Batch.query.order_by(Batch.created_at.desc()).all()
+    selected_batch = request.args.get('batch', 'active')
+    
+    try:
+        marks_data = get_all_fallback_records(selected_batch=selected_batch)
+    except Exception as e:
+        print(f"Error loading final marks: {e}")
+        marks_data = {'headers': ['Rank', 'Student ID', 'Name', 'Excel Avg %', 'SQL Avg %', 'Quizzes Avg %', 'Total Avg %', 'Status'], 'data': []}
+
+    return render_template('final_results.html', marks=marks_data, current_student_id=None, is_admin=is_admin, student_record=None, batches=batches, selected_batch=selected_batch)
+
+
+@app.route('/student/final-results')
+def student_final_results():
+    if 'student_id' not in session:
         return redirect(url_for('login'))
 
     from final_marks_sync import get_final_marks_from_sheet, get_student_fallback_record, get_all_fallback_records
-    is_admin = 'admin_id' in session
-    batches = Batch.query.order_by(Batch.created_at.desc()).all() if is_admin else []
-    selected_batch = request.args.get('batch', 'active') if is_admin else 'active'
+    is_admin = False
     
     try:
-        # For admin, load instantly from local DB fallback with batch filtering
-        if is_admin:
-            marks_data = get_all_fallback_records(selected_batch=selected_batch)
-        else:
-            marks_data = get_final_marks_from_sheet()
-            if not marks_data or not marks_data.get('data'):
-                marks_data = get_all_fallback_records(selected_batch='active')
+        marks_data = get_final_marks_from_sheet()
+        if not marks_data or not marks_data.get('data'):
+            marks_data = get_all_fallback_records(selected_batch='active')
     except Exception as e:
         print(f"Error loading final marks: {e}")
         marks_data = {'headers': ['Rank', 'Student ID', 'Name', 'Excel Avg %', 'SQL Avg %', 'Quizzes Avg %', 'Total Avg %', 'Status'], 'data': []}
 
     current_student_id = session.get('student_id')
-    
     student_record = None
-    if current_student_id and not is_admin:
+    
+    if current_student_id:
         found = False
         if marks_data and marks_data.get('data'):
             for s in marks_data['data']:
@@ -3799,7 +3972,7 @@ def final_results():
             except Exception as e:
                 print(f"Error loading student fallback record: {e}")
 
-    return render_template('final_results.html', marks=marks_data, current_student_id=current_student_id, is_admin=is_admin, student_record=student_record, batches=batches, selected_batch=selected_batch)
+    return render_template('final_results.html', marks=marks_data, current_student_id=current_student_id, is_admin=is_admin, student_record=student_record, batches=[], selected_batch='active')
 
 @app.route('/admin/export-final-marks')
 def admin_export_final_marks():
@@ -3965,8 +4138,8 @@ def init_app_data():
         if not skill2:
             new_skill2 = ExcelSkillsAssignment(
                 title="Excel Skill 2: Data Validation & Named Manager",
-                description="Master Workbook management: 1. Create Named Ranges (Name Manager). 2. Basic Dropdowns. 3. Advanced Dependent Dropdowns. 4. Data Validation (Numbers, Dates, Text). Total 10 marks. AI will provide instant feedback on mistakes.",
-                max_marks=10,
+                description="Master Workbook management: 1. Create Named Ranges (Name Manager). 2. Basic Dropdowns. 3. Advanced Dependent Dropdowns. 4. Data Validation (Numbers, Dates, Text). Total 5 marks. AI will provide instant feedback on mistakes.",
+                max_marks=5,
                 created_at=datetime.now(),
                 deadline=datetime.now() + timedelta(days=14),
                 is_active=True
