@@ -149,28 +149,36 @@ def check_c10(ws):
 
 
 def check_c11(ws):
-    value = ws["C11"].value
+    dv = get_dv(ws, "C11")
 
-    if value is None:
-        return 0, "C11 is empty"
+    if dv is None:
+        return (
+            0,
+            "No Data Validation found on C11"
+        )
 
-    # Array Formula
-    if hasattr(value, "text"):
-        formula = value.text
-    else:
-        formula = str(value)
+    if dv.type != "list":
+        return (
+            0,
+            "C11 must use List validation"
+        )
 
-    formula = str(formula).strip()
-    formula = formula.replace("{", "")
-    formula = formula.replace("}", "")
-    formula = formula.replace("$", "")
-    formula = formula.replace(" ", "")
-    formula = formula.upper()
+    actual = norm(dv.formula1)
 
-    if formula in ["=INDIRECT(C10)", "INDIRECT(C10)"]:
+    accepted = {
+        norm("=INDIRECT(C10)"),
+        norm("=INDIRECT($C$10)"),
+        norm("INDIRECT(C10)"),
+        norm("INDIRECT($C$10)")
+    }
+
+    if actual in accepted:
         return 1, "Correct"
 
-    return 0, f"Incorrect formula on C11: {formula}"
+    return (
+        0,
+        f"Incorrect source on C11: {dv.formula1}"
+    )
 
 
 def check_list_dv(ws, cell, accepted_sources):
