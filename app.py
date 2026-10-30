@@ -433,9 +433,9 @@ class ExcelSubmission(db.Model):
     def max_marks(self):
         if self.assignment and self.assignment.title:
             t = self.assignment.title.lower()
-            if 'skill 5' in t or 'skill 6' in t or 'iferror' in t or 'vlookup, sumif' in t:
+            if 'skill 5' in t or 'skill 6' in t or 'iferror' in t or 'vlookup, sumif' in t or 'skill 2' in t or 'data validation' in t:
                 return 5
-            if 'skill 1' in t or 'skill 2' in t or 'skill 3' in t or 'skill 4' in t:
+            if 'skill 1' in t or 'skill 3' in t or 'skill 4' in t:
                 return 10
         if self.assignment and self.assignment.max_marks is not None:
             return self.assignment.max_marks
@@ -2855,6 +2855,7 @@ def admin_excel_toggle_all_resubmits(assignment_id):
 
 
 @app.route('/admin/excel-submissions/<int:submission_id>/toggle-resubmit')
+@app.route('/admin/excel-submission/<int:submission_id>/toggle-resubmit')
 def admin_excel_toggle_resubmit(submission_id):
     if 'admin_id' not in session:
         return redirect(url_for('login'))

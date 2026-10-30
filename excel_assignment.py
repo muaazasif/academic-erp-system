@@ -398,10 +398,10 @@ def grade_excel_submission(file_path, assignment_title=""):
     if "Data Validation" in assignment_title and "Manager" in assignment_title:
         nm_score, nm_detail = grade_named_manager(wb); db_score, db_detail = grade_dropdown_basic(wb); da_score, da_detail = grade_dropdown_advanced(wb); wv_score, wv_detail = grade_workbook_validation(wb)
         total_score = nm_score + db_score + da_score + wv_score
-        details['Named Manager'] = {'score': nm_score, 'max': 2.5, 'details': nm_detail}
-        details['Dropdown Basic'] = {'score': db_score, 'max': 2.5, 'details': db_detail}
-        details['Dropdown Advanced'] = {'score': da_score, 'max': 2.5, 'details': da_detail}
-        details['Workbook Validation'] = {'score': wv_score, 'max': 2.5, 'details': wv_detail}
+        details['Named Manager'] = {'score': nm_score, 'max': 1.25, 'details': nm_detail}
+        details['Dropdown Basic'] = {'score': db_score, 'max': 1.25, 'details': db_detail}
+        details['Dropdown Advanced'] = {'score': da_score, 'max': 1.25, 'details': da_detail}
+        details['Workbook Validation'] = {'score': wv_score, 'max': 1.25, 'details': wv_detail}
     elif "Data Cleaning" in assignment_title and "Power Query" in assignment_title:
         wb_vals = openpyxl.load_workbook(file_path, data_only=True)
         dc_score, dc_detail = grade_data_cleaning(wb_vals); pq_score, pq_detail = grade_power_query(wb_vals)
@@ -428,7 +428,7 @@ def grade_excel_submission(file_path, assignment_title=""):
         score_s1, details_s1 = grade_excel_skill_1(wb)
         total_score = score_s1
         details['Excel Skill 1 (Q1-Q20)'] = {'score': score_s1, 'max': 10, 'details': details_s1}
-    max_m = 5 if ("Excel Skill 5" in assignment_title or "Excel Skill 6" in assignment_title or "IFERROR" in assignment_title or "DATE" in assignment_title) else 10
+    max_m = 5 if ("Excel Skill 5" in assignment_title or "Excel Skill 6" in assignment_title or "IFERROR" in assignment_title or "DATE" in assignment_title or "Excel Skill 2" in assignment_title or "Data Validation" in assignment_title) else 10
     final_score = round(min(total_score, max_m), 2)
     percentage = round((final_score / max_m) * 100, 1)
     return {'score': final_score, 'max': max_m, 'percentage': percentage, 'cheating_detected': False, 'details': details}
@@ -1100,7 +1100,7 @@ def grade_named_manager(wb):
             check = excel_auto_checker_skill2.check_named_range(wb, name, sheet_name, cell_range)
             correct = (check["status"] == "CORRECT")
             if correct:
-                score += excel_auto_checker_skill2.NAMED_MANAGER_MARKS / len(excel_auto_checker_skill2.NAMED_MANAGER_CHECKS)
+                score += (excel_auto_checker_skill2.NAMED_MANAGER_MARKS / len(excel_auto_checker_skill2.NAMED_MANAGER_CHECKS))
             details.append({
                 'task': name,
                 'correct': correct,
@@ -1108,7 +1108,7 @@ def grade_named_manager(wb):
             })
     except Exception as e:
         details.append({'error': str(e)})
-    return round(min(score, 2.5), 4), details
+    return round(min(score, 1.25), 4), details
 
 def grade_dropdown_basic(wb):
     score = 0; details = []
@@ -1120,16 +1120,16 @@ def grade_dropdown_basic(wb):
             ws = wb["DROPDOWN BASIC"]
             c5_check = excel_auto_checker_skill2.check_basic_c5(ws)
             c5_correct = (c5_check["status"] == "CORRECT")
-            if c5_correct: score += 1.25
+            if c5_correct: score += (excel_auto_checker_skill2.BASIC_DROPDOWN_MARKS / 2)
             details.append({'task': 'C5', 'correct': c5_correct, 'error': " | ".join(c5_check["issues"]) if not c5_correct else ""})
 
             c7_check = excel_auto_checker_skill2.check_basic_c7(ws, wb)
             c7_correct = (c7_check["status"] == "CORRECT")
-            if c7_correct: score += 1.25
+            if c7_correct: score += (excel_auto_checker_skill2.BASIC_DROPDOWN_MARKS / 2)
             details.append({'task': 'C7', 'correct': c7_correct, 'error': " | ".join(c7_check["issues"]) if not c7_correct else ""})
     except Exception as e:
         details.append({'error': str(e)})
-    return round(min(score, 2.5), 4), details
+    return round(min(score, 1.25), 4), details
 
 def grade_dropdown_advanced(wb):
     score = 0; details = []
@@ -1138,7 +1138,7 @@ def grade_dropdown_advanced(wb):
             check = excel_auto_checker_skill2.check_advanced_named_range(wb, name, sheet_name, cell_range)
             correct = (check["status"] == "CORRECT")
             if correct:
-                score += excel_auto_checker_skill2.ADVANCED_DROPDOWN_MARKS / 4
+                score += (0.625 / len(excel_auto_checker_skill2.ADVANCED_NAMED_RANGES))
             details.append({
                 'task': f'Named Range - {name}',
                 'correct': correct,
@@ -1152,16 +1152,16 @@ def grade_dropdown_advanced(wb):
             ws = wb["DROPDOWN ADVANCED"]
             c10_check = excel_auto_checker_skill2.check_advanced_c10(ws)
             c10_correct = (c10_check["status"] == "CORRECT")
-            if c10_correct: score += 0.625
+            if c10_correct: score += 0.3125
             details.append({'task': 'C10', 'correct': c10_correct, 'error': " | ".join(c10_check["issues"]) if not c10_correct else ""})
 
             c11_check = excel_auto_checker_skill2.check_advanced_c11(ws)
             c11_correct = (c11_check["status"] == "CORRECT")
-            if c11_correct: score += 0.625
+            if c11_correct: score += 0.3125
             details.append({'task': 'C11', 'correct': c11_correct, 'error': " | ".join(c11_check["issues"]) if not c11_correct else ""})
     except Exception as e:
         details.append({'error': str(e)})
-    return round(min(score, 2.5), 4), details
+    return round(min(score, 1.25), 4), details
 
 def grade_workbook_validation(wb):
     score = 0; details = []
@@ -1174,21 +1174,21 @@ def grade_workbook_validation(wb):
             ws = wb["DATA VALIDATION SKILL 2"]
             c5_check = excel_auto_checker_skill2.check_whole_number_c5(ws)
             c5_correct = (c5_check["status"] == "CORRECT")
-            if c5_correct: score += 0.8333
+            if c5_correct: score += (excel_auto_checker_skill2.DATA_VALIDATION_MARKS / 3)
             details.append({'task': 'C5 (Whole Number)', 'correct': c5_correct, 'error': " | ".join(c5_check["issues"]) if not c5_correct else ""})
 
             c7_check = excel_auto_checker_skill2.check_date_c7(ws)
             c7_correct = (c7_check["status"] == "CORRECT")
-            if c7_correct: score += 0.8333
+            if c7_correct: score += (excel_auto_checker_skill2.DATA_VALIDATION_MARKS / 3)
             details.append({'task': 'C7 (Date)', 'correct': c7_correct, 'error': " | ".join(c7_check["issues"]) if not c7_correct else ""})
 
             c9_check = excel_auto_checker_skill2.check_text_length_c9(ws)
             c9_correct = (c9_check["status"] == "CORRECT")
-            if c9_correct: score += 0.8334
+            if c9_correct: score += (excel_auto_checker_skill2.DATA_VALIDATION_MARKS / 3)
             details.append({'task': 'C9 (Text Length)', 'correct': c9_correct, 'error': " | ".join(c9_check["issues"]) if not c9_correct else ""})
     except Exception as e:
         details.append({'error': str(e)})
-    return round(min(score, 2.5), 4), details
+    return round(min(score, 1.25), 4), details
 
 def grade_vlookup(wb):
     score = 0; details = []
